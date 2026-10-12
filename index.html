@@ -266,7 +266,7 @@ var cur,next,i,champ,mine,db,tour,busy=false,log=[],plays=[],cms=[],allPlays=[],
 function shuffle(a){a=a.slice();for(var k=a.length-1;k>0;k--){var j=Math.floor(Math.random()*(k+1));var t=a[k];a[k]=a[j];a[j]=t}return a}
 function label(n){return n==2?"Final":n==4?"Semifinal":n==8?"Quarterfinal":"Round of "+n}
 function art(f){return f.img?'<img src="'+f.img+'" alt="'+f.n+'">':f.e}
-function fill(el,f){el.textContent="";var a=document.createElement("div");a.className="art";if(f.img){var im=document.createElement("img");im.src=f.img;im.alt=f.n;im.loading="lazy";im.onerror=function(){a.textContent=f.e||"🍽️"};a.appendChild(im)}else a.textContent=f.e||"🍽️";var n=document.createElement("div");n.className="name";n.textContent=f.n;el.appendChild(a);el.appendChild(n);el.setAttribute("aria-label","Pick "+f.n)}
+function fill(el,f){el.textContent="";var a=document.createElement("div");a.className="art";if(f.img){var im=document.createElement("img");im.alt=f.n;im.loading="lazy";im.decoding="async";im.fetchPriority="low";var settled=false;var fallback=setTimeout(function(){if(!settled){settled=true;im.remove();a.textContent=f.e||"🍽️"}},5000);im.onload=function(){settled=true;clearTimeout(fallback)};im.onerror=function(){settled=true;clearTimeout(fallback);im.remove();a.textContent=f.e||"🍽️"};im.src=f.img;a.appendChild(im)}else a.textContent=f.e||"🍽️";var n=document.createElement("div");n.className="name";n.textContent=f.n;el.appendChild(a);el.appendChild(n);el.setAttribute("aria-label","Pick "+f.n)}
 function show(id){["start","play","end"].forEach(function(s){$(s).classList.toggle("hide",s!==id)})}
 function start(t){tour=t||tour;cur=shuffle(tour.items);next=[];i=0;busy=false;log=[];show("play");render()}
 function render(){
