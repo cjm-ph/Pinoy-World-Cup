@@ -161,8 +161,8 @@ button{font:inherit;cursor:pointer}
       <select id="adminFood"></select>
       <label for="adminName">Food name</label>
       <input id="adminName" maxlength="100" placeholder="Food name">
-      <label for="adminDescription">Description</label>
-      <textarea id="adminDescription" rows="3" maxlength="500" placeholder="Short description"></textarea>
+      <div style="display:none"><label for="adminDescription">Description</label>
+      <textarea id="adminDescription" rows="3" maxlength="500" placeholder="Short description"></textarea></div>
       <label for="adminImage">Upload or replace photo</label>
       <input id="adminImage" type="file" accept="image/jpeg,image/png,image/webp">
       <img id="adminPreview" class="hide" alt="Current food photo preview">
@@ -179,7 +179,7 @@ button{font:inherit;cursor:pointer}
 
 <script>
 // To use photos later: set img to a data URL or an image path.
-function food(n,e,d,img){return {n:n,e:e,description:d||"",img:img||""}}
+function food(n,e,d,img){return {n:n,e:e,description:"",img:img||""}}
 function commons(file){return "https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(file)+"?width=720"}
 var FOODS=[
 food("Balut","🥚","필리핀의 대표적인 길거리 음식으로, 부화 직전 오리알을 삶아 먹습니다.",commons("Balut (Still Lives).jpg")),
@@ -261,7 +261,7 @@ var cur,next,i,champ,mine,db,tour,busy=false,log=[],plays=[],cms=[],allPlays=[],
 function shuffle(a){a=a.slice();for(var k=a.length-1;k>0;k--){var j=Math.floor(Math.random()*(k+1));var t=a[k];a[k]=a[j];a[j]=t}return a}
 function label(n){return n==2?"Final":n==4?"Semifinal":n==8?"Quarterfinal":"Round of "+n}
 function art(f){return f.img?'<img src="'+f.img+'" alt="'+f.n+'">':f.e}
-function fill(el,f){el.textContent="";var a=document.createElement("div");a.className="art";if(f.img){var im=document.createElement("img");im.src=f.img;im.alt=f.n;im.loading="lazy";im.onerror=function(){a.textContent=f.e||"🍽️"};a.appendChild(im)}else a.textContent=f.e||"🍽️";var n=document.createElement("div");n.className="name";n.textContent=f.n;el.appendChild(a);el.appendChild(n);if(f.description){var d=document.createElement("div");d.className="food-desc";d.textContent=f.description;el.appendChild(d)}el.setAttribute("aria-label","Pick "+f.n)}
+function fill(el,f){el.textContent="";var a=document.createElement("div");a.className="art";if(f.img){var im=document.createElement("img");im.src=f.img;im.alt=f.n;im.loading="lazy";im.onerror=function(){a.textContent=f.e||"🍽️"};a.appendChild(im)}else a.textContent=f.e||"🍽️";var n=document.createElement("div");n.className="name";n.textContent=f.n;el.appendChild(a);el.appendChild(n);el.setAttribute("aria-label","Pick "+f.n)}
 function show(id){["start","play","end"].forEach(function(s){$(s).classList.toggle("hide",s!==id)})}
 function start(t){tour=t||tour;cur=shuffle(tour.items);next=[];i=0;busy=false;log=[];show("play");render()}
 function render(){
