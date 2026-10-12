@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pinoy World Cup</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@600;800&display=swap">
+<style>
+:root{--bg:#fff7e0;--ink:#13234a;--blue:#0038a8;--red:#ce1126;--sun:#fcd116;--card:#ffffff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1630;--ink:#f6f1dc;--card:#18254d}}
+:root[data-theme="dark"]{--bg:#0d1630;--ink:#f6f1dc;--card:#18254d}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Nunito',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+.layout{width:100%;padding:0 8px;overflow-x:clip}
+main{width:100%;padding:16px 8px}
+.ad{display:none;width:160px;height:600px;position:sticky;top:16px;margin-top:16px;border:2px dashed color-mix(in srgb,var(--ink) 35%,transparent);border-radius:12px;place-items:center;text-align:center;font-size:.8rem;opacity:.6}
+.ad.l{justify-self:end}.ad.r{justify-self:start}
+@media (min-width:900px){.layout{display:grid;grid-template-columns:1fr minmax(0,720px) 1fr;gap:12px}.ad{display:grid}.slot{display:none}}
+.panel{margin-top:18px;background:var(--card);border:3px solid var(--ink);border-radius:20px;padding:14px}
+.panel h3{font-family:'Baloo 2',sans-serif;margin:0 0 8px;font-size:1.3rem}
+.rk{display:grid;grid-template-columns:110px 1fr 52px;gap:8px;align-items:center;margin:6px 0;font-weight:800;font-size:.95rem}
+.rk .t{height:16px;border-radius:8px;background:color-mix(in srgb,var(--ink) 12%,transparent);overflow:hidden}
+.rk .t i{display:block;height:100%;background:var(--blue)}
+.rk.me .t i{background:var(--red)}
+.rk span:last-child{text-align:right}
+input,textarea{width:100%;font:inherit;font-weight:600;padding:10px;border-radius:12px;border:2px solid var(--ink);background:var(--bg);color:var(--ink);margin-bottom:8px}
+.cm{border-top:2px solid color-mix(in srgb,var(--ink) 15%,transparent);padding:8px 0;font-weight:600;overflow-wrap:anywhere}
+.cm b{display:block;font-size:.85rem;opacity:.75}
+.note{font-size:.85rem;opacity:.75;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.tc{border:3px solid var(--ink);border-radius:22px;background:var(--card);color:var(--ink);padding:0;overflow:hidden;text-align:left;display:flex;flex-direction:column}
+.tc .mo{display:grid;grid-template-columns:1fr 1fr;aspect-ratio:1.6/1;font-size:2.2rem}
+.tc .mo span{display:grid;place-items:center}
+.tc .tt{padding:10px 12px 2px;font-family:'Baloo 2',sans-serif;font-weight:800;font-size:1.2rem;line-height:1.1}
+.tc .ss{padding:0 12px 10px;font-size:.85rem;font-weight:700;opacity:.75}
+.tc.soon{opacity:.6;justify-content:center;min-height:150px;border-style:dashed}
+.tc:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
+.tb{width:100%;border-collapse:collapse;font-weight:700;font-size:.9rem}
+.tb td,.tb th{padding:4px 6px;text-align:right;white-space:nowrap}
+.tb td:first-child,.tb th:first-child{text-align:left}
+.tb tr.me{color:var(--red)}
+#detail h4{margin:14px 0 6px;font-family:'Baloo 2',sans-serif;font-size:1.05rem}
+#detail svg{width:100%;height:auto;color:var(--ink)}
+@media (prefers-reduced-motion:no-preference){.tc{transition:transform .15s}.tc:hover{transform:translateY(-4px)}}
+h1,h2,.name{font-family:'Baloo 2','Nunito',system-ui,sans-serif;margin:0}
+h1{font-size:clamp(2rem,8vw,3rem);line-height:1;font-weight:800;color:var(--blue)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) h1{color:var(--sun)}}
+.stripe{height:8px;border-radius:4px;background:linear-gradient(90deg,var(--blue) 33%,var(--sun) 33% 66%,var(--red) 66%);margin:12px 0 18px}
+p{margin:.4rem 0 1rem;font-weight:600}
+button{font:inherit;cursor:pointer}
+.go{background:var(--red);color:#fff;border:0;border-radius:999px;padding:14px 28px;font-weight:800;font-size:1.1rem}
+.go:focus-visible,.pick:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
+.bar{display:flex;justify-content:space-between;align-items:baseline;font-weight:800;margin-bottom:10px}
+.round{font-family:'Baloo 2',sans-serif;font-size:1.6rem}
+.arena{display:grid;grid-template-columns:1fr 1fr;gap:12px;position:relative}
+.pick{border:0;border-radius:20px;padding:0;overflow:hidden;background:var(--card);color:var(--ink);box-shadow:0 0 0 3px var(--ink);text-align:center}
+.pick:active{transform:scale(.97)}
+.art{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:clamp(4rem,22vw,8rem)}
+.art img{width:100%;height:100%;object-fit:cover}
+.name{padding:10px 6px 14px;font-size:1.25rem;font-weight:800}
+.vs{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);background:var(--sun);color:#13234a;border:3px solid var(--ink);border-radius:50%;width:48px;height:48px;display:grid;place-items:center;font-family:'Baloo 2',sans-serif;font-weight:800;pointer-events:none}
+.winner .art{font-size:9rem;border-radius:24px}
+.win-card{background:var(--card);border:3px solid var(--ink);border-radius:24px;padding:16px;text-align:center}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+.alt{background:transparent;color:var(--ink);border:3px solid var(--ink);border-radius:999px;padding:12px 22px;font-weight:800}
+.hide{display:none}
+.slot{margin-top:18px;min-height:60px;border:2px dashed color-mix(in srgb,var(--ink) 35%,transparent);border-radius:12px;display:grid;place-items:center;font-size:.8rem;opacity:.6}
+@media (prefers-reduced-motion:no-preference){.pick{transition:transform .55s cubic-bezier(.2,.8,.2,1),opacity .45s ease}.vs{transition:opacity .3s}}
+.pick{position:relative}
+.nt .pick{transition:none!important}
+#a.win{transform:translateX(calc(50% + 6px)) scale(1.15);z-index:2}
+#b.win{transform:translateX(calc(-50% - 6px)) scale(1.15);z-index:2}
+#a.lose{transform:translateX(-130%);opacity:0}
+#b.lose{transform:translateX(130%);opacity:0}
+.arena:has(.win) .vs{opacity:0}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="ad l" aria-hidden="true">Ad<br>160×600<br>(left)</aside>
+<main>
+  <h1>Pinoy World Cup</h1>
+  <div class="stripe"></div>
+
+  <section id="start">
+    <p>Pick a tournament and crown your champion.</p>
+    <div id="grid" class="grid"></div>
+  </section>
+
+  <section id="play" class="hide">
+    <div class="bar"><button class="alt" id="quit" style="padding:4px 14px">Back</button><span class="round" id="round"></span><span id="count"></span></div>
+    <div class="arena">
+      <button class="pick" id="a"></button>
+      <button class="pick" id="b"></button>
+      <div class="vs">VS</div>
+    </div>
+  </section>
+
+  <section id="end" class="hide">
+    <div class="win-card winner">
+      <h2>Your champion</h2>
+      <div class="art" id="winArt"></div>
+      <div class="name" id="winName"></div>
+    </div>
+    <div class="row">
+      <button class="go" id="shareBtn">Share my result</button>
+      <button class="alt" id="again">Play again</button>
+      <button class="alt" id="home">All tournaments</button>
+    </div>
+    <p id="msg" style="text-align:center"></p>
+    <div class="panel">
+      <h3>All-time #1 ranking</h3>
+      <div id="rank" class="note">Loading...</div>
+    </div>
+    <div class="panel">
+      <h3>Detailed stats</h3>
+      <div id="detail" class="note">Loading...</div>
+    </div>
+    <div class="panel">
+      <h3>Comments</h3>
+      <input id="nick" maxlength="20" placeholder="Nickname" autocomplete="off">
+      <textarea id="txt" rows="3" maxlength="200" placeholder="Share your opinion. What's the best street food?"></textarea>
+      <button class="go" id="send">Post comment</button>
+      <p id="cmsg" class="note"></p>
+      <div id="list"></div>
+    </div>
+  </section>
+
+  <div class="slot" aria-hidden="true">Ad space (mobile)</div>
+</main>
+<aside class="ad r" aria-hidden="true">Ad<br>160×600<br>(right)</aside>
+</div>
+
+<script>
+// To use photos later: set img to a data URL or an image path.
+var FOODS=[
+{n:"Balut",e:"🥚"},{n:"Isaw",e:"🍢"},{n:"Kikiam",e:"🍡"},{n:"Banana Cue",e:"🍌"},
+{n:"Halo-Halo",e:"🍧"},{n:"Siopao",e:"🥟"},{n:"Fishball",e:"🍥"},{n:"Kwek-Kwek",e:"🍳"},
+{n:"Taho",e:"🥛"},{n:"Turon",e:"🌯"},{n:"Proben",e:"🍗"},{n:"Betamax",e:"🟫"},
+{n:"Chicharon",e:"🥓"},{n:"Mais",e:"🌽"},{n:"Dirty Ice Cream",e:"🍦"},{n:"Lugaw",e:"🍲"}
+];
+var TOURNAMENTS=[
+{id:"food",title:"Street Food",sub:"Isaw, balut, fishball and more",c:"#fcd116",items:FOODS},
+{id:"ulam",title:"Ulam Showdown",sub:"Adobo vs sinigang vs sisig",c:"#ce1126",items:[{n:"Adobo",e:"🍖"},{n:"Sinigang",e:"🍲"},{n:"Kare-Kare",e:"🥘"},{n:"Lechon",e:"🐖"},{n:"Sisig",e:"🍳"},{n:"Tinola",e:"🥣"},{n:"Pancit",e:"🍜"},{n:"Lumpia",e:"🥟"},{n:"Bicol Express",e:"🌶️"},{n:"Dinuguan",e:"🍛"},{n:"Pinakbet",e:"🥬"},{n:"Tapsilog",e:"🍚"},{n:"Longganisa",e:"🌭"},{n:"Bulalo",e:"🍵"},{n:"Crispy Pata",e:"🍗"},{n:"Laing",e:"🥗"}]},
+{id:"sweets",title:"Pinoy Desserts",sub:"Halo-halo, leche flan, bibingka",c:"#0038a8",items:[{n:"Halo-Halo",e:"🍧"},{n:"Leche Flan",e:"🍮"},{n:"Bibingka",e:"🥞"},{n:"Puto",e:"🧁"},{n:"Buko Pie",e:"🥧"},{n:"Ube Halaya",e:"🍠"},{n:"Sapin-Sapin",e:"🍰"},{n:"Mais con Yelo",e:"🌽"},{n:"Biko",e:"🍘"},{n:"Maja Blanca",e:"🥥"},{n:"Polvoron",e:"🍪"},{n:"Cassava Cake",e:"🎂"},{n:"Ube Pandesal",e:"🥐"},{n:"Taho",e:"🥛"},{n:"Turon",e:"🌯"},{n:"Banana Cue",e:"🍌"}]}
+];
+var $=function(i){return document.getElementById(i)};
+var cur,next,i,champ,mine,db,tour,busy=false,log=[],plays=[],cms=[],allPlays=[],allCms=[];
+function shuffle(a){a=a.slice();for(var k=a.length-1;k>0;k--){var j=Math.floor(Math.random()*(k+1));var t=a[k];a[k]=a[j];a[j]=t}return a}
+function label(n){return n==2?"Final":n==4?"Semifinal":n==8?"Quarterfinal":"Round of "+n}
+function art(f){return f.img?'<img src="'+f.img+'" alt="'+f.n+'">':f.e}
+function fill(el,f){el.innerHTML='<div class="art">'+art(f)+'</div><div class="name">'+f.n+'</div>';el.setAttribute("aria-label","Pick "+f.n)}
+function show(id){["start","play","end"].forEach(function(s){$(s).classList.toggle("hide",s!==id)})}
+function start(t){tour=t||tour;cur=shuffle(tour.items);next=[];i=0;busy=false;log=[];show("play");render()}
+function render(){
+  var ar=document.querySelector(".arena");ar.classList.add("nt");
+  ["a","b"].forEach(function(k){$(k).classList.remove("win","lose")});
+  void ar.offsetWidth;ar.classList.remove("nt");
+  $("round").textContent=label(cur.length);
+  $("count").textContent="Match "+(i/2+1)+" of "+cur.length/2;
+  fill($("a"),cur[i]);fill($("b"),cur[i+1]);
+}
+function pick(w){
+  if(busy)return;busy=true;
+  var rm=matchMedia("(prefers-reduced-motion:reduce)").matches;
+  $(w?"b":"a").classList.add("win");$(w?"a":"b").classList.add("lose");
+  setTimeout(function(){busy=false;choose(w)},rm?0:650);
+}
+function choose(w){
+  log.push(cur[i+w].n+"|"+cur[i+1-w].n);
+  next.push(cur[i+w]);i+=2;
+  if(i>=cur.length){
+    if(next.length===1){champ=next[0];finish();return}
+    cur=next;next=[];i=0;
+  }
+  render();
+}
+function finish(){
+  mine=champ.n;record();renderRank();renderComments();
+  show("end");$("winArt").innerHTML=art(champ);$("winName").textContent=champ.n;$("msg").textContent="";
+}
+function share(){
+  var text="My #1 in "+tour.title+": "+champ.n+"! What's yours? "+location.href;
+  var done=function(m){$("msg").textContent=m};
+  try{
+    if(navigator.share){navigator.share({text:text}).catch(function(){});return}
+    navigator.clipboard.writeText(text).then(function(){done("Copied! Paste it on Facebook.")},function(){done(text)});
+  }catch(e){done(text)}
+}
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+function pct(a,b){return b?(Math.round(a/b*1000)/10)+"%":"-"}
+function S(t,a){var e=document.createElementNS("http://www.w3.org/2000/svg",t);for(var k in a)e.setAttribute(k,a[k]);return e}
+function tbl(head,rows){var t=el("table","tb"),h=el("tr");head.forEach(function(x){h.appendChild(el("th",null,x))});t.appendChild(h);rows.forEach(function(r){var tr=el("tr",r[0]===mine?"me":"");r.forEach(function(c){tr.appendChild(el("td",null,c))});t.appendChild(tr)});var w=el("div");w.style.overflowX="auto";w.appendChild(t);return w}
+function renderDetail(){
+  var box=$("detail");box.textContent="";
+  if(!db){box.textContent="Stats are not available in this view.";return}
+  var P=allPlays.filter(function(x){return tour&&(x.tid||"food")===tour.id}).sort(function(a,b){return a.ts-b.ts});
+  if(!P.length){box.textContent="No data yet.";return}
+  var names=tour.items.map(function(f){return f.n}),win={},pl={},pw={},mp=0;
+  names.forEach(function(n){win[n]=0;pl[n]=0;pw[n]=0});
+  P.forEach(function(p){
+    if(win[p.champ]!=null)win[p.champ]++;
+    if(p.m){mp++;p.m.forEach(function(s){var a=s.split("|");if(pl[a[0]]!=null){pl[a[0]]++;pw[a[0]]++}if(pl[a[1]]!=null)pl[a[1]]++})}
+  });
+  var byWin=names.slice().sort(function(a,b){return win[b]-win[a]});
+  box.appendChild(el("h4",null,"Champion rate ("+P.length+" plays)"));
+  box.appendChild(tbl(["Item","Titles","Rate"],byWin.map(function(n){return[n,String(win[n]),pct(win[n],P.length)]})));
+  box.appendChild(el("h4",null,"1:1 pick rate"));
+  if(!mp){box.appendChild(el("p","note","Match data appears after the next plays."))}else{
+    var rate=function(n){return pl[n]?pw[n]/pl[n]:-1};
+    box.appendChild(tbl(["Item","Picked","Rate"],names.slice().sort(function(a,b){return rate(b)-rate(a)}).filter(function(n){return pl[n]}).map(function(n){return[n,pw[n]+" of "+pl[n],pct(pw[n],pl[n])]})));
+  }
+  box.appendChild(el("h4",null,"Rank trend (top 5)"));
+  if(P.length<2){box.appendChild(el("p","note","The chart appears after 2 plays."));return}
+  var top=byWin.slice(0,5),K=Math.min(P.length,12),marks=[],cnt={},rk={},cp=[],N=names.length;
+  for(var j=1;j<=K;j++)marks.push(Math.ceil(j*P.length/K));
+  names.forEach(function(n){cnt[n]=0});top.forEach(function(n){rk[n]=[]});
+  P.forEach(function(p,idx){
+    if(cnt[p.champ]!=null)cnt[p.champ]++;
+    if(marks.indexOf(idx+1)>-1){var ord=names.slice().sort(function(a,b){return cnt[b]-cnt[a]});top.forEach(function(n){rk[n].push(ord.indexOf(n)+1)});cp.push(idx+1)}
+  });
+  var W=340,H=210,px=30,py=16,cols=["#0038a8","#ce1126","#e08a00","#1b9e5a","#8a3ffc"];
+  var svg=S("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Rank trend chart"});
+  var X=function(q){return px+(W-2*px)*q/(cp.length-1)},Y=function(r){return py+(H-2*py-14)*(r-1)/(N-1)};
+  [1,Math.ceil(N/2),N].forEach(function(r){var t=S("text",{x:4,y:Y(r)+4,fill:"currentColor","font-size":10});t.textContent="#"+r;svg.appendChild(t);svg.appendChild(S("line",{x1:px-4,x2:W-px+4,y1:Y(r),y2:Y(r),stroke:"currentColor","stroke-opacity":.15}))});
+  top.forEach(function(n,k){
+    svg.appendChild(S("polyline",{points:rk[n].map(function(r,q){return X(q)+","+Y(r)}).join(" "),fill:"none",stroke:cols[k],"stroke-width":3,"stroke-linejoin":"round"}));
+    rk[n].forEach(function(r,q){svg.appendChild(S("circle",{cx:X(q),cy:Y(r),r:3.5,fill:cols[k]}))});
+  });
+  [[px,"start",cp[0]],[W-px,"end",cp[cp.length-1]]].forEach(function(a){var t=S("text",{x:a[0],y:H-2,fill:"currentColor","font-size":10,"text-anchor":a[1]});t.textContent="after "+a[2]+" plays";svg.appendChild(t)});
+  box.appendChild(svg);
+  var lg=el("div","note");top.forEach(function(n,k){var s=el("span",null,"\u25cf "+n+"  ");s.style.color=cols[k];s.style.fontWeight="800";lg.appendChild(s)});
+  box.appendChild(lg);
+}
+function renderRank(){renderDetail();renderRank0()}
+function renderRank0(){
+  plays=allPlays.filter(function(x){return tour&&(x.tid||"food")===tour.id}).map(function(x){return x.champ});
+  var box=$("rank");box.textContent="";
+  if(!db){box.textContent="Stats are not available in this view.";return}
+  if(!plays.length){box.textContent="No results yet. You are the first!";return}
+  var t={};plays.forEach(function(n){t[n]=(t[n]||0)+1});
+  var arr=Object.keys(t).map(function(k){return[k,t[k]]}).sort(function(a,b){return b[1]-a[1]}).slice(0,10);
+  var max=arr[0][1];
+  arr.forEach(function(r,idx){
+    var row=el("div","rk"+(r[0]===mine?" me":""));
+    row.appendChild(el("span",null,(idx+1)+". "+r[0]));
+    var tr=el("span","t"),b=el("i");b.style.width=Math.round(r[1]/max*100)+"%";tr.appendChild(b);row.appendChild(tr);
+    row.appendChild(el("span",null,Math.round(r[1]/plays.length*100)+"%"));
+    box.appendChild(row);
+  });
+  box.appendChild(el("p","note","Based on "+plays.length+" plays. Your pick is in red."));
+}
+function renderComments(){
+  cms=allCms.filter(function(c){return tour&&(c.tid||"food")===tour.id});
+  var box=$("list");box.textContent="";
+  if(!cms.length){box.appendChild(el("p","note","No comments yet."));return}
+  cms.forEach(function(c){var d=el("div","cm");d.appendChild(el("b",null,(c.name||"Anonymous")+(c.champ?" · picked #1: "+c.champ:"")));d.appendChild(el("span",null,c.text));if(c.ts)d.appendChild(el("div","note",new Date(c.ts).toLocaleString([],{year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})));box.appendChild(d)});
+}
+function record(){
+  if(!db)return;
+  db.collection("plays").add({champ:champ.n,tid:tour.id,m:log,ts:Date.now()}).catch(function(){});
+}
+function postComment(){
+  var text=$("txt").value.trim(),name=$("nick").value.trim();
+  if(!text||!db){$("cmsg").textContent=db?"Write something first.":"Comments are not available in this view.";return}
+  $("send").disabled=true;
+  db.collection("comments").add({name:name.slice(0,20),text:text.slice(0,200),champ:mine||"",tid:tour?tour.id:"food",ts:Date.now()}).then(function(){$("txt").value="";$("cmsg").textContent="Posted!"},function(){$("cmsg").textContent="Could not post. You may need contributor access."}).then(function(){$("send").disabled=false});
+}
+(async function(){
+  try{
+    if(!window.claude)return;
+    db=await claude.use("db");
+    if(!db){renderRank();return}
+    db.collection("plays").orderBy("ts","desc").limit(1000).onSnapshot(function(s){allPlays=s.docs.map(function(d){return d.data()});renderRank();buildGrid()},function(){});
+    db.collection("comments").orderBy("ts","desc").limit(200).onSnapshot(function(s){allCms=s.docs.map(function(d){return d.data()});renderComments()},function(){});
+  }catch(e){db=null}
+})();
+$("send").onclick=postComment;
+function goHome(){busy=false;show("start");buildGrid()}
+function buildGrid(){
+  var g=$("grid");g.textContent="";
+  TOURNAMENTS.forEach(function(t){
+    var b=el("button","tc"),mo=el("div","mo");mo.style.background=t.c;
+    t.items.slice(0,4).forEach(function(f){mo.appendChild(el("span",null,f.e))});
+    b.appendChild(mo);b.appendChild(el("div","tt",t.title));b.appendChild(el("div","ss",t.sub));
+    var n=allPlays.filter(function(x){return (x.tid||"food")===t.id}).length;
+    if(n)b.appendChild(el("div","ss",n+" plays"));
+    b.onclick=function(){start(t)};
+    g.appendChild(b);
+  });
+  var s=el("div","tc soon");s.appendChild(el("div","tt","More coming soon"));s.appendChild(el("div","ss","New tournaments are added regularly."));g.appendChild(s);
+}
+buildGrid();
+$("again").onclick=function(){start(tour)};$("home").onclick=goHome;$("quit").onclick=goHome;$("shareBtn").onclick=share;
+$("a").onclick=function(){pick(0)};$("b").onclick=function(){pick(1)};
+</script>
+</body>
+</html>
