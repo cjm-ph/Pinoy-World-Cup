@@ -59,7 +59,8 @@ button{font:inherit;cursor:pointer}
 .pick:active{transform:scale(.97)}
 .art{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:clamp(4rem,22vw,8rem)}
 .art img{width:100%;height:100%;object-fit:cover}
-.name{padding:10px 6px 14px;font-size:1.25rem;font-weight:800}
+.name{padding:10px 6px 4px;font-size:1.25rem;font-weight:800}
+.food-desc{padding:0 10px 12px;font-size:.82rem;line-height:1.3;font-weight:600;opacity:.82;min-height:2.8em}
 .vs{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);background:var(--sun);color:#13234a;border:3px solid var(--ink);border-radius:50%;width:48px;height:48px;display:grid;place-items:center;font-family:'Baloo 2',sans-serif;font-weight:800;pointer-events:none}
 .winner .art{font-size:9rem;border-radius:24px}
 .win-card{background:var(--card);border:3px solid var(--ink);border-radius:24px;padding:16px;text-align:center}
@@ -178,23 +179,89 @@ button{font:inherit;cursor:pointer}
 
 <script>
 // To use photos later: set img to a data URL or an image path.
+function food(n,e,d,img){return {n:n,e:e,description:d||"",img:img||""}}
+function commons(file){return "https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(file)+"?width=720"}
 var FOODS=[
-{n:"Balut",e:"🥚"},{n:"Isaw",e:"🍢"},{n:"Kikiam",e:"🍡"},{n:"Banana Cue",e:"🍌"},
-{n:"Halo-Halo",e:"🍧"},{n:"Siopao",e:"🥟"},{n:"Fishball",e:"🍥"},{n:"Kwek-Kwek",e:"🍳"},
-{n:"Taho",e:"🥛"},{n:"Turon",e:"🌯"},{n:"Proben",e:"🍗"},{n:"Betamax",e:"🟫"},
-{n:"Chicharon",e:"🥓"},{n:"Mais",e:"🌽"},{n:"Dirty Ice Cream",e:"🍦"},{n:"Lugaw",e:"🍲"}
+food("Balut","🥚","필리핀의 대표적인 길거리 음식으로, 부화 직전 오리알을 삶아 먹습니다.",commons("Balut (Still Lives).jpg")),
+food("Isaw","🍢","닭이나 돼지 내장을 손질해 꼬치에 끼워 구운 길거리 음식."),
+food("Kikiam","🍡","고기와 향신료를 넣어 만든 필리핀식 튀김 간식."),
+food("Banana Cue","🍌","바나나를 흑설탕과 함께 튀겨 꼬치에 꽂은 달콤한 간식."),
+food("Halo-Halo","🍧","얼음, 우베, 젤리, 콩, 과일과 우유를 섞어 먹는 빙수 디저트.",commons("Halo-Halo.jpg")),
+food("Siopao","🥟","고기소를 넣어 폭신하게 쪄낸 필리핀식 찐빵."),
+food("Fishball","🍥","생선살로 만든 동그란 어묵을 튀겨 소스에 찍어 먹습니다."),
+food("Kwek-Kwek","🍳","삶은 메추리알에 주황색 반죽을 입혀 튀긴 간식."),
+food("Taho","🥛","부드러운 두부 푸딩에 시럽과 사고 펄을 올린 아침 간식."),
+food("Turon","🌯","바나나와 잭프루트를 얇은 피에 싸서 바삭하게 튀긴 간식."),
+food("Proben","🍗","닭의 모래주머니 주변 부위를 튀겨 소스와 먹는 길거리 음식."),
+food("Betamax","🟫","굳힌 돼지 또는 닭 피를 네모나게 잘라 꼬치에 구운 음식."),
+food("Chicharon","🥓","돼지 껍질 등을 바삭하게 튀겨 만든 짭짤한 간식."),
+food("Mais","🌽","달콤한 옥수수 알갱이를 컵에 담아 먹는 간식."),
+food("Dirty Ice Cream","🍦","거리 카트에서 파는 필리핀식 수제 아이스크림."),
+food("Lugaw","🍲","생강과 마늘을 넣고 부드럽게 끓인 쌀죽."),
+food("Dynamite","🌶️","치즈를 채운 풋고추를 튀긴 매콤한 간식."),
+food("Puto Bumbong","🍠","보라색 찹쌀을 대나무 틀에 쪄 코코넛과 설탕을 곁들인 디저트."),
+food("Bibingka","🥮","쌀가루 반죽을 구워 달걀과 치즈 등을 곁들이는 전통 케이크.",commons("Bibingka.jpg")),
+food("Pancit Canton","🍜","채소와 고기 또는 해산물을 넣어 볶은 면 요리.",commons("Pancit Filipino Food at Night.jpg")),
+food("Lumpia","🥟","고기와 채소를 얇은 피에 말아 튀긴 필리핀식 스프링롤.",commons("Lumpiang togue.jpg"))
 ];
 var TOURNAMENTS=[
-{id:"food",title:"Street Food",sub:"Isaw, balut, fishball and more",c:"#fcd116",items:FOODS},
-{id:"ulam",title:"Ulam Showdown",sub:"Adobo vs sinigang vs sisig",c:"#ce1126",items:[{n:"Adobo",e:"🍖"},{n:"Sinigang",e:"🍲"},{n:"Kare-Kare",e:"🥘"},{n:"Lechon",e:"🐖"},{n:"Sisig",e:"🍳"},{n:"Tinola",e:"🥣"},{n:"Pancit",e:"🍜"},{n:"Lumpia",e:"🥟"},{n:"Bicol Express",e:"🌶️"},{n:"Dinuguan",e:"🍛"},{n:"Pinakbet",e:"🥬"},{n:"Tapsilog",e:"🍚"},{n:"Longganisa",e:"🌭"},{n:"Bulalo",e:"🍵"},{n:"Crispy Pata",e:"🍗"},{n:"Laing",e:"🥗"}]},
-{id:"sweets",title:"Pinoy Desserts",sub:"Halo-halo, leche flan, bibingka",c:"#0038a8",items:[{n:"Halo-Halo",e:"🍧"},{n:"Leche Flan",e:"🍮"},{n:"Bibingka",e:"🥞"},{n:"Puto",e:"🧁"},{n:"Buko Pie",e:"🥧"},{n:"Ube Halaya",e:"🍠"},{n:"Sapin-Sapin",e:"🍰"},{n:"Mais con Yelo",e:"🌽"},{n:"Biko",e:"🍘"},{n:"Maja Blanca",e:"🥥"},{n:"Polvoron",e:"🍪"},{n:"Cassava Cake",e:"🎂"},{n:"Ube Pandesal",e:"🥐"},{n:"Taho",e:"🥛"},{n:"Turon",e:"🌯"},{n:"Banana Cue",e:"🍌"}]}
+{id:"food",title:"Street Food",sub:"Filipino street-food favorites",c:"#fcd116",items:FOODS},
+{id:"ulam",title:"Ulam Showdown",sub:"Classic Filipino mains and comfort food",c:"#ce1126",items:[
+food("Adobo","🍖","간장, 식초, 마늘로 졸인 필리핀 대표 요리.",commons("Chicken adobo (Philippines).jpg")),
+food("Sinigang","🍲","타마린드 등으로 새콤하게 끓인 고기 또는 해산물 수프.",commons("1466Cuisine of Bulacan Sinigang 75.jpg")),
+food("Kare-Kare","🥘","땅콩 소스에 고기와 채소를 넣어 끓이고 바궁을 곁들이는 요리.",commons("Kare kare.jpg")),
+food("Lechon","🐖","통돼지를 천천히 구워 껍질을 바삭하게 만든 잔치 음식.",commons("Lechon belly.jpg")),
+food("Sisig","🍳","잘게 썬 돼지고기를 양파와 함께 뜨겁게 볶아 내는 요리.",commons("Spicy Sisig.jpg")),
+food("Tinola","🥣","닭고기, 생강, 파파야 또는 차요테를 넣은 맑은 국물 요리."),
+food("Pancit","🍜","축하 자리에서 자주 먹는 필리핀식 볶음면.",commons("Pancit Filipino Food at Night.jpg")),
+food("Lumpia","🥟","바삭한 피 안에 고기와 채소를 넣은 롤.",commons("Lumpiang togue.jpg")),
+food("Bicol Express","🌶️","돼지고기를 코코넛 밀크와 고추로 매콤하게 조린 요리.",commons("Bicol Express 2.jpg")),
+food("Dinuguan","🍛","돼지 내장과 피를 식초, 마늘, 고추로 조린 진한 요리."),
+food("Pinakbet","🥬","가지, 여주, 호박 등 채소를 바궁과 함께 익힌 요리.",commons("Bet na Bet Ang Pinakbet.jpg")),
+food("Tapsilog","🍚","소고기 타파, 마늘 볶음밥, 달걀을 함께 먹는 아침 식사.",commons("Beef Tapa with Egg.jpg")),
+food("Longganisa","🌭","지역별 양념이 다른 필리핀식 소시지."),
+food("Bulalo","🍵","소고기 사골과 옥수수, 채소를 오래 끓인 국물 요리."),
+food("Crispy Pata","🍗","돼지 족발을 삶은 뒤 튀겨 겉은 바삭하고 속은 부드럽게 만든 요리."),
+food("Laing","🥥","토란잎을 코코넛 밀크와 고추로 푹 익힌 비콜 지역 요리."),
+food("Chicken Inasal","🍗","칼라만시와 향신료 양념에 재워 구운 바콜로드식 닭고기.",commons("Bacolod Inasal.jpg")),
+food("Pork Menudo","🍲","돼지고기와 간, 감자, 당근을 토마토 소스에 조린 요리.",commons("Menudo Filipino Food.jpg")),
+food("Bistek Tagalog","🥩","간장과 칼라만시로 양념한 소고기에 양파를 올린 요리."),
+food("Paksiw na Bangus","🐟","밀크피시를 식초와 향신료로 조린 새콤한 요리."),
+food("Batchoy","🍜","돼지고기와 내장, 면을 넣은 일로일로식 국수.",commons("Batchoy.jpg")),
+food("Beef Pares","🍲","달콤짭짤한 소고기 조림을 밥과 맑은 국물에 곁들인 메뉴.",commons("Beef Pares.jpg"))]},
+{id:"sweets",title:"Pinoy Desserts",sub:"Sweet treats and merienda favorites",c:"#0038a8",items:[
+food("Halo-Halo","🍧","얼음과 우베, 젤리, 콩, 과일, 우유를 층층이 올린 디저트.",commons("Halo-Halo.jpg")),
+food("Leche Flan","🍮","달걀노른자와 연유로 만든 부드러운 캐러멜 커스터드.",commons("Leche flan.jpg")),
+food("Bibingka","🥮","쌀가루로 만들어 바나나 잎 위에서 구운 전통 케이크.",commons("Bibingka.jpg")),
+food("Puto","🧁","쌀가루를 쪄서 만든 폭신한 작은 케이크."),
+food("Buko Pie","🥧","어린 코코넛 과육을 넣어 구운 파이."),
+food("Ube Halaya","🍠","보라색 참마를 으깨 우유와 설탕으로 졸인 디저트."),
+food("Sapin-Sapin","🍰","색색의 찹쌀층을 겹쳐 코코넛을 곁들인 디저트."),
+food("Mais con Yelo","🌽","옥수수와 빙수 얼음, 우유를 섞은 시원한 디저트."),
+food("Biko","🍘","찹쌀과 코코넛 밀크, 흑설탕으로 만든 쫀득한 떡."),
+food("Maja Blanca","🥥","코코넛 밀크와 옥수수로 만든 부드러운 푸딩."),
+food("Polvoron","🍪","볶은 밀가루와 분유, 설탕을 섞어 만든 부서지기 쉬운 과자."),
+food("Cassava Cake","🎂","카사바와 코코넛 밀크로 구운 촉촉한 케이크."),
+food("Ube Pandesal","🥐","보라색 참마를 넣어 색과 향을 낸 부드러운 빵."),
+food("Taho","🥛","두부 푸딩과 시럽, 사고 펄을 곁들인 간식."),
+food("Turon","🌯","바나나와 잭프루트를 튀긴 달콤한 롤."),
+food("Banana Cue","🍌","흑설탕 코팅 바나나 꼬치."),
+food("Puto Bumbong","🍠","보라색 찹쌀을 쪄 코코넛과 설탕을 얹은 크리스마스 간식."),
+food("Pichi-Pichi","🟡","카사바로 만든 쫀득한 한입 디저트에 코코넛을 묻힌 음식."),
+food("Kutsinta","🟤","쫀득한 갈색 쌀떡에 강판 코코넛을 곁들인 간식."),
+food("Buko Pandan","🥥","어린 코코넛과 판단 젤리, 크림을 섞어 차게 먹는 디저트."),
+food("Mango Float","🥭","망고, 크림, 비스킷을 층층이 쌓아 차게 굳힌 디저트."),
+food("Ensaymada","🥐","버터와 치즈, 설탕을 얹은 부드러운 필리핀식 빵."),
+food("Pandesal","🍞","겉에 빵가루를 묻혀 구운 필리핀의 대표적인 아침 빵."),
+food("Suman","🍃","바나나 잎에 싸서 찐 찹쌀떡."),
+food("Suman sa Lihiya","🍃","바나나 잎에 싸서 찐 찹쌀떡으로 코코넛과 설탕을 곁들여 먹습니다.",commons("Suman sa lihiya.jpg"))]} 
 ];
 var $=function(i){return document.getElementById(i)};
 var cur,next,i,champ,mine,db,tour,busy=false,log=[],plays=[],cms=[],allPlays=[],allCms=[];
 function shuffle(a){a=a.slice();for(var k=a.length-1;k>0;k--){var j=Math.floor(Math.random()*(k+1));var t=a[k];a[k]=a[j];a[j]=t}return a}
 function label(n){return n==2?"Final":n==4?"Semifinal":n==8?"Quarterfinal":"Round of "+n}
 function art(f){return f.img?'<img src="'+f.img+'" alt="'+f.n+'">':f.e}
-function fill(el,f){el.innerHTML='<div class="art">'+art(f)+'</div><div class="name">'+f.n+'</div>';el.setAttribute("aria-label","Pick "+f.n)}
+function fill(el,f){el.textContent="";var a=document.createElement("div");a.className="art";if(f.img){var im=document.createElement("img");im.src=f.img;im.alt=f.n;im.loading="lazy";im.onerror=function(){a.textContent=f.e||"🍽️"};a.appendChild(im)}else a.textContent=f.e||"🍽️";var n=document.createElement("div");n.className="name";n.textContent=f.n;el.appendChild(a);el.appendChild(n);if(f.description){var d=document.createElement("div");d.className="food-desc";d.textContent=f.description;el.appendChild(d)}el.setAttribute("aria-label","Pick "+f.n)}
 function show(id){["start","play","end"].forEach(function(s){$(s).classList.toggle("hide",s!==id)})}
 function start(t){tour=t||tour;cur=shuffle(tour.items);next=[];i=0;busy=false;log=[];show("play");render()}
 function render(){
