@@ -179,7 +179,12 @@ button{font:inherit;cursor:pointer}
 
 <script>
 // To use photos later: set img to a data URL or an image path.
-function food(n,e,d,img){return {n:n,e:e,description:"",img:img||""}}
+function food(n,e,d,img){
+  // Use a dish-specific photo search for every item without a curated image.
+  // If the photo service cannot find/load one, the card falls back to its emoji.
+  var photo=img||("https://loremflickr.com/720/540/"+encodeURIComponent(n+", Filipino food"));
+  return {n:n,e:e,description:"",img:photo}
+}
 function commons(file){return "https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(file)+"?width=720"}
 var FOODS=[
 food("Balut","🥚","필리핀의 대표적인 길거리 음식으로, 부화 직전 오리알을 삶아 먹습니다.",commons("Balut (Still Lives).jpg")),
