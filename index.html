@@ -75,6 +75,18 @@ button{font:inherit;cursor:pointer}
 #a.lose{transform:translateX(-130%);opacity:0}
 #b.lose{transform:translateX(130%);opacity:0}
 .arena:has(.win) .vs{opacity:0}
+
+/* Supabase food editor */
+.admin-entry{margin:16px auto 4px;display:block;background:transparent;border:1px solid var(--ink);border-radius:999px;padding:8px 14px;color:var(--ink);font:inherit;font-weight:800}
+#foodAdmin{margin:14px 0;background:var(--card);border:3px solid var(--blue);border-radius:18px;padding:14px}
+#foodAdmin h3{margin:0 0 8px;font-family:'Baloo 2',sans-serif}
+#foodAdmin label{display:block;font-weight:800;margin:8px 0 4px}
+#foodAdmin input,#foodAdmin textarea,#foodAdmin select{width:100%;font:inherit;padding:10px;border:2px solid var(--ink);border-radius:10px;background:var(--bg);color:var(--ink);margin:0 0 8px}
+#foodAdmin button{border:0;border-radius:999px;padding:10px 14px;font:inherit;font-weight:800;background:var(--blue);color:#fff;margin:4px 4px 4px 0}
+#foodAdmin button.secondary{background:var(--ink)}
+#foodAdmin .admin-note{font-size:.9rem;overflow-wrap:anywhere}
+#foodAdmin img{max-width:140px;max-height:140px;object-fit:cover;border-radius:10px;display:block;margin:8px 0}
+
 </style>
 </head>
 <body>
@@ -126,6 +138,37 @@ button{font:inherit;cursor:pointer}
       <p id="cmsg" class="note"></p>
       <div id="list"></div>
     </div>
+  </section>
+
+
+  <button id="adminToggle" class="admin-entry" type="button">🔐 Admin / Edit Foods</button>
+  <section id="foodAdmin" class="hide" aria-label="Food administrator">
+    <h3>Food Content Manager</h3>
+    <p class="admin-note">Sign in with your Supabase admin account to edit food names, descriptions and photos.</p>
+    <div id="adminLogin">
+      <label for="adminEmail">Admin email</label>
+      <input id="adminEmail" type="email" autocomplete="username" placeholder="Your Supabase login email">
+      <label for="adminPassword">Password</label>
+      <input id="adminPassword" type="password" autocomplete="current-password" placeholder="Password">
+      <button id="adminSignIn" type="button">Sign in</button>
+    </div>
+    <div id="adminEditor" class="hide">
+      <p id="adminWho" class="admin-note"></p>
+      <label for="adminTournament">Tournament</label>
+      <select id="adminTournament"></select>
+      <label for="adminFood">Food item</label>
+      <select id="adminFood"></select>
+      <label for="adminName">Food name</label>
+      <input id="adminName" maxlength="100" placeholder="Food name">
+      <label for="adminDescription">Description</label>
+      <textarea id="adminDescription" rows="3" maxlength="500" placeholder="Short description"></textarea>
+      <label for="adminImage">Upload or replace photo</label>
+      <input id="adminImage" type="file" accept="image/jpeg,image/png,image/webp">
+      <img id="adminPreview" class="hide" alt="Current food photo preview">
+      <button id="adminSave" type="button">Save changes</button>
+      <button id="adminSignOut" type="button" class="secondary">Sign out</button>
+    </div>
+    <p id="adminStatus" class="admin-note" role="status"></p>
   </section>
 
   <div class="slot" aria-hidden="true">Ad space (mobile)</div>
@@ -296,5 +339,202 @@ buildGrid();
 $("again").onclick=function(){start(tour)};$("home").onclick=goHome;$("quit").onclick=goHome;$("shareBtn").onclick=share;
 $("a").onclick=function(){pick(0)};$("b").onclick=function(){pick(1)};
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  "use strict";
+  const SUPABASE_URL = "https://wdaosijlgcdgpfaoyfcv.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ydqIM7CvEL7YkFqWud39kg_ZrbAJfuo";
+  const ADMIN_UID = "55075fb6-6201-448c-a339-b23ecef38d70";
+  const BUCKET = "food-images";
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  const $id = id => document.getElementById(id);
+  const panel = $id("foodAdmin");
+  const status = $id("adminStatus");
+  let storedRows = [];
+  let currentUser = null;
+
+  function say(message, isError) {
+    status.textContent = message;
+    status.style.color = isError ? "#ce1126" : "";
+  }
+  function slug(s) {
+    return String(s || "").toLowerCase().trim()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+  function allTournaments() {
+    return Array.isArray(window.TOURNAMENTS) ? window.TOURNAMENTS : [];
+  }
+  function renderTournamentOptions() {
+    const sel = $id("adminTournament");
+    sel.textContent = "";
+    allTournaments().forEach(t => {
+      const op = document.createElement("option");
+      op.value = t.id; op.textContent = t.title; sel.appendChild(op);
+    });
+    renderFoodOptions();
+  }
+  function renderFoodOptions() {
+    const t = allTournaments().find(x => x.id === $id("adminTournament").value) || allTournaments()[0];
+    const sel = $id("adminFood");
+    sel.textContent = "";
+    if (!t) return;
+    t.items.forEach((food, index) => {
+      const op = document.createElement("option");
+      op.value = String(index);
+      op.textContent = food.n;
+      sel.appendChild(op);
+    });
+    loadSelectedFood();
+  }
+  function loadSelectedFood() {
+    const t = allTournaments().find(x => x.id === $id("adminTournament").value);
+    const food = t && t.items[Number($id("adminFood").value)];
+    if (!food) return;
+    if (!food._key) food._key = slug(food.n);
+    const key = food._key;
+    const row = storedRows.find(r => r.tournament_id === t.id && r.item_key === key);
+    $id("adminName").value = row ? row.name : food.n;
+    $id("adminDescription").value = row ? row.description : (food.description || "");
+    $id("adminImage").value = "";
+    const preview = $id("adminPreview");
+    const image = row && row.image_url ? row.image_url : food.img;
+    if (image) { preview.src = image; preview.classList.remove("hide"); }
+    else { preview.removeAttribute("src"); preview.classList.add("hide"); }
+  }
+  function applyRows(rows) {
+    storedRows = rows || [];
+    allTournaments().forEach(t => t.items.forEach(food => {
+      if (!food._key) food._key = slug(food.n);
+      const row = storedRows.find(r => r.tournament_id === t.id && r.item_key === food._key);
+      if (row) {
+        food.n = row.name || food.n;
+        food.description = row.description || "";
+        food.img = row.image_url || food.img || "";
+      }
+    }));
+    // Rebuild tournament cards after loading edited content.
+    if (typeof window.buildGrid === "function") window.buildGrid();
+    renderFoodOptions();
+  }
+  async function loadRows() {
+    const { data, error } = await client.from("pinoy_food_items").select("*");
+    if (error) throw error;
+    applyRows(data || []);
+  }
+  function updateAdminView(user) {
+    currentUser = user || null;
+    const isAdmin = !!user && user.id === ADMIN_UID;
+    $id("adminLogin").classList.toggle("hide", isAdmin);
+    $id("adminEditor").classList.toggle("hide", !isAdmin);
+    if (isAdmin) {
+      $id("adminWho").textContent = "Signed in: " + (user.email || "admin");
+      renderTournamentOptions();
+    }
+  }
+  async function restoreSession() {
+    const { data } = await client.auth.getSession();
+    const user = data && data.session ? data.session.user : null;
+    if (user && user.id === ADMIN_UID) {
+      updateAdminView(user);
+      try { await loadRows(); say("Food data loaded."); }
+      catch (e) { say("Could not load food data: " + e.message, true); }
+    } else {
+      updateAdminView(null);
+    }
+  }
+
+  $id("adminToggle").addEventListener("click", () => {
+    panel.classList.toggle("hide");
+    if (!panel.classList.contains("hide")) panel.scrollIntoView({behavior:"smooth", block:"start"});
+  });
+  $id("adminSignIn").addEventListener("click", async () => {
+    const email = $id("adminEmail").value.trim();
+    const password = $id("adminPassword").value;
+    if (!email || !password) { say("Enter your email and password.", true); return; }
+    say("Signing in...");
+    const { data, error } = await client.auth.signInWithPassword({email, password});
+    if (error) { say("Login failed: " + error.message, true); return; }
+    if (!data.user || data.user.id !== ADMIN_UID) {
+      await client.auth.signOut();
+      updateAdminView(null);
+      say("This account is not the authorized admin account.", true);
+      return;
+    }
+    updateAdminView(data.user);
+    try { await loadRows(); say("Signed in. Food data loaded."); }
+    catch (e) { say("Signed in, but data could not load: " + e.message, true); }
+  });
+  $id("adminSignOut").addEventListener("click", async () => {
+    await client.auth.signOut();
+    updateAdminView(null);
+    say("Signed out.");
+  });
+  $id("adminTournament").addEventListener("change", renderFoodOptions);
+  $id("adminFood").addEventListener("change", loadSelectedFood);
+
+  $id("adminSave").addEventListener("click", async () => {
+    if (!currentUser || currentUser.id !== ADMIN_UID) { say("Please sign in as admin.", true); return; }
+    const t = allTournaments().find(x => x.id === $id("adminTournament").value);
+    const food = t && t.items[Number($id("adminFood").value)];
+    if (!t || !food) { say("Choose a food item first.", true); return; }
+    if (!food._key) food._key = slug(food.n);
+    const originalKey = food._key;
+    const newName = $id("adminName").value.trim();
+    const description = $id("adminDescription").value.trim();
+    const file = $id("adminImage").files[0];
+    if (!newName) { say("Food name cannot be empty.", true); return; }
+    if (file && !["image/jpeg","image/png","image/webp"].includes(file.type)) {
+      say("Use JPG, PNG, or WebP images.", true); return;
+    }
+    if (file && file.size > 5 * 1024 * 1024) {
+      say("Image must be 5 MB or smaller.", true); return;
+    }
+    say("Saving...");
+    try {
+      let imageUrl = food.img || "";
+      if (file) {
+        const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+        const path = t.id + "/" + originalKey + "." + ext;
+        const { error: uploadError } = await client.storage.from(BUCKET).upload(path, file, {
+          upsert: true, contentType: file.type, cacheControl: "3600"
+        });
+        if (uploadError) throw uploadError;
+        const { data: publicData } = client.storage.from(BUCKET).getPublicUrl(path);
+        imageUrl = publicData.publicUrl + "?v=" + Date.now();
+      }
+      const row = {
+        id: t.id + ":" + originalKey,
+        tournament_id: t.id,
+        item_key: originalKey,
+        name: newName,
+        emoji: food.e || "",
+        description,
+        image_url: imageUrl,
+        updated_at: new Date().toISOString()
+      };
+      const { error: saveError } = await client.from("pinoy_food_items").upsert(row, {
+        onConflict: "tournament_id,item_key"
+      });
+      if (saveError) throw saveError;
+      // Apply edits to the live in-memory tournament as well.
+      food.n = newName;
+      food.description = description;
+      if (imageUrl) food.img = imageUrl;
+      await loadRows();
+      say("Saved successfully.");
+    } catch (e) {
+      say("Save failed: " + e.message, true);
+    }
+  });
+
+  // Apply saved content for all visitors; only the admin can write.
+  loadRows().catch(e => console.warn("Food overrides not loaded:", e.message));
+  restoreSession();
+})();
+</script>
+
 </body>
 </html>
