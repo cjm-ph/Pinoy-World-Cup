@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>관리자 페이지</title>
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.5.0/dist/umd/index.min.js"></script>
+</head>
+<body>
+  <h1>음식 사진 관리</h1>
+
+  <form id="upload-form">
+    <label>음식 이름: <input type="text" id="food-name" required></label><br>
+    <label>사진 파일: <input type="file" id="image-file" accept="image/*" required></label><br>
+    <button type="submit">업로드</button>
+  </form>
+
+  <p id="status"></p>
+
+  <script src="admin.js"></script>
+</body>
+</html>
