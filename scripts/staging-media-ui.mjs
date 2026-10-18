@@ -16,6 +16,7 @@ async function run(action) {
   finally { working=false; document.querySelectorAll('#stagingAdmin button').forEach(b=>b.disabled=false); }
 }
 async function refreshPublic() {
+  if(window.PWCStagingPublic) return window.PWCStagingPublic.refresh();
   const cups=await api.published();
   const publicCups=await Promise.all(cups.map(async cup => {
     const r=await api.revision(cup.revision_id);
@@ -39,6 +40,10 @@ async function loadSelected() {
   options('stagingSlot',[['cover','Cover'],...(revision.participants || []).map(p=>[p.id,p.name])]);
   const revisions=await api.table('tournament_revisions','id,tournament_id,state,version');
   options('stagingRollback',revisions.filter(r=>r.tournament_id===selected.id && r.state==='approved').map(r=>[r.id,`Version ${r.version} (${r.id})`]));
+  if($('stagingReadiness')) {
+    const active=(revision.participants || []).filter(p=>p.active);
+    $('stagingReadiness').textContent=`Active participants: ${active.length}; requested: ${revision.requested_size ?? 'unknown'}; unnamed: ${active.filter(p=>!p.name?.trim()).length}. Server validation and independent review are required.`;
+  }
   $('stagingRevision').textContent=`Revision: ${revision.id}; state: ${revision.state}. Published: ${selected.published_revision_id || 'none'}`;
   say(revision.state==='submitted' ? 'Waiting for a different authorized reviewer. Sign in with the reviewer account to approve.' : 'Admin access confirmed. Upload a new photo or review the current revision.');
 }
@@ -93,7 +98,7 @@ try {
   $('stagingPublish').onclick=()=>run(async()=>{if(revision?.state!=='approved') throw Error('Waiting for approval before publication.'); await transition('publish',revision.id);});
   $('stagingRestore').onclick=()=>run(()=>transition('rollback',$('stagingRollback').value));
   // Staging-only renderer: published images first, then the preserved original image.
-  window.art=f=>{
+  if(!window.PinoyAdapterV2) window.art=f=>{
     const img=document.createElement('img'); img.src=f.img || f._localPhoto || ''; img.alt=f.n; img.dataset.fallback=f.e || '';
     if(!img.getAttribute('src')) return window.photoAttribute(f.e || '');
     img.dataset.previous=f._imageFallback || '';

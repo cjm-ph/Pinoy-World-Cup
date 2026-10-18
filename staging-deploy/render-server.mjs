@@ -8,7 +8,7 @@ export function renderConfig(env) {
   return readStagingEnvironment({...env,PWC_STAGING_PORT:env.PORT || '10000'});
 }
 export function serveRender({ media, publicRoot }) {
-  const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.webp':'image/webp','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif'};
+  const types={'.css':'text/css; charset=utf-8','.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.webp':'image/webp','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif'};
   return createServer(async(req,res)=>{
     try {
       const url=new URL(req.url,'http://localhost');

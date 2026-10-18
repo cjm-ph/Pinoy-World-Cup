@@ -1,0 +1,6 @@
+﻿/* Home card information only; shared game views are untouched. */
+#start .home-card-body{padding:42px 12px 4px}
+#start .home-title-row{display:grid;grid-template-columns:minmax(0,1fr) 60px;align-items:center;gap:4px;pointer-events:none}
+#start .home-title{min-width:0;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;line-height:1.25;max-height:2.5em;pointer-events:auto}
+#start .home-details{width:60px;min-width:60px;min-height:44px;padding:0;border:0;border-radius:4px;background:transparent;font-size:11px;text-decoration:underline;text-underline-offset:3px;pointer-events:auto;box-sizing:border-box}
+@media(max-width:767px){#start .home-card-body{padding:32px 8px 2px}#start .home-title{font-size:12px;letter-spacing:0}}

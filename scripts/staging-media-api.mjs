@@ -3,7 +3,11 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
   if (gatewayOrigin !== pageOrigin || !/^https?:\/\//.test(pageOrigin)) throw Error('Use the same-origin Staging media gateway.');
   const rpc = async (name, args) => {
     const { data, error } = await client.schema('pwc41_api').rpc(name, args);
-    if (error) throw Error(`Request rejected: ${name}. Check your permissions and current revision.`);
+    if (error) {
+      // Only known diagnostic codes may leave this boundary; never message/details/hint.
+      const code = /^(PGRST[0-9]{3}|[0-9]{5})$/.test(error.code || '') ? error.code : 'RPC_FAILED';
+      throw Error(`Request rejected: ${name}${name === 'list_published' ? ' ['+code+']' : ''}. Check your permissions and current revision.`);
+    }
     return data;
   };
   const table = async (name, columns) => {
