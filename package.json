@@ -1,0 +1,12 @@
+{
+  "name": "pinoy-worldcup-staging",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "dependencies": {
+    "sharp": "0.35.5"
+  }
+}

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>STAGING — Pinoy World Cup</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@600;800&display=swap">
+<style>
+:root{--bg:#fff7e0;--ink:#13234a;--blue:#0038a8;--red:#ce1126;--sun:#fcd116;--card:#ffffff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1630;--ink:#f6f1dc;--card:#18254d}}
+:root[data-theme="dark"]{--bg:#0d1630;--ink:#f6f1dc;--card:#18254d}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Nunito',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+.layout{width:100%;padding:0 8px;overflow-x:clip}
+main{width:100%;padding:16px 8px}
+.ad{display:none;width:160px;height:600px;position:sticky;top:16px;margin-top:16px;border:2px dashed color-mix(in srgb,var(--ink) 35%,transparent);border-radius:12px;place-items:center;text-align:center;font-size:.8rem;opacity:.6}
+.ad.l{justify-self:end}.ad.r{justify-self:start}
+@media (min-width:900px){.layout{display:grid;grid-template-columns:1fr minmax(0,720px) 1fr;gap:12px}.ad{display:grid}.slot{display:none}}
+.panel{margin-top:18px;background:var(--card);border:3px solid var(--ink);border-radius:20px;padding:14px}
+.panel h3{font-family:'Baloo 2',sans-serif;margin:0 0 8px;font-size:1.3rem}
+.rk{display:grid;grid-template-columns:110px 1fr 52px;gap:8px;align-items:center;margin:6px 0;font-weight:800;font-size:.95rem}
+.rk .t{height:16px;border-radius:8px;background:color-mix(in srgb,var(--ink) 12%,transparent);overflow:hidden}
+.rk .t i{display:block;height:100%;background:var(--blue)}
+.rk.me .t i{background:var(--red)}
+.rk span:last-child{text-align:right}
+input,textarea{width:100%;font:inherit;font-weight:600;padding:10px;border-radius:12px;border:2px solid var(--ink);background:var(--bg);color:var(--ink);margin-bottom:8px}
+.cm{border-top:2px solid color-mix(in srgb,var(--ink) 15%,transparent);padding:8px 0;font-weight:600;overflow-wrap:anywhere}
+.cm b{display:block;font-size:.85rem;opacity:.75}
+.note{font-size:.85rem;opacity:.75;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.tc{border:3px solid var(--ink);border-radius:22px;background:var(--card);color:var(--ink);padding:0;overflow:hidden;text-align:left;display:flex;flex-direction:column}
+.tc .mo{display:grid;grid-template-columns:1fr 1fr;aspect-ratio:1.6/1;font-size:2.2rem}
+.tc .mo span{display:grid;place-items:center}
+.tc .tt{padding:10px 12px 2px;font-family:'Baloo 2',sans-serif;font-weight:800;font-size:1.2rem;line-height:1.1}
+.tc .ss{padding:0 12px 10px;font-size:.85rem;font-weight:700;opacity:.75}
+.tc.soon{opacity:.6;justify-content:center;min-height:150px;border-style:dashed}
+.tc:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
+.tb{width:100%;border-collapse:collapse;font-weight:700;font-size:.9rem}
+.tb td,.tb th{padding:4px 6px;text-align:right;white-space:nowrap}
+.tb td:first-child,.tb th:first-child{text-align:left}
+.tb tr.me{color:var(--red)}
+#detail h4{margin:14px 0 6px;font-family:'Baloo 2',sans-serif;font-size:1.05rem}
+#detail svg{width:100%;height:auto;color:var(--ink)}
+@media (prefers-reduced-motion:no-preference){.tc{transition:transform .15s}.tc:hover{transform:translateY(-4px)}}
+h1,h2,.name{font-family:'Baloo 2','Nunito',system-ui,sans-serif;margin:0}
+h1{font-size:clamp(2rem,8vw,3rem);line-height:1;font-weight:800;color:var(--blue)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) h1{color:var(--sun)}}
+.stripe{height:8px;border-radius:4px;background:linear-gradient(90deg,var(--blue) 33%,var(--sun) 33% 66%,var(--red) 66%);margin:12px 0 18px}
+p{margin:.4rem 0 1rem;font-weight:600}
+button{font:inherit;cursor:pointer}
+.go{background:var(--red);color:#fff;border:0;border-radius:999px;padding:14px 28px;font-weight:800;font-size:1.1rem}
+.go:focus-visible,.pick:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
+.bar{display:flex;justify-content:space-between;align-items:baseline;font-weight:800;margin-bottom:10px}
+.round{font-family:'Baloo 2',sans-serif;font-size:1.6rem}
+.arena{display:grid;grid-template-columns:1fr 1fr;gap:12px;position:relative}
+.pick{border:0;border-radius:20px;padding:0;overflow:hidden;background:var(--card);color:var(--ink);box-shadow:0 0 0 3px var(--ink);text-align:center}
+.pick:active{transform:scale(.97)}
+.art{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:clamp(4rem,22vw,8rem)}
+.art img{width:100%;height:100%;object-fit:cover}
+.name{padding:10px 6px 14px;font-size:1.25rem;font-weight:800}
+.vs{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);background:var(--sun);color:#13234a;border:3px solid var(--ink);border-radius:50%;width:48px;height:48px;display:grid;place-items:center;font-family:'Baloo 2',sans-serif;font-weight:800;pointer-events:none}
+.winner .art{font-size:9rem;border-radius:24px}
+.win-card{background:var(--card);border:3px solid var(--ink);border-radius:24px;padding:16px;text-align:center}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+.alt{background:transparent;color:var(--ink);border:3px solid var(--ink);border-radius:999px;padding:12px 22px;font-weight:800}
+.hide{display:none}
+.slot{margin-top:18px;min-height:60px;border:2px dashed color-mix(in srgb,var(--ink) 35%,transparent);border-radius:12px;display:grid;place-items:center;font-size:.8rem;opacity:.6}
+@media (prefers-reduced-motion:no-preference){.pick{transition:transform .55s cubic-bezier(.2,.8,.2,1),opacity .45s ease}.vs{transition:opacity .3s}}
+.pick{position:relative}
+.nt .pick{transition:none!important}
+#a.win{transform:translateX(calc(50% + 6px)) scale(1.15);z-index:2}
+#b.win{transform:translateX(calc(-50% - 6px)) scale(1.15);z-index:2}
+#a.lose{transform:translateX(-130%);opacity:0}
+#b.lose{transform:translateX(130%);opacity:0}
+.arena:has(.win) .vs{opacity:0}
+
+/* Supabase food editor */
+.admin-entry{margin:16px auto 4px;display:block;background:transparent;border:1px solid var(--ink);border-radius:999px;padding:8px 14px;color:var(--ink);font:inherit;font-weight:800}
+#foodAdmin{margin:14px 0;background:var(--card);border:3px solid var(--blue);border-radius:18px;padding:14px}
+#foodAdmin h3{margin:0 0 8px;font-family:'Baloo 2',sans-serif}
+#foodAdmin label{display:block;font-weight:800;margin:8px 0 4px}
+#foodAdmin input,#foodAdmin textarea,#foodAdmin select{width:100%;font:inherit;padding:10px;border:2px solid var(--ink);border-radius:10px;background:var(--bg);color:var(--ink);margin:0 0 8px}
+#foodAdmin button{border:0;border-radius:999px;padding:10px 14px;font:inherit;font-weight:800;background:var(--blue);color:#fff;margin:4px 4px 4px 0}
+#foodAdmin button.secondary{background:var(--ink)}
+#foodAdmin .admin-note{font-size:.9rem;overflow-wrap:anywhere}
+#foodAdmin img{max-width:140px;max-height:140px;object-fit:cover;border-radius:10px;display:block;margin:8px 0}
+
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="ad l" aria-hidden="true">Ad<br>160×600<br>(left)</aside>
+<main>
+  <h1>Pinoy World Cup</h1>
+  <div class="stripe"></div>
+
+  <section id="start">
+    <p>Pick a tournament and crown your champion.</p>
+    <div id="grid" class="grid"></div>
+  </section>
+
+  <section id="play" class="hide">
+    <div class="bar"><button class="alt" id="quit" style="padding:4px 14px">Back</button><span class="round" id="round"></span><span id="count"></span></div>
+    <div class="arena">
+      <button class="pick" id="a"></button>
+      <button class="pick" id="b"></button>
+      <div class="vs">VS</div>
+    </div>
+  </section>
+
+  <section id="end" class="hide">
+    <div class="win-card winner">
+      <h2>Your champion</h2>
+      <div class="art" id="winArt"></div>
+      <div class="name" id="winName"></div>
+    </div>
+    <div class="row">
+      <button class="go" id="shareBtn">Share my result</button>
+      <button class="alt" id="again">Play again</button>
+      <button class="alt" id="home">All tournaments</button>
+    </div>
+    <p id="msg" style="text-align:center"></p>
+    <div class="panel">
+      <h3>All-time #1 ranking</h3>
+      <div id="rank" class="note">Loading...</div>
+    </div>
+    <div class="panel">
+      <h3>Detailed stats</h3>
+      <div id="detail" class="note">Loading...</div>
+    </div>
+    <div class="panel">
+      <h3>Comments</h3>
+      <input id="nick" maxlength="20" placeholder="Nickname" autocomplete="off">
+      <textarea id="txt" rows="3" maxlength="200" placeholder="Share your opinion. What's the best street food?"></textarea>
+      <button class="go" id="send">Post comment</button>
+      <p id="cmsg" class="note"></p>
+      <div id="list"></div>
+    </div>
+  </section>
+
+
+  <section id="stagingAdmin" aria-label="Staging photo administration" style="padding:20px;border:2px solid #0038a8;border-radius:16px">
+<h2>Staging photo manager</h2><p>Test environment. Published photos are read-only for visitors.</p>
+<p id="stagingPublicStatus" role="status">Loading Staging content…</p>
+<label>Email <input id="stagingEmail" type="email" autocomplete="username"></label>
+<label>Password <input id="stagingPassword" type="password" autocomplete="current-password"></label>
+<button id="stagingSignIn">Sign in</button><button id="stagingSignOut">Sign out</button><button id="stagingRefresh">Refresh content</button>
+<p id="stagingStatus" role="status" aria-live="polite">Staging configuration required.</p>
+<label>Tournament <select id="stagingTournament"></select></label><p id="stagingRevision"></p>
+<label>Photo slot <select id="stagingSlot"></select></label>
+<label>New photo <input id="stagingFile" type="file" accept="image/jpeg,image/png,image/webp"></label><button id="stagingUpload">Upload new photo</button>
+<label><input id="stagingRightsAck" type="checkbox">I have verified permission to use this photo.</label>
+<label>Rights evidence <textarea id="stagingEvidence" placeholder="Source, license or permission details"></textarea></label><button id="stagingRights">Record usage rights</button>
+<button id="stagingReplace">Create replacement draft</button>
+<label><input id="stagingSubmitAck" type="checkbox">This draft is complete and ready for independent review.</label><button id="stagingSubmit">Submit for review</button>
+<button id="stagingApprove">Approve as separate reviewer</button><button id="stagingPublish">Publish approved revision</button>
+<label>Previous approved revision <select id="stagingRollback"></select></label><button id="stagingRestore">Restore selected publication</button>
+<details><summary>Previous publication reference</summary><pre id="stagingHistory"></pre></details>
+</section>
+
+  <div class="slot" aria-hidden="true">Ad space (mobile)</div>
+</main>
+<aside class="ad r" aria-hidden="true">Ad<br>160×600<br>(right)</aside>
+</div>
+
+<script src="scripts/modules/ranking.js"></script>
+<script src="scripts/modules/selection.js"></script>
+<script src="data/worldcups.js"></script>
+<script src="scripts/modules/data-loader.js"></script>
+<script src="scripts/modules/engine.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="scripts/staging-media-config.js"></script><script type="module" src="scripts/staging-media-ui.mjs"></script>
+
+<style>
+#roundSelection{width:calc(100% - 24px);max-width:620px;max-height:90dvh;overflow:auto;box-sizing:border-box;border:0;border-radius:26px;padding:0;background:var(--card);color:var(--ink);box-shadow:0 24px 80px #0005}
+#roundSelection::backdrop{background:#091b3bbf;backdrop-filter:blur(8px)}
+#roundHero{height:190px;position:relative;overflow:hidden;background:linear-gradient(135deg,#0038a8,#13234a);display:grid;place-items:center}
+#roundHero img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.round-emoji{font-size:42px;padding:24px;text-align:center}.round-body{padding:24px}
+.round-kicker{text-transform:uppercase;letter-spacing:2px;font-size:11px;font-weight:800;color:var(--blue)}
+#roundTitle{font-family:'Baloo 2',sans-serif;font-size:clamp(26px,6vw,36px);line-height:1.1;margin:10px 0}
+#roundNotice{font-size:14px;opacity:.75;line-height:1.6}.round-heading{font-size:16px;margin:24px 0 12px}
+#roundOptions{display:grid;grid-template-columns:1fr;gap:10px}.round-choice{position:relative;display:grid;grid-template-columns:22px 1fr;gap:4px 10px;align-items:center;border:2px solid color-mix(in srgb,var(--ink) 18%,transparent);border-radius:14px;padding:15px;cursor:pointer;transition:border-color .15s,background .15s}
+.round-choice:has(input:checked){border-color:var(--blue);background:color-mix(in srgb,var(--blue) 8%,var(--card))}.round-choice:focus-within{outline:3px solid var(--sun);outline-offset:3px}
+#roundOptions input{width:18px;height:18px;margin:0;accent-color:var(--blue);grid-row:1/3}.round-choice-title{font-size:15px;font-weight:800}.round-choice small{font-size:12px;opacity:.7;grid-column:2}
+.round-actions{display:flex;flex-direction:column;gap:10px;margin-top:24px}#roundSelection button{font:inherit;font-weight:800;border-radius:12px;padding:14px;cursor:pointer}
+#beginRound{border:0;background:var(--blue);color:#fff;box-shadow:0 5px 0 color-mix(in srgb,var(--blue) 70%,black)}#beginRound:disabled{opacity:.5;cursor:default;box-shadow:none}#cancelRound{border:1px solid color-mix(in srgb,var(--ink) 25%,transparent);background:transparent;color:var(--ink)}
+#roundEmpty{padding:16px;border-radius:12px;background:color-mix(in srgb,var(--sun) 16%,var(--card));font-size:14px}
+#expansionStatus{padding:8px 16px;text-align:center;font-size:12px;opacity:.65}[hidden]{display:none!important}
+@media(min-width:480px){#roundOptions{grid-template-columns:1fr 1fr}.round-actions{flex-direction:row}#beginRound{flex:2}#cancelRound{flex:1}#roundHero{height:230px}.round-body{padding:30px}}
+@media(prefers-reduced-motion:reduce){.round-choice{transition:none}}
+</style>
+<p id="expansionStatus" role="status">Practice mode · Global rankings are not connected.</p>
+<dialog id="roundSelection" aria-labelledby="roundTitle" aria-describedby="roundNotice">
+<div id="roundHero"></div><div class="round-body"><span id="roundKicker" class="round-kicker">Your picks. Your champion.</span>
+<h2 id="roundTitle"></h2><p id="roundNotice"></p><h3 id="roundHeading" class="round-heading">Choose your starting round</h3>
+<div id="roundOptions" role="radiogroup" aria-label="Starting round"></div>
+<p id="roundEmpty" hidden>This World Cup is coming soon. Try a food tournament while we prepare the lineup.</p>
+<div class="round-actions"><button id="beginRound" type="button">Start Tournament</button><button id="cancelRound" type="button">Back</button></div>
+</div></dialog><script src="scripts/modules/round-ui.js"></script>
+</body>
+</html>
