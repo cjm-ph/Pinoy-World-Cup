@@ -37,8 +37,8 @@ async function loadSelected() {
   if(!rid) { revision=null; throw Error('No revision is available. Prepare a Staging tournament draft first.'); }
   revision=await api.revision(rid);
   options('stagingSlot',[['cover','Cover'],...(revision.participants || []).map(p=>[p.id,p.name])]);
-  const revisions=await api.table('tournament_revisions','id,tournament_id,state,version');
-  options('stagingRollback',revisions.filter(r=>r.tournament_id===selected.id && r.state==='approved').map(r=>[r.id,`Version ${r.version} (${r.id})`]));
+  const revisions=selected.approved_revisions;
+  options('stagingRollback',revisions.map(r=>[r.id,`Version ${r.version} (${r.id})`]));
   if($('stagingReadiness')) {
     const active=(revision.participants || []).filter(p=>p.active);
     $('stagingReadiness').textContent=`Active participants: ${active.length}; requested: ${revision.requested_size ?? 'unknown'}; unnamed: ${active.filter(p=>!p.name?.trim()).length}. Server validation and independent review are required.`;
@@ -53,13 +53,8 @@ async function refreshAdmin() {
   const {data}=await client.auth.getSession();
   $('stagingSignOut').hidden=!data.session;
   if(!data.session) { say('Sign in with an authorized Staging administrator account.'); return; }
-  const candidates=await api.table('tournaments','id,draft_revision_id,published_revision_id,edit_version,visibility');
-  const allowed=[];
-  for(const t of candidates.filter(t=>['private','public'].includes(t.visibility))) {
-    try { await api.authorize(t.id); allowed.push(t); } catch { /* Fail closed: no candidate details rendered. */ }
-  }
-  if(!allowed.length) throw Error('No authorized editable tournament is available. Administrator access and enabled Staging management are required.');
-  tournaments=allowed;
+  tournaments=await api.adminCatalog();
+  if(!tournaments.length) { say('No editable Staging tournaments are available.'); return; }
   options('stagingTournament',tournaments.map(t=>[t.id,t.id]));
   if(chosen && tournaments.some(t=>t.id===chosen)) $('stagingTournament').value=chosen;
   await loadSelected();

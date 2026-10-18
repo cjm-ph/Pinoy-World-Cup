@@ -1,4 +1,13 @@
 export const STAGING_URL = 'https://cmnomqsurdwhdbjgnsvw.supabase.co';
+export function adminReadError(error) {
+  const code=error?.code;
+  const message=code==='PT401' || code==='PGRST301' || code==='PGRST303'
+    ? 'Your session has expired. Sign in again.'
+    : code==='PT403' || code==='42501' ? 'Administrator access is required. Check account provisioning and membership.'
+    : code==='PT423' ? 'Staging photo management is disabled. Contact the site operator.'
+    : 'Administrator data is unavailable. Contact the site operator.';
+  return Error(message);
+}
 export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = fetch, uuid = () => crypto.randomUUID() }) {
   if (gatewayOrigin !== pageOrigin || !/^https?:\/\//.test(pageOrigin)) throw Error('Use the same-origin Staging media gateway.');
   const rpc = async (name, args) => {
@@ -10,10 +19,13 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
     }
     return data;
   };
-  const table = async (name, columns) => {
-    const { data, error } = await client.schema('pwc41').from(name).select(columns);
-    if (error) throw Error('Content unavailable. Check Staging access settings.');
-    return data;
+  const adminCatalog = async () => {
+    let response;
+    try { response=await client.schema('pwc41_api').rpc('admin_media_catalog',{}); }
+    catch { throw adminReadError(); }
+    if(response.error) throw adminReadError(response.error);
+    if(!Array.isArray(response.data) || response.data.some(t=>!t || typeof t.id!=='string' || !Array.isArray(t.approved_revisions))) throw adminReadError();
+    return response.data;
   };
   async function mutation(path, args, body) {
     const { data, error } = await client.auth.getSession();
@@ -26,7 +38,7 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
     return response.json();
   }
   return {
-    rpc, table,
+    rpc, adminCatalog,
     authorize: tid => rpc('admin_media_assert_owner', { tid }),
     published: () => rpc('list_published', {}),
     revision: rid => rpc('get_revision', { rid }),
