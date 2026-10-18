@@ -77,11 +77,12 @@ export async function prepareStagingView(original) {
     const client=window.supabase.createClient(STAGING_URL,config.publishableKey,{auth:{storageKey:'pwc-staging-auth'}});
     const api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin});
     const result=await mergePublishedView(original,api);
-    status.textContent=result.count ? 'Published Staging tournaments loaded.' : 'No published Staging tournaments. Showing practice content.';
+    status.textContent=result.count ? '' : 'No published World Cups yet. Enjoy our practice World Cups.';
+    status.hidden=!!result.count;
     return result.view;
   } catch(error) {
-    const code=/\[(PGRST[0-9]{3}|[0-9]{5}|RPC_FAILED|INVALID_RESPONSE)\]/.exec(error.message || '')?.[1] || 'CONTENT_UNAVAILABLE';
-    status.textContent=`Staging content unavailable [${code}]. Practice content remains available.`;
+    status.hidden=false;
+    status.textContent='World Cups are temporarily unavailable. You can still enjoy practice World Cups.';
     return original;
   }
 }

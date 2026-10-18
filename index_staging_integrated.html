@@ -157,24 +157,7 @@ button{font:inherit;cursor:pointer}
 
 
 
-<section id="stagingAdmin" aria-label="Staging photo administration" style="padding:20px;border:2px solid #0038a8;border-radius:16px">
-<h2>Staging photo manager</h2><p>Test environment. Published photos are read-only for visitors.</p>
-<p id="stagingPublicStatus" role="status">Loading Staging content…</p>
-<label>Email <input id="stagingEmail" type="email" autocomplete="username"></label>
-<label>Password <input id="stagingPassword" type="password" autocomplete="current-password"></label>
-<button id="stagingSignIn">Sign in</button><button id="stagingSignOut">Sign out</button><button id="stagingRefresh">Refresh content</button>
-<p id="stagingStatus" role="status" aria-live="polite">Staging configuration required.</p>
-<label>Tournament <select id="stagingTournament"></select></label><p id="stagingRevision"></p><p id="stagingReadiness" role="status"></p>
-<label>Photo slot <select id="stagingSlot"></select></label>
-<label>New photo <input id="stagingFile" type="file" accept="image/jpeg,image/png,image/webp"></label><button id="stagingUpload">Upload new photo</button>
-<label><input id="stagingRightsAck" type="checkbox">I have verified permission to use this photo.</label>
-<label>Rights evidence <textarea id="stagingEvidence" placeholder="Source, license or permission details"></textarea></label><button id="stagingRights">Record usage rights</button>
-<button id="stagingReplace">Create replacement draft</button>
-<label><input id="stagingSubmitAck" type="checkbox">This draft is complete and ready for independent review.</label><button id="stagingSubmit">Submit for review</button>
-<button id="stagingApprove">Approve as separate reviewer</button><button id="stagingPublish">Publish approved revision</button>
-<label>Previous approved revision <select id="stagingRollback"></select></label><button id="stagingRestore">Restore selected publication</button>
-<details><summary>Previous publication reference</summary><pre id="stagingHistory"></pre></details>
-</section>
+<p id="stagingPublicStatus" role="status" aria-live="polite">Loading tournaments?</p>
 </main>
 
 </div>
@@ -221,6 +204,6 @@ button{font:inherit;cursor:pointer}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="scripts/staging-media-config.js"></script>
 <script src="scripts/staging-adapter-bootstrap.js"></script>
-<script type="module" src="scripts/staging-integrated-init.mjs"></script>
+
 </body>
 </html>

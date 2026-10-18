@@ -4,7 +4,7 @@ export const publicFiles = [
   "scripts/content_view_adapter_v2.js",
   "scripts/staging-adapter-bootstrap.js",
   "scripts/staging-media-config.js",
-  "scripts/staging-integrated-init.mjs",
+  "admin_staging.html",
   "content_contract/v2/static_content_snapshot.js",
   "scripts/modules/ranking.js",
   "scripts/modules/selection.js",

@@ -1,8 +1,21 @@
-import { createMediaApi, STAGING_URL, publishedItem } from './staging-media-api.mjs';
+import { createMediaApi, STAGING_URL } from './staging-media-api.mjs';
 const $ = id => document.getElementById(id);
 const status = $('stagingStatus');
 let api, client, tournaments=[], selected, revision, asset, previousPublication, working=false;
-const originals = structuredClone(window.TOURNAMENTS);
+let authorized=false, accessEpoch=0;
+function lock() {
+  accessEpoch++; authorized=false; selected=revision=asset=null; tournaments=[];
+  $('stagingManagement').hidden=true; $('stagingLogin').hidden=false;
+  for(const id of ['stagingTournament','stagingSlot','stagingRollback']) options(id,[]);
+  for(const id of ['stagingRevision','stagingReadiness','stagingHistory']) $(id).textContent='';
+  $('stagingFile').value=''; $('stagingEvidence').value='';
+  $('stagingRightsAck').checked=$('stagingSubmitAck').checked=false;
+}
+async function guard() {
+  const {data}=await client.auth.getSession();
+  if(!data.session || !authorized || !selected) { lock(); throw Error('Sign in with an authorized Staging administrator account.'); }
+  try { await api.authorize(selected.id); } catch { lock(); throw Error('Management access is unavailable. Check your administrator access and Staging availability.'); }
+}
 const say = message => { status.textContent=message; };
 function options(id, rows) {
   $(id).replaceChildren(...rows.map(([value,label]) => { const o=document.createElement('option'); o.value=value; o.textContent=label; return o; }));
@@ -12,28 +25,14 @@ async function run(action) {
   working=true;
   document.querySelectorAll('#stagingAdmin button').forEach(b=>b.disabled=true);
   say('Loading…');
-  try { await action(); } catch(e) { say(e.message || 'Request failed. Please refresh before retrying.'); }
+  try { await action(); } catch(e) { if(!authorized) lock(); say(e.message || 'Request failed. Please refresh before retrying.'); }
   finally { working=false; document.querySelectorAll('#stagingAdmin button').forEach(b=>b.disabled=false); }
-}
-async function refreshPublic() {
-  if(window.PWCStagingPublic) return window.PWCStagingPublic.refresh();
-  const cups=await api.published();
-  const publicCups=await Promise.all(cups.map(async cup => {
-    const r=await api.revision(cup.revision_id);
-    const old=originals.find(t=>t.id===cup.id);
-    return { ...old, id:cup.id, title:cup.title, sub:cup.description || '', c:old?.c || '#0038a8',
-      cover_image:cup.cover_asset_id ? api.mediaUrl(cup.cover_asset_id) : old?.cover_image || '',
-      items:(r.participants || []).filter(p=>p.active).map(p=>publishedItem({...p,name:window.photoAttribute(p.name),emoji:window.photoAttribute(p.emoji || '')},old?.items.find(i=>i.id===p.id),api.mediaUrl)) };
-  }));
-  window.TOURNAMENTS.splice(0,window.TOURNAMENTS.length,...publicCups);
-  window.buildGrid?.();
-  $('stagingPublicStatus').textContent=publicCups.length ? 'Published Staging food tournaments loaded.' : 'No published Staging tournaments yet.';
 }
 async function loadSelected() {
   selected=tournaments.find(t=>t.id===$('stagingTournament').value);
   asset=null;
   if (!selected) { revision=null; say('No editable tournament is available.'); return; }
-  await api.authorize(selected.id); // Server authority + runtime gate, never a browser UID allowlist.
+  try { await api.authorize(selected.id); } catch(e) { lock(); throw e; } // Server authority + runtime gate, never a browser UID allowlist.
   const rid=selected.draft_revision_id || selected.published_revision_id;
   if(!rid) { revision=null; throw Error('No revision is available. Prepare a Staging tournament draft first.'); }
   revision=await api.revision(rid);
@@ -48,17 +47,30 @@ async function loadSelected() {
   say(revision.state==='submitted' ? 'Waiting for a different authorized reviewer. Sign in with the reviewer account to approve.' : 'Admin access confirmed. Upload a new photo or review the current revision.');
 }
 async function refreshAdmin() {
-  tournaments=await api.table('tournaments','id,draft_revision_id,published_revision_id,edit_version,visibility');
   const chosen=selected?.id;
-  options('stagingTournament',tournaments.filter(t=>['private','public'].includes(t.visibility)).map(t=>[t.id,t.id]));
-  if (chosen && tournaments.some(t=>t.id===chosen)) $('stagingTournament').value=chosen;
+  lock();
+  const epoch=accessEpoch;
+  const {data}=await client.auth.getSession();
+  $('stagingSignOut').hidden=!data.session;
+  if(!data.session) { say('Sign in with an authorized Staging administrator account.'); return; }
+  const candidates=await api.table('tournaments','id,draft_revision_id,published_revision_id,edit_version,visibility');
+  const allowed=[];
+  for(const t of candidates.filter(t=>['private','public'].includes(t.visibility))) {
+    try { await api.authorize(t.id); allowed.push(t); } catch { /* Fail closed: no candidate details rendered. */ }
+  }
+  if(!allowed.length) throw Error('No authorized editable tournament is available. Administrator access and enabled Staging management are required.');
+  tournaments=allowed;
+  options('stagingTournament',tournaments.map(t=>[t.id,t.id]));
+  if(chosen && tournaments.some(t=>t.id===chosen)) $('stagingTournament').value=chosen;
   await loadSelected();
+  if(epoch!==accessEpoch) return;
+  authorized=true; $('stagingManagement').hidden=false; $('stagingLogin').hidden=true;
 }
 async function transition(name,rid) {
   if (!selected || !rid) throw Error('Select an available revision first.');
   await api.authorize(selected.id);
   await api.transition(name,selected,rid);
-  await refreshAdmin(); await refreshPublic(); say(`${name === 'rollback' ? 'Previous publication restored' : name === 'publish' ? 'Revision published' : 'Revision approved'}.`);
+  await refreshAdmin(); say(`${name === 'rollback' ? 'Previous publication restored' : name === 'publish' ? 'Revision published' : 'Revision approved'}.`);
 }
 try {
   const config=window.PWC_STAGING;
@@ -66,13 +78,14 @@ try {
   client=window.supabase.createClient(STAGING_URL,config.publishableKey,{auth:{storageKey:'pwc-staging-auth'}});
   api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin});
   $('stagingSignIn').onclick=()=>run(async()=>{
+    lock();
     const {error}=await client.auth.signInWithPassword({email:$('stagingEmail').value.trim(),password:$('stagingPassword').value});
     $('stagingPassword').value='';
     if(error) throw Error('Sign-in failed. Check your Staging account.');
     await refreshAdmin();
   });
-  $('stagingSignOut').onclick=()=>run(async()=>{await client.auth.signOut(); selected=revision=asset=null; tournaments=[]; options('stagingTournament',[]); $('stagingRevision').textContent=''; say('Signed out. Visitor access only.');});
-  $('stagingRefresh').onclick=()=>run(async()=>{await refreshPublic(); const {data}=await client.auth.getSession(); if(data.session) await refreshAdmin(); else say('Sign in with an authorized Staging admin account.');});
+  $('stagingSignOut').onclick=()=>run(async()=>{lock(); $('stagingSignOut').hidden=true; const {error}=await client.auth.signOut(); if(error) throw Error('Sign-out failed. Close this page and retry.'); say('Signed out.');});
+  $('stagingRefresh').onclick=()=>run(refreshAdmin);
   $('stagingTournament').onchange=()=>run(loadSelected);
   $('stagingUpload').onclick=()=>run(async()=>{
     if(!selected) throw Error('Select a tournament and confirm admin access first.');
@@ -89,7 +102,7 @@ try {
   });
   $('stagingReplace').onclick=()=>run(async()=>{
     if(!selected || !asset) throw Error('Upload and verify a photo first.');
-    previousPublication={revision:selected.published_revision_id, urls:window.TOURNAMENTS.find(t=>t.id===selected.id)?.items.map(p=>({id:p.id,url:p.img})) || []};
+    previousPublication={revision:selected.published_revision_id};
     const result=await api.replace(selected,asset,$('stagingSlot').value);
     await refreshAdmin(); $('stagingHistory').textContent=JSON.stringify(previousPublication); say(`Replacement draft created: ${result.revision_id}. Existing publication is preserved.`);
   });
@@ -97,13 +110,11 @@ try {
   $('stagingApprove').onclick=()=>run(async()=>{const {data}=await client.auth.getUser(); if(!revision || revision.state!=='submitted' || !data.user || revision.submitted_by===data.user.id) throw Error('Waiting for a different authorized reviewer. Self-approval is unavailable.'); await transition('approve',revision.id);});
   $('stagingPublish').onclick=()=>run(async()=>{if(revision?.state!=='approved') throw Error('Waiting for approval before publication.'); await transition('publish',revision.id);});
   $('stagingRestore').onclick=()=>run(()=>transition('rollback',$('stagingRollback').value));
-  // Staging-only renderer: published images first, then the preserved original image.
-  if(!window.PinoyAdapterV2) window.art=f=>{
-    const img=document.createElement('img'); img.src=f.img || f._localPhoto || ''; img.alt=f.n; img.dataset.fallback=f.e || '';
-    if(!img.getAttribute('src')) return window.photoAttribute(f.e || '');
-    img.dataset.previous=f._imageFallback || '';
-    img.setAttribute('onerror',"if(this.dataset.previous){this.src=this.dataset.previous;this.dataset.previous='';}else{this.replaceWith(document.createTextNode(this.dataset.fallback));}");
-    return img.outerHTML;
-  };
-  await run(async()=>{await refreshPublic(); const {data}=await client.auth.getSession(); if(data.session) await refreshAdmin(); else say('Visitor mode. Sign in to manage photos.');});
-} catch(e) { say(e.message); $('stagingPublicStatus').textContent='Staging content unavailable. Existing practice photos remain available.'; }
+  // Every management handler rechecks the session and server authority.
+  for(const id of ['stagingUpload','stagingRights','stagingReplace','stagingSubmit','stagingApprove','stagingPublish','stagingRestore']) {
+    const handler=$(id).onclick;
+    $(id).onclick=async()=>{ if(working) return; try { await guard(); } catch(e) { say(e.message); return; } return handler(); };
+  }
+  client.auth.onAuthStateChange?.((event)=>{ if(event==='SIGNED_OUT' || event==='SIGNED_IN' || event==='TOKEN_REFRESHED') { lock(); setTimeout(()=>run(refreshAdmin),0); } });
+  await run(refreshAdmin);
+} catch { lock(); say('Staging management is unavailable. Please contact the site operator.'); }
