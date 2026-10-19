@@ -81,22 +81,23 @@ function renderCatalog() {
  const rows=filterTournaments(tournaments,{search:$('tournamentSearch').value,category:$('categoryFilter').value,status:$('statusFilter').value});
  $('tournamentRows').replaceChildren(...rows.map(t=>{
   const tr=make('tr'), title=make('td');title.append(dataText('span',t.revision?.title||t.id,'table-title'),dataText('span',t.id,'table-id'));tr.append(title,(t.revision?.category_ids?.length?dataText('td',t.revision.category_ids.map(catName).join(', ')):make('td','Not available')));
-  const state=make('td');state.append(statusBadge(t));tr.append(state,make('td',t.revision?(t.revision.participants||[]).filter(p=>p.active).length:'Unavailable'),make('td',t.published_revision_id?'Published version exists':'Not published'));
+  const state=make('td');state.append(statusBadge(t));tr.append(state,make('td',t.revision?(t.revision.participants||[]).filter(p=>p.active).length:'Unavailable'),make('td',t.visibility==='public'?'Public':'Private'));
   const action=make('td'),button=make('button','Manage','btn small');button.onclick=()=>run(()=>openTournament(t.id));action.append(button);tr.append(action);return tr;
  }));
  if(!rows.length){const tr=make('tr'),td=make('td',tournaments.length?'No World Cups match these filters.':'No World Cups yet. Create your first draft to get started.','empty');td.colSpan=6;tr.append(td);$('tournamentRows').append(tr);}
  $('tournamentCount').textContent=`${rows.length} of ${tournaments.length} World Cups shown. `+(context?'Includes archived and blocked content.':'Current catalog includes private and public content only.');
  $('totalCups').textContent=String(tournaments.length);$('cupScope').textContent=context?'All catalog World Cups':'Private and public World Cups only';
  const incomplete=tournaments.some(t=>(t.draft_revision_id||t.published_revision_id)&&!t.revision);
- $('pendingCount').textContent=incomplete?'Not available yet':String(tournaments.filter(t=>t.revision?.state==='submitted').length);
+ $('pendingCount').textContent=incomplete?'Not available yet':String(tournaments.filter(t=>!isAdminCreated(t)&&t.revision?.state==='submitted').length);
  $('pendingCount').classList.toggle('unavailable',incomplete);
  const recent=tournaments.slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).slice(0,5);
  $('recentTournaments').replaceChildren(...recent.map(t=>{const row=make('div',undefined,'activity-item'),title=make('div');title.append(dataText('strong',t.revision?.title||t.id),make('div',`${t.revision?.participants?.length||0} candidates`,'help'));const b=make('button','Open','btn ghost small');b.onclick=()=>run(()=>openTournament(t.id));row.append(title,b);return row;}));
  if(!recent.length)$('recentTournaments').append(make('div','Your first World Cup starts in the creator studio.','empty'));
  renderReviews();
 }
+function isAdminCreated(t){return t?.creator_is_admin===true||t?.creator_id===user?.id;}
 function renderReviews() {
- const rows=filterTournaments(tournaments,{search:$('reviewSearch').value,status:$('reviewFilter').value}).filter(t=>['submitted','approved','rejected'].includes(t.revision?.state));
+ const rows=filterTournaments(tournaments,{search:$('reviewSearch').value,status:$('reviewFilter').value}).filter(t=>!isAdminCreated(t)&&['submitted','approved','rejected'].includes(t.revision?.state));
  $('reviewRows').replaceChildren(...rows.map(t=>{const tr=make('tr');const state=make('td');state.append(statusBadge(t));const td=make('td'),b=make('button','Review details','btn small');b.onclick=()=>run(()=>openTournament(t.id));td.append(b);tr.append(dataText('td',t.revision.title),state,(t.revision.submitted_at?dateText('td',t.revision.submitted_at,true):make('td','Not available')),td);return tr;}));
  if(!rows.length){const tr=make('tr'),td=make('td','No submissions match this view.','empty');td.colSpan=4;tr.append(td);$('reviewRows').append(tr);}
 }
@@ -156,50 +157,36 @@ function photoSlots(inWizard=false){
  return [{id:'cover',name:'Cover',asset:r?.cover_asset_id,settings:inWizard?work?.cover_settings:(revision?.presentations||[]).find(p=>!p.participant_id&&p.context==='start')?.settings},
  ...participants.map(p=>({id:p.id,name:p.name,asset:p.image_asset_id,settings:inWizard?p.presentations?.vs:(revision.presentations||[]).find(m=>m.participant_id===p.id&&m.context==='vs')?.settings}))];
 }
-// Confirm BEFORE uploading: cancellation creates no Storage object or reservation.
-// The explicit action is the user's attestation; optional notes are never invented.
-function rightsConfirmation(file){
- return new Promise(resolve=>{
-  const d=document.createElement('dialog');d.className='photo-rights-dialog';
-  const heading=make('h2','Confirm photo usage rights'),image=make('div',undefined,'preview-frame'),img=make('img');
-  const url=URL.createObjectURL(file);img.src=url;img.alt='Selected new photo';image.append(img);
-  const evidence=make('textarea');evidence.setAttribute('aria-label','Source / notes (optional)');evidence.placeholder='Source / notes (optional)';
-  const hint=make('p','Choose a truthful rights statement to continue. No checkbox or written note is required. Technical checks run automatically after confirmation.','help');
-  let done=false;const finish=value=>{if(done)return;done=true;d.close();d.remove();URL.revokeObjectURL(url);resolve(value);};d.onclose=()=>finish(null);
-  const actions=make('div',undefined,'stack');
-  for(const [label,statement] of [
-   ['I took this photo and permit its use','Uploader explicitly states: I took this photo and permit its use.'],
-   ['I have a license or permission to use it','Uploader explicitly states: I have a license or permission to use this photo.']
-  ]){const button=make('button',label,'btn primary');button.onclick=()=>finish(statement+(evidence.value.trim()?' Source / notes: '+evidence.value.trim():''));actions.append(button);}
-  const cancel=make('button','Cancel','btn');cancel.onclick=()=>finish(null);d.oncancel=e=>{e.preventDefault();finish(null);};
-  d.append(heading,image,hint,evidence,actions,cancel);document.body.append(d);d.showModal();
- });
+function rightsEvidence(rights){
+ if(!['own','permission'].includes(rights?.basis))throw Error('Choose a truthful rights statement');
+ return (rights.basis==='own'?'Uploader explicitly states: I took this photo and permit its use.':'Uploader explicitly states: I have a license or permission to use this photo.')+(rights.notes?' Source / notes: '+rights.notes:'');
 }
 async function photoOperation(action){if(photoWorking)throw Error('A photo operation is already running.');photoWorking=true;try{return await action();}finally{photoWorking=false;}}
 function cards(inWizard=false){
  const currentTournament=()=>inWizard?tournaments.find(t=>t.id===work?.tournament_id):selected;
  const storageAction=async(name)=>{const t=currentTournament();if(!t)throw Error('Save the tournament draft first.');return api.rpc(name,{tid:t.id});};
- return createPhotoCards({storageDiagnostics:()=>storageAction('admin_media_storage_diagnostics'),releaseExpired:()=>storageAction('admin_media_release_expired'),canEdit:()=>{const t=inWizard?tournaments.find(t=>t.id===work?.tournament_id):selected;return authorized&&(!t||(['private','public'].includes(t.visibility)&&['draft','rejected','approved'].includes(t.revision?.state)));},getSlots:()=>photoSlots(inWizard),loadPhoto:photo,getLanguage:()=>adminLanguage.language,notify:say,
- upload:async(slot,file)=>photoOperation(async()=>{
-  const evidence=await rightsConfirmation(file);if(!evidence)throw Error('Upload cancelled. Your current photo is unchanged.');
-  if(inWizard&&(!work.base_revision_id||dirty))await saveWork({quiet:true});
+ return createPhotoCards({storageDiagnostics:()=>storageAction('admin_media_storage_diagnostics'),releaseExpired:()=>storageAction('admin_media_release_expired'),canEdit:()=>{const t=inWizard?tournaments.find(t=>t.id===work?.tournament_id):selected;return authorized&&(!t||(['private','public'].includes(t.visibility)&&(['draft','rejected','approved'].includes(t.revision?.state)||(inWizard&&t.creator_id===user?.id&&t.revision?.state==='submitted'))));},getSlots:()=>photoSlots(inWizard),loadPhoto:photo,getLanguage:()=>adminLanguage.language,notify:say,
+ upload:async(slot,file,settings,rights)=>photoOperation(async()=>{
+  const evidence=rightsEvidence(rights);
+  if(inWizard&&(!work.base_revision_id||dirty||tournaments.find(t=>t.id===work.tournament_id)?.revision?.state==='submitted'))await saveWork({quiet:true,force:true});
   const t=inWizard?tournaments.find(t=>t.id===work.tournament_id):selected;
   if(!t)throw Error('Save the tournament draft first.');await guard(t.id);
   const out=await api.upload(t.id,file);
   if(out.technical_state!=='ready'||!out.asset_id)throw Error('Upload is not finalized. Refresh before retrying.');
-  return finishUploadedPhoto(t.id,out,slot,inWizard,evidence);
+  return finishUploadedPhoto(t.id,out,slot,inWizard,evidence,settings);
 
  }),saveDisplay:async(slot,settings)=>photoOperation(async()=>{
+  if(inWizard&&tournaments.find(t=>t.id===work.tournament_id)?.revision?.state==='submitted')await saveWork({quiet:true,force:true});
   const t=inWizard?tournaments.find(t=>t.id===work.tournament_id):selected;await guard(t?.id);
   const aid=photoSlots(inWizard).find(p=>p.id===slot)?.asset;if(!aid)throw Error('No photo uploaded');
   await api.photoDraft(t,aid,slot,settings);await reloadPhotoState(t.id,inWizard);
  })});}
-async function finishUploadedPhoto(tid,out,slot,inWizard,evidence){
+async function finishUploadedPhoto(tid,out,slot,inWizard,evidence,settings){
  try{
   await guard(tid);const t=tournaments.find(t=>t.id===tid);
-  await api.rights(out.asset_id,evidence);await api.photoDraft(t,out.asset_id,slot,{fit:'cover',position:'50% 50%'});
+  await api.rights(out.asset_id,evidence);await api.photoDraft(t,out.asset_id,slot,settings);
   await reloadPhotoState(t.id,inWizard);return out;
- }catch(error){error.resume=()=>photoOperation(()=>finishUploadedPhoto(tid,out,slot,inWizard,evidence));throw error;}
+ }catch(error){error.resume=(nextSettings=settings,nextRights)=>photoOperation(()=>finishUploadedPhoto(tid,out,slot,inWizard,nextRights?rightsEvidence(nextRights):evidence,nextSettings));throw error;}
 }
 async function reloadPhotoState(tid,inWizard){
  selected=tournaments.find(t=>t.id===tid);await refreshAdmin(true,{quiet:true});
@@ -220,8 +207,16 @@ function updateControls(){
  $('stagingReplace').disabled=!editable||!asset||!rightsRecorded;
  $('editMetadata').disabled=!canEditMetadata(selected,user?.id);
  $('editorPreview').disabled=!revision;
- $('stagingSubmit').disabled=!editable||!['draft','rejected'].includes(revision?.state);
- const independent=authorized&&revision?.state==='submitted'&&revision.submitted_by!==user?.id&&['private','public'].includes(selected?.visibility);
+ const own=selected?.creator_id===user?.id,adminCreated=isAdminCreated(selected);
+ $('memberReviewControls').hidden=false;$('stagingApprove').hidden=$('rejectRevision').hidden=adminCreated;$('stagingPublish').hidden=own;
+ $('adminPublicationControls').hidden=!own;
+ $('editorPublishNow').disabled=!authorized||!own||!['private','public'].includes(selected?.visibility)||!['draft','submitted','approved','rejected'].includes(revision?.state);
+ $('editorMakePrivate').disabled=!authorized||!selected||selected.visibility!=='public';
+ $('openPublicSite').hidden=selected?.visibility!=='public';
+ $('reviewStateHelp').textContent=adminCreated?'Administrator creations use private save or direct publication.':revision?.state==='submitted'?(revision.submitted_by===user?.id||own?'You cannot review your own submission.':'This member submission is ready for approval or rejection.'):revision?.state==='approved'?'This approved revision can be published.':'Only submitted member revisions can be approved or rejected.';
+ $('stagingSubmit').hidden=true;$('stagingSubmitAck').closest('label').hidden=true;
+ $('stagingSubmit').disabled=true;$('stagingSubmitAck').disabled=true;
+ const independent=authorized&&!adminCreated&&!own&&revision?.state==='submitted'&&revision.submitted_by!==user?.id&&['private','public'].includes(selected?.visibility);
  $('stagingApprove').disabled=!independent;$('rejectRevision').disabled=!independent;
  $('stagingPublish').disabled=!editable||revision?.state!=='approved';
  $('stagingRestore').disabled=!authorized||!selected||!['private','public'].includes(selected.visibility)||!$('stagingRollback').value;
@@ -233,16 +228,18 @@ function confirmAction(title,text,reason=false) {
 async function changeRevision(op) {
  await guard();if(!revision||!selected)throw Error('Select a revision first.');
  if(['approve','reject'].includes(op)&&(revision.state!=='submitted'||revision.submitted_by===user.id))throw Error('A different authorized reviewer must review this submitted revision.');
+ if(op==='approve'&&selected.creator_id===user.id)throw Error('You cannot review your own submission.');
  if(op==='publish'&&revision.state!=='approved')throw Error('Independent approval is required before publication.');
  const note=await confirmAction(op==='reject'?'Reject this revision?':`${op[0].toUpperCase()+op.slice(1)} this revision?`,op==='publish'?'This approved revision will become publicly playable on Staging.':op==='rollback'?'The selected approved revision will become the Staging publication.':'The existing server workflow and media validation will apply.',op==='reject');
  if(!note)return;
- await guard();if(op==='reject')await dashboard.reject(selected,revision,note);else await api.transition(op,selected,op==='rollback'?$('stagingRollback').value:revision.id);await refreshAdmin(true);say(`${op} completed. Server data refreshed.`,'success');
+ await guard();if(op==='reject')await dashboard.reject(selected,revision,note);else if(op==='approve')await api.reviewPublish(selected,revision.id);else await api.transition(op,selected,op==='rollback'?$('stagingRollback').value:revision.id);await refreshAdmin(true);say(`${op} completed. Server data refreshed.`,'success');
 }
 function newWork(){work={tournament_id:window.CreatorModelV3.id('tournament'),base_revision_id:null,title:'',description:'',category_id:categories[0]?.id||'',requested_size:8,cover_participant_id:null,participants:[]};editing=null;step=0;dirty=false;renderWizard();}
 function captureWizard(){if(!work)return;if(step===0){work.title=$('workTitle').value;work.description=$('workDescription').value;work.category_id=$('workCategory').value;work.requested_size=Number($('workSize').value);}if(step===1)for(const input of all('[data-candidate-name]'))work.participants[Number(input.dataset.candidateName)].name=input.value;}
 function ensureCandidates(){const size=Number(work.requested_size);if(work.participants.length>size)throw Error('Reducing candidate count would discard candidates. Keep the existing size or start a new draft.');while(work.participants.length<size){const p=window.CreatorModelV3.member('');work.participants.push({...p,image_asset_id:null});}}
 function field(label,id,type='input',value=''){const box=make('div',undefined,'field'),l=make('label',label),input=make(type);input.id=id;l.htmlFor=id;input.value=value;box.append(l,input);return box;}
 function renderWizard(){
+ $('wizardPublishedLink').hidden=!tournaments.some(t=>t.id===work?.tournament_id&&t.visibility==='public');
  if(!work)return;
  $('wizardTitle').textContent=editing?'Edit World Cup':'Create World Cup';$('draftStatus').textContent=dirty?'Unsaved changes':work.base_revision_id?'Saved draft':'Unsaved draft';
  $('wizardSteps').replaceChildren(...STEPS.map((label,i)=>{const b=make('button',undefined,'step'+(i===step?' active':''));b.append(make('span',i+1),document.createTextNode(label));b.setAttribute('aria-current',i===step?'step':'false');b.onclick=()=>run(()=>goStep(i));return b;}));
@@ -250,8 +247,11 @@ function renderWizard(){
  if(step===0){panel.append(make('h2','Start with the essentials'),make('p','Give your World Cup a clear title and a focused category.','muted'),field('Title','workTitle','input',work.title),field('Description','workDescription','textarea',work.description));const grid=make('div',undefined,'grid2');grid.append(field('Category','workCategory','select'),field('Candidate count','workSize','select'));panel.append(grid);options('workCategory',categories.map(c=>[c.id,c.name]),work.category_id);options('workSize',[8,16,32].map(n=>[String(n),String(n)]),String(work.requested_size));if(!categories.length)panel.append(make('p','No category directory is available. Install the prepared read RPCs and ensure at least one category exists before saving.','notice'));}
  if(step===1){panel.append(make('h2','Build your candidate list'),make('p','Names and bulk entry reuse the existing creator model.','muted'));const bulk=field('Bulk input · one candidate name per line','bulkNames','textarea');bulk.querySelector('textarea').placeholder=`Enter exactly ${work.requested_size} names`;const apply=make('button','Apply names to these candidates','btn');apply.onclick=()=>{try{const {names,duplicates}=window.CreatorModelV3.parseList($('bulkNames').value,[],Number(work.requested_size),'replace');names.forEach((name,i)=>work.participants[i].name=name);dirty=true;renderWizard();if(duplicates.length)say('Duplicate names found: '+duplicates.join(', '));}catch{say(`Enter exactly ${work.requested_size} plain-text names, one per line. URLs and HTML are not allowed.`,'error');}};panel.append(bulk,apply);const list=make('div',undefined,'candidate-list');list.style.marginTop='20px';work.participants.forEach((p,i)=>{const row=make('div',undefined,'candidate-row'),input=make('input');input.value=p.name;input.maxLength=300;input.dataset.candidateName=i;input.setAttribute('aria-label',`Candidate ${i+1} name`);input.oninput=()=>{p.name=input.value;dirty=true;};row.append(make('span',String(i+1).padStart(2,'0'),'candidate-number'),input);list.append(row);});panel.append(list);}
  if(step===2){panel.append(make('h2','Make every candidate recognizable'),make('p','Click or drop a photo. Optimization and upload run automatically. Usage rights require confirmation before applying.','muted'),cards(true));}
- if(step===3){panel.append(make('h2','Try the tournament'),make('p','Preview uses the shared World Cup selection module without recording official statistics.','muted'));const b=make('button','Play private preview','btn primary');b.onclick=()=>run(async()=>{captureWizard();await saveWork({quiet:true});await refreshAdmin(false,{quiet:true});const latest=tournaments.find(t=>t.id===work.tournament_id);if(!authorized||!latest?.revision)throw Error('This tournament is no longer available.');work=workFromRevision(latest,latest.revision);startPreview(work);});panel.append(b);const summary=make('ul',undefined,'checklist');for(const text of [work.title||'Untitled World Cup',`${work.participants.length} candidates`,`${work.participants.filter(p=>p.image_asset_id).length} candidate photos`,'Changes remain private until independently approved and published.'])summary.append(text===work.title?dataText('li',text):make('li',text));panel.append(summary);}
- if(step===4){panel.append(make('h2','Save your draft. Prepare for review.'),make('p','Saving creates a new draft revision. It never publishes or removes existing photos.','muted'));const save=make('button','Save draft','btn primary');save.onclick=()=>run(saveWork);panel.append(save);const checks=make('ul',undefined,'checklist');checks.append(make('li',`${work.participants.filter(p=>p.active!==false).length} active candidates / ${work.requested_size} requested`),make('li','Review names, candidate photos and usage-rights evidence.'),make('li','A different administrator must approve a submitted revision.'));panel.append(checks);const b=make('button','Open saved draft for review preparation','btn');b.disabled=!work.base_revision_id;b.onclick=()=>run(async()=>{if(dirty)await saveWork();await openTournament(work.tournament_id);});panel.append(b);}
+ if(step===3){panel.append(make('h2','Try the tournament'),make('p','Preview uses the shared World Cup selection module without recording official statistics.','muted'));const b=make('button','Play private preview','btn primary');b.onclick=()=>run(async()=>{captureWizard();await saveWork({quiet:true});await refreshAdmin(false,{quiet:true});const latest=tournaments.find(t=>t.id===work.tournament_id);if(!authorized||!latest?.revision)throw Error('This tournament is no longer available.');work=workFromRevision(latest,latest.revision);startPreview(work);});panel.append(b);const summary=make('ul',undefined,'checklist');for(const text of [work.title||'Untitled World Cup',`${work.participants.length} candidates`,`${work.participants.filter(p=>p.image_asset_id).length} candidate photos`,'Your draft stays private until you choose Publish now.'])summary.append(text===work.title?dataText('li',text):make('li',text));panel.append(summary);}
+ if(step===4){panel.append(make('h2','Save privately or publish now'),make('p','Save privately keeps your draft editable. Publish now validates and publishes your latest saved content. Existing public revisions stay unchanged until publication succeeds.','muted'));
+  const save=make('button','Save privately','btn'),publish=make('button','Publish now','btn primary');save.id='wizardSavePrivate';publish.id='wizardPublishNow';
+  save.onclick=()=>run(()=>savePrivateWork());publish.onclick=()=>run(publishWork);panel.append(save,publish);}
+
  if(step===0||step===1)panel.append(createGeminiSupport({
   getLanguage:()=>adminLanguage.language,
   getContext:()=>{captureWizard();return {...work,category:catName(work.category_id)};},
@@ -261,15 +261,28 @@ function renderWizard(){
  $('wizardBack').disabled=step===0;$('wizardNext').disabled=step===4;$('wizardProgress').textContent=`Step ${step+1} of 5`;
 }
 async function goStep(next){captureWizard();if(next>0){if(!work.title.trim()||!work.category_id)throw Error('Enter a title and choose a category before continuing.');ensureCandidates();}if(next>1)draftPayload(work);step=Math.max(0,Math.min(4,next));renderWizard();}
-async function saveWork({quiet=false}={}){
- await guard(null);captureWizard();
- if(work.base_revision_id&&!dirty){if(!quiet)say('Draft saved. The current publication and existing photos are preserved.','success');return;}
+async function saveWork({quiet=false,force=false}={}){
+ await guard(null);if(page==='create')captureWizard();
+ if(work.base_revision_id&&!dirty&&!force){if(!quiet)say('Draft saved. The current publication and existing photos are preserved.','success');return;}
  const t=tournaments.find(t=>t.id===work.tournament_id)||null;
  const result=await dashboard.save(work,t);work.base_revision_id=result.revision_id;dirty=false;
  await refreshAdmin(false,{quiet});editing=tournaments.find(t=>t.id===work.tournament_id)||null;
  // Reload payload from the actual revision so photo references cannot become stale.
  const saved=editing?.revision;if(saved)work=workFromRevision(editing,saved);
  if(quiet)return;renderWizard();setPage('create');say('Draft saved. The current publication and existing photos are preserved.','success');
+}
+async function savePrivateWork(){const t=tournaments.find(t=>t.id===work?.tournament_id);return saveWork({force:!!t&&t.revision?.state!=='draft'});}
+async function publishWork(){
+ const existing=tournaments.find(t=>t.id===work?.tournament_id);
+ await saveWork({quiet:true,force:['submitted','rejected'].includes(existing?.revision?.state)});
+ const t=tournaments.find(t=>t.id===work.tournament_id);if(!t?.revision)throw Error('Save the tournament draft first.');
+ await api.publishOwn(t,t.revision.id);selected=t;await refreshAdmin(true,{quiet:true});
+ work=workFromRevision(selected,revision);dirty=false;renderWizard();say('Published successfully. Open the public site to play.','success');
+}
+async function publishSelected(){
+ await guard();if(selected?.creator_id!==user.id)throw Error('Only the creator can save these candidate and text changes. Photo management remains available to administrators.');
+ if(['submitted','rejected'].includes(revision.state)){work=workFromRevision(selected,revision);await saveWork({quiet:true,force:true});await loadSelected(work.tournament_id);}
+ await api.publishOwn(selected,revision.id);await refreshAdmin(true,{quiet:true});say('Published successfully. Open the public site to play.','success');
 }
 function startPreview(source){
  try{const active=source.participants.filter(p=>p.active!==false).map(p=>({...p,person_id:p.entity_id}));const size=[32,16,8,4].find(n=>n<=active.length);if(!size)throw Error('At least four active candidates are required for a playable preview.');
@@ -297,6 +310,8 @@ try {
  $('stagingRights').onclick=()=>run(async()=>{await guard();if(!asset||!$('stagingRightsAck').checked||!$('stagingEvidence').value.trim())throw Error('Confirm usage rights and provide evidence first.');await api.rights(asset,$('stagingEvidence').value.trim());rightsRecorded=true;say('Usage rights recorded. Ready to create a replacement draft.','success');});
  $('stagingReplace').onclick=()=>run(async()=>{await guard();if(!asset||!rightsRecorded)throw Error('Upload and record usage rights first.');const slot=$('stagingSlot').value;const previous=selected.published_revision_id;const result=await api.replace(selected,asset,slot);await refreshAdmin(true);$('stagingSlot').value=slot;renderSlot();$('stagingHistory').textContent=`Previous publication: ${previous||'none'}`;if(work?.tournament_id===selected.id){work=workFromRevision(selected,revision);dirty=false;}say(`Replacement draft created: ${result.revision_id}. Stored photo previews refreshed.`,'success');});
  $('stagingSubmit').onclick=()=>run(async()=>{await guard();if(!revision||!$('stagingSubmitAck').checked)throw Error('Confirm this draft is ready for independent review.');await api.submit(selected,revision.id);await refreshAdmin(true);say('Submitted. A different authorized reviewer must approve it.','success');});
+ $('editorPublishNow').onclick=()=>run(publishSelected);
+ $('editorMakePrivate').onclick=()=>run(async()=>{await guard();await api.transition('unpublish',selected,selected.published_revision_id||revision.id);await refreshAdmin(true,{quiet:true});say('Tournament is now private. Existing revisions and photos are preserved.','success');});
  $('stagingApprove').onclick=()=>run(()=>changeRevision('approve'));$('stagingPublish').onclick=()=>run(()=>changeRevision('publish'));$('rejectRevision').onclick=()=>run(()=>changeRevision('reject'));$('stagingRestore').onclick=()=>run(()=>changeRevision('rollback'));
  $('editMetadata').onclick=()=>run(async()=>{await guard();if(!canEditMetadata(selected,user.id))throw Error('Only the creator can edit this metadata.');editing=selected;work=workFromRevision(selected,revision);dirty=false;step=0;renderWizard();setPage('create');});
  $('editorPreview').onclick=()=>run(async()=>{await refreshAdmin(true,{quiet:true});if(!authorized||!tournaments.some(t=>t.id===selected?.id))throw Error('This tournament is no longer available.');startPreview(workFromRevision(selected,revision));});

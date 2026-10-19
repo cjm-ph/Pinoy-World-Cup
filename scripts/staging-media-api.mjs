@@ -22,6 +22,9 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
   const rpc = async (name, args) => {
     const { data, error } = await client.schema('pwc41_api').rpc(name, args);
     if (error) {
+      const publicationErrors={'administrator creator required':'Only the administrator creator can publish directly.','current administrator draft/stale edit_version':'The draft changed. Refresh before publishing.','requested roster/names/category incomplete':'Complete the selected candidate count, names and category before publishing.','approval/media rights or technical review required':'Photos still need technical verification or usage rights before publication.','save a new draft before direct publication':'Save a new draft before publishing.','self review forbidden':'You cannot review your own submission.','independent reviewer/submitted revision required':'Only a different administrator can review a submitted member revision.'};
+      if(['admin_publish_own','admin_review_publish'].includes(name)&&publicationErrors[error.message])throw Error(publicationErrors[error.message]);
+      if(['admin_publish_own','admin_review_publish'].includes(name)&&['PGRST202','42883'].includes(error.code))throw Error('Publication functions are not installed. Apply the approved Staging publication SQL first.');
       if(['admin_media_storage_diagnostics','admin_media_release_expired'].includes(name)&&['PGRST202','42883'].includes(error.code))throw Error('Storage recovery functions are not installed. Apply the approved Staging quota SQL first.');
       if(['admin_media_photo_draft','admin_media_save_draft'].includes(name)&&['PGRST202','42883'].includes(error.code))throw Error('Photo-card database functions are not installed. Apply the approved Staging SQL before using this feature.');
       // Only known diagnostic codes may leave this boundary; never message/details/hint.
@@ -53,6 +56,8 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
   }
   return {
     rpc, adminCatalog,
+    publishOwn:(t,rid)=>rpc('admin_publish_own',{req:uuid(),tid:t.id,rid,expected:t.edit_version}),
+    reviewPublish:(t,rid)=>rpc('admin_review_publish',{req:uuid(),tid:t.id,rid,expected:t.edit_version}),
     photoDraft: (t,aid,slot,display_settings)=>rpc('admin_media_photo_draft',{req:uuid(),tid:t.id,aid,new_rid:'rev_'+uuid(),expected:t.edit_version,slot,display_settings}),
     authorize: tid => rpc('admin_media_assert_owner', { tid }),
     published: () => rpc('list_published', {}),
@@ -63,7 +68,7 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
     submit: (t, rid) => mutation('/admin/media/submit', { tid:t.id, request:uuid(), revision:rid, expected:t.edit_version, ack:true }),
     rights: (aid, evidence) => rpc('review_media', { req:uuid(), aid, status:'verified', evidence }),
     transition: (name, t, rid) => {
-      if (!['approve','publish','rollback'].includes(name)) throw Error('Unsupported action.');
+      if (!['approve','publish','rollback','unpublish'].includes(name)) throw Error('Unsupported action.');
       return rpc(name, { req:uuid(), tid:t.id, rid, expected:t.edit_version });
     },
     mediaUrl: aid => {

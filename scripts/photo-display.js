@@ -15,5 +15,7 @@
  }
  function gameRatio(width,height){return width>=768?((Math.min(width,1540)-44)/2)/Math.max(1,height-84):((width-2)/2)/Math.max(1,height-56);}
  function resultRatio(width,height){return width>=768?Math.min(width-40,580)/Math.max(340,Math.min(.7*height,690)):Math.min(width,580)/Math.max(390,Math.min(.76*height,680));}
- root.PWCPhotoDisplay={normalize,apply,geometry,gameRatio,resultRatio};
+ // New cover frames fill the existing round picker, without its legacy padding.
+ function coverRatio(width,height){return Math.min(width-24,620)/(width>=768?Math.max(230,Math.min(height*.38,350)):Math.max(170,Math.min(height*.32,280)));}
+ root.PWCPhotoDisplay={normalize,apply,geometry,gameRatio,resultRatio,coverRatio};
 })(globalThis);

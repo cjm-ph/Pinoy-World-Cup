@@ -11,6 +11,10 @@ function paint(container,image,fallback,background,settings,cls){
  image.onerror=()=>{image.hidden=true;if(background)background.hidden=true;if(fallback)fallback.hidden=false;};
  if(settings.fit)image.style.objectFit=settings.fit;
  if(settings.position)image.style.objectPosition=settings.position;
+ if(cls==='round-cover'&&settings.fit==='cover'){
+  container.style.padding='0';container.style.overflow='hidden';
+  image.style.width='100%';image.style.height='100%';image.style.maxWidth='none';image.style.maxHeight='none';
+ }
  if(root.PWCPhotoDisplay&&settings.b2_zoom)root.PWCPhotoDisplay.apply(image,settings);
  else{image.style.transform='none';image.style.transformOrigin='50% 50%';}
  if(image.getAttribute('src')!==settings.source)image.src=settings.source;

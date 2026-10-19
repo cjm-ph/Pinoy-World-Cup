@@ -1,5 +1,5 @@
 // Server payload adapter for the existing five-step creator and revision RPC.
-export const STEPS = ['Basic info', 'Candidates', 'Photos', 'Preview', 'Save & review'];
+export const STEPS = ['Basic info', 'Candidates', 'Photos', 'Preview', 'Save or publish'];
 export function statusOf(t, r = t.revision) {
   if (t.visibility === 'quarantined') return 'Blocked';
   if (t.visibility === 'archived') return 'Archived';
@@ -39,7 +39,7 @@ export function draftPayload(work) {
 }
 export function canEditMetadata(t, uid) {
   return !!t && t.creator_id === uid && ['private','public'].includes(t.visibility)
-    && ['draft','rejected','approved'].includes(t.revision?.state);
+    && ['draft','submitted','rejected','approved'].includes(t.revision?.state);
 }
 
 export function createDashboardApi(client, media, uuid = () => crypto.randomUUID()) {
