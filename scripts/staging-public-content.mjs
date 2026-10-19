@@ -1,3 +1,4 @@
+import { getMemberClient } from './staging-member-auth.mjs';
 import { createMediaApi, STAGING_URL, publishedItem } from './staging-media-api.mjs';
 const text = value => String(value ?? '');
 // Produce an independent view before the approved home/carousel/VS modules initialize.
@@ -74,7 +75,7 @@ export async function prepareStagingView(original) {
   try {
     const config=window.PWC_STAGING;
     if(config?.supabaseUrl!==STAGING_URL || !/^sb_publishable_/.test(config.publishableKey || '')) throw Error('Staging configuration unavailable.');
-    const client=window.supabase.createClient(STAGING_URL,config.publishableKey,{auth:{storageKey:'pwc-staging-auth'}});
+    const client=getMemberClient();
     const api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin});
     const result=await mergePublishedView(original,api);
     status.textContent=result.count ? '' : 'No published World Cups yet. Enjoy our practice World Cups.';
