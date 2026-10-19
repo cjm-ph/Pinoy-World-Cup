@@ -1,3 +1,4 @@
+import {upstreamFailure} from './media-errors.mjs';
 import { randomUUID } from 'node:crypto';
 const ref = 'cmnomqsurdwhdbjgnsvw';
 // Construction is side-effect free. Calling these methods contacts staging and needs approval.
@@ -12,7 +13,7 @@ export function supabaseAdapters({ url, publishableKey, serviceKey, fetchImpl = 
   async function rpc(name, args, token, key) {
     const r = await request(`/rest/v1/rpc/${name}`, token, key, { method:'POST',
       headers: { 'Content-Type':'application/json', 'Content-Profile':'pwc41_api' }, body:JSON.stringify(args) });
-    if (!r.ok) throw Error(`RPC ${name} rejected (${r.status})`); // never echo remote body/tokens
+    if (!r.ok) {let detail;try{detail=await r.json();}catch{}throw upstreamFailure({status:r.status,code:detail?.code,message:detail?.message,rpc:name});} // never echo remote body/tokens
     return r.json();
   }
   function objectPath(bucket, key) {
@@ -23,7 +24,7 @@ export function supabaseAdapters({ url, publishableKey, serviceKey, fetchImpl = 
     auth: { async verify(token) {
       if (typeof token !== 'string' || token.length > 8192) throw Error('invalid token');
       const r = await request('/auth/v1/user',token,publishableKey);
-      if (!r.ok) throw Error('authentication rejected');
+      if (!r.ok) throw upstreamFailure({status:r.status});
       const u = await r.json();
       return { id:u.id, isAnonymous:u.is_anonymous === false ? false : true };
     } },
@@ -49,12 +50,15 @@ export function supabaseAdapters({ url, publishableKey, serviceKey, fetchImpl = 
         if (r.ok) return true;
         // Storage may report duplicate objects as 400 or 409. No success is inferred:
         // the gateway reads and hashes the actual object for either code.
-        if ([400,409].includes(r.status)) return false;
-        throw Error('storage create rejected');
+        if (r.status===409) return false;
+        let detail;try{detail=await r.json();}catch{}
+        if(r.status===400&&(detail?.error==='Duplicate'||String(detail?.statusCode)==='409')) return false;
+        if(String(detail?.statusCode)==='403')throw upstreamFailure({status:403});
+        throw upstreamFailure({status:r.status});
       },
       async read(bucket,key) {
         const r = await request(objectPath(bucket,key),serviceKey,serviceKey);
-        if (!r.ok) throw Error('storage read rejected');
+        if (!r.ok) throw upstreamFailure({status:r.status});
         const chunks=[];let n=0;
         for await (const chunk of r.body) {
           n+=chunk.length;

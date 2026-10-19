@@ -13,9 +13,15 @@ export async function normalizeImage(input) {
         !metadata.width || !metadata.height || metadata.width > 12000 || metadata.height > 12000 ||
         metadata.width * metadata.height > 24000000) throw Error('invalid input dimensions/frames');
     // No keepMetadata/withMetadata: sharp strips metadata by default.
-    const { data, info } = await sharp(bytes, options).rotate().toColourspace('srgb')
-      .resize({ width:1600, height:1600, fit:'inside', withoutEnlargement:true })
-      .webp({ quality:75, effort:4 }).toBuffer({ resolveWithObject:true });
+    // A valid input below 8 MiB can still exceed the 420 KiB database limit
+    // after a single quality-75 encode. Retry within the SAME output constraints.
+    let data,info;
+    for(const [size,quality] of [[1600,75],[1280,60],[1024,45],[800,35]]) {
+      ({data,info}=await sharp(bytes, options).rotate().toColourspace('srgb')
+        .resize({width:size,height:size,fit:'inside',withoutEnlargement:true})
+        .webp({quality,effort:4}).toBuffer({resolveWithObject:true}));
+      if(data.length<=limits.output)break;
+    }
     const result = { bytes:data, width:info.width, height:info.height };
     descriptor(result);
     const check = await sharp(data, options).metadata();

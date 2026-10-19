@@ -1,3 +1,5 @@
+import {randomUUID} from 'node:crypto';
+import {diagnostics} from './media-errors.mjs';
 import { createServer } from 'node:http';
 // No listener starts on import. Deployment must explicitly supply authenticated adapters.
 export function createMediaServer(gateway) {
@@ -28,10 +30,12 @@ export function createMediaServer(gateway) {
         const out=await gateway.publicImage({assetId:u.searchParams.get('asset'),method:req.method,range:req.headers.range});
         res.writeHead(200,out.headers);res.end(out.body);
       } else { res.writeHead(404,{'Cache-Control':'no-store'});res.end(); }
-    } catch {
+    } catch(error) {
+      const diagnostic={...diagnostics(error),reference:randomUUID()};
+      console.error(JSON.stringify({event:'media_request_failed',...diagnostic}));
       // Fail closed; never disclose tokens, paths, decoder errors or service response bodies.
       if (!res.headersSent) res.writeHead(400,{'Content-Type':'application/json','Cache-Control':'no-store'});
-      res.end('{"error":"media request rejected"}');
+      res.end(JSON.stringify({error:'media request rejected',diagnostic}));
     }
   });
   server.requestTimeout=15000;server.headersTimeout=10000;server.timeout=15000;

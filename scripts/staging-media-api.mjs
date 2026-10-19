@@ -1,4 +1,13 @@
 export const STAGING_URL = 'https://cmnomqsurdwhdbjgnsvw.supabase.co';
+const stageNames={AUTH_VERIFY:'Session verification',ADMIN_CHECK:'Administrator permission check',ADMISSION:'Upload session admission',READ_BODY:'Image request body',IMAGE_DECODE:'Image decoding',OPTIMIZED_VALIDATION:'Optimized image validation',RESERVE_ASSET:'Upload reservation (admin_media_begin)',STORAGE_CREATE:'Storage creation',STORAGE_VERIFY:'Stored image verification',FINALIZE_ASSET:'Upload finalization (admin_media_finish)',REPLACE_DRAFT:'Draft replacement (admin_media_replace)',SUBMIT_REVIEW:'Review submission (admin_media_submit)',REQUEST:'Request validation'};
+const reasonNames={SERVER_ACCESS_DENIED:'The server credential or service permissions were rejected.',SESSION_INVALID:'Sign in again.',ADMIN_REQUIRED:'Administrator access is required.',RUNTIME_DISABLED:'Photo management is disabled.',TOURNAMENT_UNAVAILABLE:'This tournament is not editable.',RATE_LIMITED:'Too many upload attempts. Wait and try again.',QUOTA_EXCEEDED:'The upload storage quota has been reached.',STALE_VERSION:'The draft changed. Refresh before replacing the photo.',REVISION_NOT_EDITABLE:'This revision cannot be edited.',SLOT_UNAVAILABLE:'The selected candidate is unavailable.',ASSET_NOT_READY:'The uploaded photo is not ready.',INPUT_TOO_LARGE:'The input exceeds 8 MB.',INVALID_IMAGE:'The image is invalid or unsupported.',DECODE_TIMEOUT:'Image decoding timed out.',DECODER_UNAVAILABLE:'The server image decoder is unavailable.',OPTIMIZED_IMAGE_INVALID:'The optimized image exceeds the allowed output constraints.',BODY_TIMEOUT:'The upload request timed out.',STORAGE_MISMATCH:'The stored image did not match the verified bytes.',STORAGE_MISSING:'The uploaded Storage object is missing.',DATABASE_AMBIGUOUS:'The database function has an ambiguous column reference.',RPC_UNAVAILABLE:'The required database function is unavailable.',ACCESS_DENIED:'The upstream service denied access.',REQUEST_REJECTED:'The server rejected this operation.'};
+export function mediaFailureMessage(response,diagnostic) {
+  if(diagnostic?.code==='MEDIA_REQUEST_FAILED'&&stageNames[diagnostic.stage]&&reasonNames[diagnostic.reason]) {
+    const reference=/^[0-9a-f-]{36}$/.test(diagnostic.reference||'')?diagnostic.reference:'unavailable';
+    return `Photo request failed at ${stageNames[diagnostic.stage]}: ${reasonNames[diagnostic.reason]} Reference: ${reference}.`;
+  }
+  return `Media request rejected (HTTP ${Number(response.status)||0}). Detailed diagnostics require the updated Staging gateway.`;
+}
 export function adminReadError(error) {
   const code=error?.code;
   const message=code==='PT401' || code==='PGRST301' || code==='PGRST303'
@@ -34,7 +43,10 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
     for (const [key, value] of Object.entries(args)) url.searchParams.set(key, String(value));
     const response = await fetchImpl(url, { method:'POST', redirect:'error', cache:'no-store',
       headers:{ Authorization:`Bearer ${data.session.access_token}` }, body });
-    if (!response.ok) throw Error('Media request rejected. Access may be disabled, or the revision may have changed.');
+    if (!response.ok) {
+      let diagnostic;try{diagnostic=(await response.json()).diagnostic;}catch{}
+      throw Error(mediaFailureMessage(response,diagnostic));
+    }
     return response.json();
   }
   return {

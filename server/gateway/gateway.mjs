@@ -1,3 +1,4 @@
+import {atStage, diagnostics} from './media-errors.mjs';
 import { createHash } from 'node:crypto';
 
 export const limits = Object.freeze({ input: 8 * 1024 * 1024, output: 430080, dimension: 1600 });
@@ -50,56 +51,56 @@ export function descriptor(out) {
 // All adapters are server-owned; none are browser inputs. No external calls at import time.
 export function createGateway({ auth, db, storage, decoder, admission }) {
   async function actor(token, tid) {
-    const user = identity(await auth.verify(token)); // signature, issuer, audience, expiry required
-    await db.assertAdminOwner(token, user.id, tid);
+    const user = await atStage('AUTH_VERIFY',async()=>identity(await auth.verify(token))); // signature, issuer, audience, expiry required
+    await atStage('ADMIN_CHECK',()=>db.assertAdminOwner(token, user.id, tid));
     return user;
   }
   return {
     async upload({ token, tid, requestId, assetId, body }) {
       if (!uuid.test(requestId) || !/^asset_/.test(assetId) || !uuid.test(assetId.slice(6))) fail('invalid ids');
       const user = await actor(token, tid);
-      const release = await admission.acquire(user.id,{token,tid}); // shared rate + concurrency budget
+      const release = await atStage('ADMISSION',()=>admission.acquire(user.id,{token,tid})); // shared rate + concurrency budget
       try {
-        const input = await readBounded(body); magic(input);
-        const output = await decoder.decode(input);
-        const data = descriptor(output);
+        const input = await atStage('READ_BODY',async()=>{const bytes=await readBounded(body);magic(bytes);return bytes;});
+        const output = await atStage('IMAGE_DECODE',()=>decoder.decode(input));
+        const data = await atStage('OPTIMIZED_VALIDATION',()=>descriptor(output));
         await actor(token, tid); // rights may have changed while decoding
-        const job = await db.begin(token, { requestId, tid, assetId, ...data });
+        const job = await atStage('RESERVE_ASSET',()=>db.begin(token, { requestId, tid, assetId, ...data }));
         if (!uuid.test(job.owner_id)) fail('invalid asset owner');
         const key = `${job.owner_id}/${assetId}.webp`;
         if (job.bucket !== 'pwc41-optimized' || job.object_key !== key || job.asset_id !== assetId) fail('unsafe upload target');
         // Adapter MUST use create-only semantics. On collision, hash actual stored bytes.
-        const created = await storage.create(job.bucket, key, output.bytes, { upsert: false, contentType: 'image/webp' });
-        const persisted = await storage.read(job.bucket, key);
+        const created = await atStage('STORAGE_CREATE',()=>storage.create(job.bucket, key, output.bytes, { upsert: false, contentType: 'image/webp' }));
+        const persisted = await atStage('STORAGE_VERIFY',()=>storage.read(job.bucket, key));
         if (persisted.length !== data.bytes || digest(persisted) !== data.sha)
-          fail(created ? 'persisted object mismatch' : 'object collision');
+          await atStage('STORAGE_VERIFY',()=>fail(created ? 'persisted object mismatch' : 'object collision'));
         await actor(token, tid);
         // Wrapper rechecks admin + owner transactionally before existing finalize_upload.
-        return await db.finish({ actorId: user.id, requestId, assetId });
-      } finally { await release(); }
+        return await atStage('FINALIZE_ASSET',()=>db.finish({ actorId: user.id, requestId, assetId }));
+      } finally { try{await release();}catch(error){console.warn(JSON.stringify({event:'media_cleanup_failed',...diagnostics(error),stage:'RELEASE_SESSION'}));} }
     },
     async requestDeletion({ token, tid, assetId, requestId }) {
       if (!uuid.test(requestId) || !/^asset_/.test(assetId) || !uuid.test(assetId.slice(6))) fail('invalid ids');
       const user = await actor(token, tid);
-      const release = await admission.acquire(user.id,{token,tid});
+      const release = await atStage('ADMISSION',()=>admission.acquire(user.id,{token,tid}));
       try { return await db.requestDeletion(token, { tid, assetId, requestId }); }
-      finally { await release(); }
+      finally { try{await release();}catch(error){console.warn(JSON.stringify({event:'media_cleanup_failed',...diagnostics(error),stage:'RELEASE_SESSION'}));} }
     },
     async replace({ token, tid, requestId, assetId, revisionId, expectedVersion, slot }) {
       if (!uuid.test(requestId) || !/^asset_/.test(assetId) || !uuid.test(assetId.slice(6)) ||
           !/^rev_/.test(revisionId) || !uuid.test(revisionId.slice(4)) ||
           !Number.isSafeInteger(expectedVersion) || expectedVersion<0 ||
           typeof slot!=='string' || !(slot==='cover' || /^participant_[0-9a-f-]{36}$/.test(slot))) fail('invalid replacement');
-      const user=await actor(token,tid);const release=await admission.acquire(user.id,{token,tid});
-      try { return await db.replace(token,{tid,requestId,assetId,revisionId,expectedVersion,slot}); }
-      finally { await release(); }
+      const user=await actor(token,tid);const release=await atStage('ADMISSION',()=>admission.acquire(user.id,{token,tid}));
+      try { return await atStage('REPLACE_DRAFT',()=>db.replace(token,{tid,requestId,assetId,revisionId,expectedVersion,slot})); }
+      finally { try{await release();}catch(error){console.warn(JSON.stringify({event:'media_cleanup_failed',...diagnostics(error),stage:'RELEASE_SESSION'}));} }
     },
     async submit({token,tid,requestId,revisionId,expectedVersion,ack}) {
       if (!uuid.test(requestId) || !/^rev_/.test(revisionId) || !uuid.test(revisionId.slice(4)) ||
           !Number.isSafeInteger(expectedVersion) || expectedVersion<0 || ack!==true) fail('invalid submission');
-      const user=await actor(token,tid);const release=await admission.acquire(user.id,{token,tid});
-      try { return await db.submit(token,{tid,requestId,revisionId,expectedVersion,ack}); }
-      finally { await release(); }
+      const user=await actor(token,tid);const release=await atStage('ADMISSION',()=>admission.acquire(user.id,{token,tid}));
+      try { return await atStage('SUBMIT_REVIEW',()=>db.submit(token,{tid,requestId,revisionId,expectedVersion,ack})); }
+      finally { try{await release();}catch(error){console.warn(JSON.stringify({event:'media_cleanup_failed',...diagnostics(error),stage:'RELEASE_SESSION'}));} }
     },
     async publicImage({ assetId, method = 'GET', range }) {
       if (!/^asset_/.test(assetId) || !uuid.test(assetId.slice(6))) fail('invalid asset');
