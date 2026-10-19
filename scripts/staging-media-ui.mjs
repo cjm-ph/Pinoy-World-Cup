@@ -1,3 +1,4 @@
+import {createGeminiSupport} from './creator-gemini-support.mjs';
 import {installAdminLanguage} from './staging-admin-i18n.mjs';
 import {createMediaApi, STAGING_URL} from './staging-media-api.mjs';
 import {STEPS, statusOf, filterTournaments, workFromRevision, canEditMetadata, createDashboardApi, draftPayload} from './staging-admin-model.mjs';
@@ -208,7 +209,12 @@ function renderWizard(){
  }
  if(step===3){panel.append(make('h2','Try the tournament'),make('p','Preview uses the shared World Cup selection module without recording official statistics.','muted'));const b=make('button','Play private preview','btn primary');b.onclick=()=>{captureWizard();startPreview(work);};panel.append(b);const summary=make('ul',undefined,'checklist');for(const text of [work.title||'Untitled World Cup',`${work.participants.length} candidates`,`${work.participants.filter(p=>p.image_asset_id).length} candidate photos`,'Changes remain private until independently approved and published.'])summary.append(text===work.title?dataText('li',text):make('li',text));panel.append(summary);}
  if(step===4){panel.append(make('h2','Save your draft. Prepare for review.'),make('p','Saving creates a new draft revision. It never publishes or removes existing photos.','muted'));const save=make('button','Save draft','btn primary');save.onclick=()=>run(saveWork);panel.append(save);const checks=make('ul',undefined,'checklist');checks.append(make('li',`${work.participants.filter(p=>p.active!==false).length} active candidates / ${work.requested_size} requested`),make('li','Review names, candidate photos and usage-rights evidence.'),make('li','A different administrator must approve a submitted revision.'));panel.append(checks);const b=make('button','Open saved draft for review preparation','btn');b.disabled=!work.base_revision_id;b.onclick=()=>run(async()=>{if(dirty)await saveWork();await openTournament(work.tournament_id);});panel.append(b);}
- panel.oninput=()=>{dirty=true;$('draftStatus').textContent='Unsaved changes';};
+ if(step===0||step===1)panel.append(createGeminiSupport({
+  getLanguage:()=>adminLanguage.language,
+  getContext:()=>{captureWizard();return {...work,category:catName(work.category_id)};},
+  onCandidates:()=>{if(step===0)void run(()=>goStep(1));else{$('bulkNames').focus();$('bulkNames').scrollIntoView({block:'center',behavior:'smooth'});}}
+ }));
+ panel.oninput=()=>{dirty=true;$('draftStatus').textContent='Unsaved changes';for(const support of all('[data-gemini-support]'))support.refreshPrompt();};
  $('wizardBack').disabled=step===0;$('wizardNext').disabled=step===4;$('wizardProgress').textContent=`Step ${step+1} of 5`;
 }
 async function goStep(next){captureWizard();if(next>0){if(!work.title.trim()||!work.category_id)throw Error('Enter a title and choose a category before continuing.');ensureCandidates();}if(next>1)draftPayload(work);step=Math.max(0,Math.min(4,next));renderWizard();}
@@ -253,6 +259,7 @@ try {
  $('wizardNew').onclick=()=>run(async()=>{if(dirty&&!await confirmAction('Start a new World Cup?','Unsaved text changes will be discarded. Saved server revisions and photos remain unchanged.'))return;newWork();setPage('create');});
  $('wizardBack').onclick=()=>run(()=>goStep(step-1));$('wizardNext').onclick=()=>run(()=>goStep(step+1));
  $('previewClose').onclick=()=>{$('previewDialog').close();game=null;};
+ window.addEventListener('pwc-admin-language-change',()=>{for(const support of all('[data-gemini-support]'))support.refreshPrompt();});
  window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
  client.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){lock();say('Signed out.');}else if(event==='SIGNED_IN'){
   if(authorized&&user?.id===session?.user?.id)return;

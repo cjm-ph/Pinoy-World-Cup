@@ -1,6 +1,17 @@
 // Administrator-only presentation layer. Never translates form values or server content.
 export const LANGUAGE_KEY = 'pwc-staging-admin-language';
 export const KO = {
+ 'Get candidate ideas with Gemini':'Gemini로 후보 아이디어 얻기',
+ 'Generate a prompt from your title, category, candidate count and description. Copy it, open Gemini, and paste it there yourself.':'입력한 제목, 카테고리, 후보 수, 설명으로 질문 문장을 만듭니다. 문장을 복사하고 Gemini를 열어 직접 붙여넣으세요.',
+ 'Candidate recommendation prompt':'후보 추천 프롬프트', 'Generate prompt':'프롬프트 생성',
+ 'Copy prompt':'프롬프트 복사', 'Open Gemini':'Gemini 바로 열기',
+ 'Go to candidate bulk input':'후보 일괄 입력으로 이동',
+ 'Prompt ready. Copy it and paste it into Gemini.':'프롬프트를 만들었습니다. 복사한 뒤 Gemini에 붙여넣으세요.',
+ 'Generate a prompt first.':'프롬프트를 먼저 생성하세요.',
+ 'Prompt copied. Paste it into Gemini to ask your question.':'프롬프트를 복사했습니다. Gemini에 붙여넣고 직접 질문하세요.',
+ 'Automatic copy failed. Copy the selected prompt manually.':'자동으로 복사하지 못했습니다. 선택된 프롬프트를 직접 복사하세요.',
+ 'Enter a title and a supported candidate count before generating a prompt.':'프롬프트를 만들기 전에 제목과 지원되는 후보 수를 입력하세요.',
+ 'In Gemini, copy only the suggested names, then paste them into bulk input below and apply them. Review the candidates before saving. No data is sent automatically; no Gemini API is used.':'Gemini가 추천한 이름 목록만 복사해 후보 일괄 입력란에 붙여넣고 적용하세요. 저장 전 후보를 직접 확인하세요. 내용을 자동 전송하거나 Gemini API를 호출하지 않습니다.',
  'Administrator language':'관리자 화면 언어', 'STAGING':'스테이징', 'Tournament details':'토너먼트 상세',
  'Admin Dashboard · Pinoy World Cup':'관리자 대시보드 · Pinoy World Cup',
  'Administration':'관리자', 'Admin workspace':'관리자 작업 공간',
@@ -295,6 +306,7 @@ export function installAdminLanguage(root=document) {
   document.documentElement.lang=language;
   for(const b of document.querySelectorAll('[data-admin-language]'))b.setAttribute('aria-pressed',String(b.dataset.adminLanguage===language));
   apply();
+  window.dispatchEvent(new CustomEvent('pwc-admin-language-change'));
  }
  for(const b of document.querySelectorAll('[data-admin-language]'))b.addEventListener('click',()=>setLanguage(b.dataset.adminLanguage));
  setLanguage(language);
