@@ -14,5 +14,6 @@
   return {width:nw*scale,height:nh*scale,x:(w-nw*scale)*p[0]/100,y:(h-nh*scale)*p[1]/100};
  }
  function gameRatio(width,height){return width>=768?((Math.min(width,1540)-44)/2)/Math.max(1,height-84):((width-2)/2)/Math.max(1,height-56);}
- root.PWCPhotoDisplay={normalize,apply,geometry,gameRatio};
+ function resultRatio(width,height){return width>=768?Math.min(width-40,580)/Math.max(340,Math.min(.7*height,690)):Math.min(width,580)/Math.max(390,Math.min(.76*height,680));}
+ root.PWCPhotoDisplay={normalize,apply,geometry,gameRatio,resultRatio};
 })(globalThis);

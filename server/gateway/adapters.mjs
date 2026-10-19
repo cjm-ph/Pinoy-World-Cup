@@ -32,6 +32,7 @@ export function supabaseAdapters({ url, publishableKey, serviceKey, fetchImpl = 
       assertAdminOwner: (token, actorId, tid) => rpc('admin_media_assert_owner',{ tid },token,publishableKey)
         .then(id => { if (id !== actorId) throw Error('identity mismatch'); }),
       begin: (token, x) => rpc('admin_media_begin',{ req:x.requestId,tid:x.tid,aid:x.assetId,sha:x.sha,bytes:x.bytes,w:x.w,h:x.h },token,publishableKey),
+      abandon: x => rpc('admin_media_abandon',{actor:x.actorId,req:x.requestId,aid:x.assetId},serviceKey,serviceKey),
       finish: x => rpc('admin_media_finish',{ actor:x.actorId,req:x.requestId,aid:x.assetId },serviceKey,serviceKey),
       requestDeletion: (token,x) => rpc('admin_media_request_delete',{req:x.requestId,tid:x.tid,aid:x.assetId},token,publishableKey),
       replace: (token,x) => rpc('admin_media_replace',{req:x.requestId,tid:x.tid,aid:x.assetId,new_rid:x.revisionId,expected:x.expectedVersion,slot:x.slot},token,publishableKey),

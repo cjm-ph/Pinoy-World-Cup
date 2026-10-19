@@ -60,11 +60,13 @@ export function createGateway({ auth, db, storage, decoder, admission }) {
       if (!uuid.test(requestId) || !/^asset_/.test(assetId) || !uuid.test(assetId.slice(6))) fail('invalid ids');
       const user = await actor(token, tid);
       const release = await atStage('ADMISSION',()=>admission.acquire(user.id,{token,tid})); // shared rate + concurrency budget
+      let reservationAttempted=false;
       try {
         const input = await atStage('READ_BODY',async()=>{const bytes=await readBounded(body);magic(bytes);return bytes;});
         const output = await atStage('IMAGE_DECODE',()=>decoder.decode(input));
         const data = await atStage('OPTIMIZED_VALIDATION',()=>descriptor(output));
         await actor(token, tid); // rights may have changed while decoding
+        reservationAttempted=true;
         const job = await atStage('RESERVE_ASSET',()=>db.begin(token, { requestId, tid, assetId, ...data }));
         if (!uuid.test(job.owner_id)) fail('invalid asset owner');
         const key = `${job.owner_id}/${assetId}.webp`;
@@ -78,6 +80,10 @@ export function createGateway({ auth, db, storage, decoder, admission }) {
         // Wrapper rechecks admin + owner transactionally before existing finalize_upload.
         const result=await atStage('FINALIZE_ASSET',()=>db.finish({ actorId: user.id, requestId, assetId }));
         return {...result,original_bytes:input.length,optimized_bytes:data.bytes,width:data.w,height:data.h};
+      } catch(error) {
+        try{if(reservationAttempted)await db.abandon?.({actorId:user.id,requestId,assetId});}
+        catch(cleanup){console.warn(JSON.stringify({event:'media_reservation_release_failed',...diagnostics(cleanup)}));}
+        throw error;
       } finally { try{await release();}catch(error){console.warn(JSON.stringify({event:'media_cleanup_failed',...diagnostics(error),stage:'RELEASE_SESSION'}));} }
     },
     async requestDeletion({ token, tid, assetId, requestId }) {
