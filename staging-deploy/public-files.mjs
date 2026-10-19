@@ -31,6 +31,7 @@ export const publicFiles = [
   "scripts/staging-public-content.mjs",
   "scripts/staging-member-auth.mjs",
   "scripts/staging-admin-model.mjs",
+  "scripts/staging-admin-i18n.mjs",
   "scripts/creator_model_v3.js",
   "templates/staging-admin.css"
 ];

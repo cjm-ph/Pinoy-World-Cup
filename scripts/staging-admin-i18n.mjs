@@ -1,0 +1,310 @@
+// Administrator-only presentation layer. Never translates form values or server content.
+export const LANGUAGE_KEY = 'pwc-staging-admin-language';
+export const KO = {
+ 'Administrator language':'관리자 화면 언어', 'STAGING':'스테이징', 'Tournament details':'토너먼트 상세',
+ 'Admin Dashboard · Pinoy World Cup':'관리자 대시보드 · Pinoy World Cup',
+ 'Administration':'관리자', 'Admin workspace':'관리자 작업 공간',
+ 'The community. The competition.':'함께 즐기고, 함께 선택하는 월드컵',
+ 'Great World Cups':'멋진 월드컵은', 'start':'여기에서', 'behind the scenes.':'시작됩니다.',
+ 'A dedicated workspace for content, photos and independent review.':'콘텐츠 제작부터 사진 관리, 독립 검토까지 한곳에서 관리하세요.',
+ 'Pinoy World Cup · Operations':'Pinoy World Cup · 운영 관리',
+ 'Welcome back':'다시 오신 것을 환영합니다', 'Administrator sign in':'관리자 로그인',
+ 'Use your existing administrator account.':'기존 관리자 계정으로 로그인하세요.',
+ 'Email address':'이메일 주소', 'Password':'비밀번호', 'Enter your password':'비밀번호를 입력하세요',
+ 'Sign in to dashboard':'대시보드 로그인', 'Checking your administrator session...':'관리자 로그인 상태를 확인하고 있습니다...',
+ 'Retry access check':'접근 권한 다시 확인', 'Sign out of this session':'현재 계정에서 로그아웃',
+ 'Administrator access is checked on the server.':'관리자 접근 권한은 서버에서 확인합니다.',
+ '← Back to Pinoy World Cup':'← Pinoy World Cup으로 돌아가기',
+ 'Close navigation':'메뉴 닫기', 'Open navigation':'메뉴 열기', 'Workspace':'작업 공간',
+ 'Main administration':'주요 관리 메뉴', 'Community administration':'커뮤니티 관리 메뉴',
+ 'Dashboard':'대시보드', 'Tournaments':'토너먼트', 'Create World Cup':'월드컵 만들기',
+ 'Review Queue':'검토 대기 목록', 'Comments':'댓글', 'Members':'회원',
+ 'Staff Permissions':'운영진 권한', 'Settings':'설정',
+ 'Community & administration':'커뮤니티 및 운영 관리', 'STAGING ENVIRONMENT':'스테이징 환경',
+ 'Independent review before publication.':'게시 전 다른 관리자의 검토가 필요합니다.',
+ 'Open public website ↗':'공개 사이트 열기 ↗', 'Administrator':'관리자', 'Sign out':'로그아웃',
+ 'Loading your workspace...':'작업 공간을 불러오고 있습니다...',
+ 'Your operations overview':'운영 현황 한눈에 보기', 'Keep the next great World Cup moving.':'새로운 월드컵의 제작과 운영 현황을 확인하세요.',
+ '+ Create World Cup':'+ 월드컵 만들기', 'Total World Cups':'전체 월드컵',
+ 'Available tournament catalog':'조회 가능한 토너먼트 목록', 'Total Plays':'전체 플레이 수',
+ 'Not available yet':'아직 제공되지 않음', 'No server aggregate connected':'서버 집계 기능이 연결되지 않았습니다',
+ 'Member directory is not connected':'회원 목록 기능이 연결되지 않았습니다',
+ 'Pending Reviews':'검토 대기', 'Current submitted drafts':'현재 제출된 초안 기준',
+ 'Recent World Cups':'최근 월드컵', 'View all →':'전체 보기 →', 'Recent Activity':'최근 활동',
+ 'Latest server-recorded content actions.':'서버에 기록된 최근 콘텐츠 관리 내역입니다.',
+ 'Content workflow':'콘텐츠 제작 과정', 'Create. Review. Publish.':'제작하고, 검토하고, 게시하세요.',
+ 'Draft changes preserve the current publication. A different administrator must review submissions.':'초안을 수정해도 현재 게시본은 유지됩니다. 제출한 초안은 다른 관리자가 검토해야 합니다.',
+ 'Open review queue →':'검토 대기 목록 열기 →', 'Content library':'콘텐츠 라이브러리',
+ 'Find a World Cup and manage its content and photos.':'월드컵을 찾아 콘텐츠와 사진을 관리하세요.',
+ '↻ Refresh':'↻ 새로고침', 'Search tournament titles':'토너먼트 제목 검색',
+ 'Search World Cup titles...':'월드컵 제목 검색...', 'Category filter':'카테고리 필터',
+ 'All categories':'전체 카테고리', 'Status filter':'상태 필터', 'All statuses':'전체 상태',
+ 'Draft':'초안', 'Pending':'검토 대기', 'Published':'게시됨', 'Approved':'승인됨',
+ 'Rejected':'반려됨', 'Blocked':'차단됨', 'Archived':'보관됨', 'Unavailable':'조회 불가',
+ 'World Cup':'월드컵', 'Category':'카테고리', 'State':'상태', 'Status':'상태',
+ 'Candidates':'후보', 'Publication':'게시 상태', 'Manage':'관리',
+ '← All tournaments':'← 전체 토너먼트', 'World Cup details':'월드컵 상세',
+ 'Selected tournament':'선택한 토너먼트', 'Edit details & candidates':'기본 정보·후보 편집',
+ '▷ Preview World Cup':'▷ 월드컵 미리보기', 'Current photos':'현재 사진',
+ 'Select Cover or a candidate to inspect and replace its photo.':'대표 사진 또는 후보를 선택해 사진을 확인하고 교체하세요.',
+ 'Photo replacement':'사진 교체', 'Upload a fresh perspective':'새 사진을 등록하세요',
+ 'Photo slot':'사진을 적용할 위치', 'Select a photo slot.':'사진을 적용할 위치를 선택하세요.',
+ 'New photo · JPG, PNG or WebP, up to 8 MB':'새 사진 · JPG, PNG, WebP, 최대 8MB',
+ '1. Upload new photo':'1. 새 사진 업로드',
+ 'I have verified permission to use this photo.':'이 사진의 사용 권한을 확인했습니다.',
+ 'Rights evidence':'사용 권한 근거', 'Source, license or permission details':'출처, 라이선스 또는 사용 허가 내용을 입력하세요',
+ '2. Record usage rights':'2. 사용 권한 기록', '3. Create replacement draft':'3. 사진 교체 초안 생성',
+ 'Each replacement creates a new revision. Existing uploads and the current publication are preserved.':'사진을 교체할 때마다 새 리비전이 생성됩니다. 기존 업로드와 현재 게시본은 보존됩니다.',
+ 'Review & publication':'검토 및 게시',
+ 'Submitting sends this revision to independent review. Publication is a separate action.':'제출하면 이 리비전이 다른 관리자의 검토 대상으로 전달됩니다. 게시는 별도로 진행합니다.',
+ 'This draft is complete and ready for independent review.':'초안 작성을 마쳤으며 다른 관리자의 검토를 받을 준비가 되었습니다.',
+ 'Submit for review':'검토 요청', 'Approve as separate reviewer':'독립 검토자로 승인',
+ 'Reject with reason':'사유를 작성해 반려', 'Publish approved revision':'승인된 리비전 게시',
+ 'No blocking RPC is available':'차단 기능이 서버에 구현되지 않았습니다', 'Block ... unavailable':'차단 · 아직 지원되지 않음',
+ 'Previous approved revision':'이전 승인 리비전', 'Restore selected publication':'선택한 게시본으로 복원',
+ 'Previous publication reference':'이전 게시본 정보', 'Creator studio':'월드컵 제작실',
+ 'Five steps from an idea to a review-ready draft.':'아이디어를 검토 가능한 초안으로 만드는 5단계 과정입니다.',
+ 'Unsaved draft':'저장하지 않은 초안', 'Start new draft':'새 초안 시작', 'Creation steps':'제작 단계',
+ '← Back':'← 이전', 'Continue →':'다음 →', 'Independent content review':'독립 콘텐츠 검토',
+ 'Inspect candidate names, photos and usage rights before approval.':'승인하기 전에 후보 이름과 사진, 사용 권한을 확인하세요.',
+ 'Search review titles':'검토 대상 제목 검색', 'Search submitted World Cups...':'제출된 월드컵 검색...',
+ 'Review status':'검토 상태', 'Submitted':'제출일', 'Review':'검토',
+ 'Self-review is unavailable. Blocking is disabled until a server operation exists.':'본인이 제출한 초안은 직접 검토할 수 없습니다. 차단 기능은 서버 구현 전까지 비활성화됩니다.',
+ 'Community moderation':'커뮤니티 관리',
+ 'Comment moderation tools will appear here when the server directory is connected.':'서버의 댓글 목록 기능이 연결되면 이곳에서 댓글을 관리할 수 있습니다.',
+ 'Not available yet ... Global comments, moderation states and deletion are not supported by the current API.':'아직 제공되지 않음 · 현재 API는 전체 댓글 조회, 관리 상태 변경, 삭제를 지원하지 않습니다.',
+ 'Search comments':'댓글 검색', 'Comment state':'댓글 상태', 'Visible':'표시 중', 'Hidden':'숨김',
+ 'Select all':'전체 선택', 'Delete selected':'선택 항목 삭제', 'Select all comments':'전체 댓글 선택',
+ 'Comment':'댓글', 'Member':'회원', 'Not available yet. No comment data has been loaded.':'아직 제공되지 않습니다. 불러온 댓글 데이터가 없습니다.',
+ 'Community directory':'회원 관리', 'Member profiles, creations and account restrictions.':'회원 프로필과 제작한 월드컵, 계정 제한 정보를 관리합니다.',
+ 'Not available yet ... No administrator member-directory or restriction API is connected.':'아직 제공되지 않음 · 관리자용 회원 목록 및 계정 제한 API가 연결되지 않았습니다.',
+ 'Search members':'회원 검색', 'Member status':'회원 상태', 'Member directory':'회원 목록',
+ 'No member data has been loaded.':'불러온 회원 데이터가 없습니다.', 'View member details':'회원 상세 보기',
+ 'Member details':'회원 상세 정보', 'Profile & sign-in provider':'프로필 및 로그인 방식',
+ 'Created World Cups':'제작한 월드컵', 'Status & restrictions':'상태 및 이용 제한', 'Restrict member':'회원 이용 제한',
+ 'Owner administration':'소유자 관리', 'A reserved workspace for future delegated staff access.':'향후 운영진에게 세부 권한을 부여하기 위한 공간입니다.',
+ 'Owner-only capability is not available yet. Current administrator membership does not grant an Owner role. No permissions can be saved here.':'소유자 전용 기능은 아직 제공되지 않습니다. 현재 관리자 자격으로 소유자 역할이 부여되지는 않으며, 이곳에서 권한을 저장할 수 없습니다.',
+ 'Google member':'Google 회원', 'Member directory not connected':'회원 목록이 연결되지 않았습니다',
+ 'Future permission scope':'향후 지원할 권한 범위', 'Approve tournaments':'토너먼트 승인',
+ 'Reject submissions':'제출물 반려', 'Block tournaments':'토너먼트 차단',
+ 'Delete comments':'댓글 삭제', 'Delete tournaments':'토너먼트 삭제', 'Manage photos':'사진 관리',
+ 'Save staff permissions':'운영진 권한 저장', 'Workspace preferences':'작업 공간 설정',
+ 'Current environment and administration capabilities.':'현재 환경과 지원되는 관리 기능을 확인하세요.',
+ 'Environment':'환경', 'Administrator sign-in':'관리자 로그인', 'Email & password':'이메일 및 비밀번호',
+ 'Member sign-in':'회원 로그인', 'Guest tournament play':'비회원 토너먼트 플레이',
+ 'Available without login':'로그인 없이 이용 가능', 'Publication policy':'게시 정책',
+ 'Independent review required':'다른 관리자의 검토 필요', 'General settings':'기본 설정',
+ 'Site title':'사이트 이름', 'Default moderation policy':'기본 검토 정책',
+ 'Independent administrator review':'다른 관리자의 독립 검토',
+ 'Settings persistence is not available yet.':'설정 저장 기능은 아직 제공되지 않습니다.', 'Save settings':'설정 저장',
+ 'Pinoy World Cup · Admin workspace':'Pinoy World Cup · 관리자 작업 공간', 'Staging only':'스테이징 전용',
+ 'Confirm action':'작업 확인', 'Rejection reason':'반려 사유', 'Cancel':'취소', 'Confirm':'확인',
+ 'Private game preview':'비공개 게임 미리보기', 'World Cup preview':'월드컵 미리보기',
+ 'Close preview':'미리보기 닫기',
+ 'Uses the shared tournament selection logic. No plays, comments or rankings are recorded.':'기존 토너먼트 후보 선택 로직을 사용합니다. 플레이 수, 댓글, 순위는 기록하지 않습니다.',
+ 'Request failed. Refresh before retrying.':'요청을 처리하지 못했습니다. 새로고침 후 다시 시도하세요.',
+ 'Leave unsaved changes?':'저장하지 않은 변경 사항을 나가시겠습니까?',
+ 'Your current text and candidate edits have not been saved. Existing server drafts and uploaded photos are preserved.':'현재 입력한 내용과 후보 수정 사항이 저장되지 않았습니다. 서버에 저장된 초안과 업로드한 사진은 유지됩니다.',
+ 'Sign in with an authorized Staging administrator account.':'접근 권한이 있는 스테이징 관리자 계정으로 로그인하세요.',
+ 'Loading private preview...':'비공개 사진을 불러오고 있습니다...', 'No photo uploaded':'등록된 사진 없음',
+ 'Preview unavailable. Check the dashboard read RPC installation and photo access.':'미리보기를 불러올 수 없습니다. 대시보드 조회 RPC 설치 여부와 사진 접근 권한을 확인하세요.',
+ 'Photo could not be loaded.':'사진을 불러오지 못했습니다.', 'Uncategorized':'미분류',
+ 'Not available':'정보 없음', 'Published version exists':'게시본 있음', 'Not published':'미게시',
+ 'No World Cups match these filters.':'검색 조건에 맞는 월드컵이 없습니다.',
+ 'No World Cups yet. Create your first draft to get started.':'아직 월드컵이 없습니다. 첫 초안을 만들어 보세요.',
+ 'Includes archived and blocked content.':'보관 및 차단된 콘텐츠를 포함합니다.',
+ 'Current catalog includes private and public content only.':'현재 목록에는 비공개 및 공개 콘텐츠만 포함됩니다.',
+ 'All catalog World Cups':'전체 토너먼트 목록 기준', 'Private and public World Cups only':'비공개 및 공개 월드컵 기준',
+ 'Open':'열기', 'Your first World Cup starts in the creator studio.':'월드컵 제작실에서 첫 월드컵을 만들어 보세요.',
+ 'Review details':'상세 검토', 'No submissions match this view.':'이 조건에 맞는 제출물이 없습니다.',
+ 'Administrator session could not be verified.':'관리자 로그인 상태를 확인하지 못했습니다.',
+ 'Basic catalog mode. Full categories, creator ownership, activity and private photo previews require the prepared dashboard read RPCs. Plays and member-directory data are not available.':'기본 목록 모드입니다. 전체 카테고리, 제작자 소유권, 최근 활동 및 비공개 사진 미리보기에는 준비된 대시보드 조회 RPC가 필요합니다. 플레이 집계와 회원 목록은 아직 제공되지 않습니다.',
+ 'No activity recorded yet.':'아직 기록된 활동이 없습니다.',
+ 'Administrator access confirmed. Welcome to your workspace.':'관리자 권한을 확인했습니다. 작업 공간에 오신 것을 환영합니다.',
+ 'This tournament is no longer available.':'이 토너먼트는 더 이상 조회할 수 없습니다.',
+ 'not returned by current RPC':'현재 RPC에서 제공되지 않음', 'existing published version':'기존 게시본 있음',
+ 'not published':'미게시',
+ 'You own this tournament. Text and candidate edits create a new draft.':'본인이 제작한 토너먼트입니다. 기본 정보나 후보를 수정하면 새 초안이 생성됩니다.',
+ 'Text saves require creator ownership and a cover the existing save RPC can preserve. Separate cover photos can be replaced here; their metadata editor is unavailable.':'기본 정보 저장은 제작자 본인만 가능하며, 기존 저장 RPC가 대표 사진을 보존할 수 있어야 합니다. 별도 대표 사진은 이곳에서 교체할 수 있지만 해당 초안의 기본 정보 편집은 지원되지 않습니다.',
+ 'Cover':'대표 사진', 'Photo':'사진', 'Stored photo':'저장된 사진',
+ 'World Cup loaded. Inspect photos, edit supported fields or review the revision.':'월드컵을 불러왔습니다. 사진을 확인하고 지원되는 정보를 편집하거나 리비전을 검토하세요.',
+ 'Select a revision first.':'리비전을 먼저 선택하세요.',
+ 'A different authorized reviewer must review this submitted revision.':'제출한 리비전은 권한이 있는 다른 검토자가 검토해야 합니다.',
+ 'Independent approval is required before publication.':'게시하기 전에 다른 관리자의 승인이 필요합니다.',
+ 'Reject this revision?':'이 리비전을 반려하시겠습니까?', 'Approve this revision?':'이 리비전을 승인하시겠습니까?',
+ 'Publish this revision?':'이 리비전을 게시하시겠습니까?', 'Rollback this revision?':'이 리비전으로 복원하시겠습니까?',
+ 'This approved revision will become publicly playable on Staging.':'이 승인 리비전이 스테이징에 공개되어 플레이할 수 있게 됩니다.',
+ 'The selected approved revision will become the Staging publication.':'선택한 승인 리비전이 스테이징 게시본으로 적용됩니다.',
+ 'The existing server workflow and media validation will apply.':'기존 서버 처리 절차와 사진 검증 규칙이 적용됩니다.',
+ 'Reducing candidate count would discard candidates. Keep the existing size or start a new draft.':'후보 수를 줄이면 기존 후보가 제외됩니다. 현재 후보 수를 유지하거나 새 초안을 시작하세요.',
+ 'Edit World Cup':'월드컵 편집', 'Unsaved changes':'저장하지 않은 변경 사항', 'Saved draft':'저장된 초안',
+ 'Basic info':'기본 정보', 'Candidates':'후보', 'Photos':'사진', 'Preview':'미리보기', 'Save & review':'저장 및 검토',
+ 'Start with the essentials':'기본 정보부터 입력하세요',
+ 'Give your World Cup a clear title and a focused category.':'월드컵의 제목을 정하고 알맞은 카테고리를 선택하세요.',
+ 'Title':'제목', 'Description':'설명', 'Candidate count':'후보 수',
+ 'No category directory is available. Install the prepared read RPCs and ensure at least one category exists before saving.':'카테고리를 불러올 수 없습니다. 준비된 조회 RPC를 설치하고 카테고리가 한 개 이상 있는지 확인하세요.',
+ 'Build your candidate list':'후보 목록을 구성하세요',
+ 'Names and bulk entry reuse the existing creator model.':'후보 이름을 직접 입력하거나 목록을 한 번에 등록할 수 있습니다.',
+ 'Bulk input ? one candidate name per line':'일괄 입력 · 한 줄에 후보 이름 하나씩',
+ 'Bulk input · one candidate name per line':'일괄 입력 · 한 줄에 후보 이름 하나씩',
+ 'Apply names to these candidates':'후보 이름 일괄 적용',
+ 'Make every candidate recognizable':'후보마다 사진을 등록하세요',
+ 'Save candidate names once before uploading. Uploaded files use the existing verified media gateway and rights workflow.':'사진 업로드 전에 후보 이름을 먼저 저장하세요. 업로드 시 기존 사진 검증 및 사용 권한 확인 절차가 적용됩니다.',
+ 'Save draft & open photo editor':'초안 저장 후 사진 편집 열기',
+ 'Draft saved. Select a candidate below to upload and record usage rights. Return to Create World Cup to continue.':'초안을 저장했습니다. 아래에서 후보를 선택해 사진을 업로드하고 사용 권한을 기록하세요. 이후 월드컵 만들기로 돌아가 다음 단계를 진행할 수 있습니다.',
+ 'Cover candidate · choose a candidate photo for the cover':'대표 후보 · 대표 사진으로 사용할 후보 사진 선택',
+ 'No candidate cover':'대표 후보 선택 안 함', 'Unnamed candidate':'이름 없는 후보',
+ 'Horizontal %':'가로 위치(%)', 'Vertical %':'세로 위치(%)',
+ 'Position edits apply to VS and result views when you save the draft.':'초안을 저장하면 대결 및 결과 화면에 사진 위치가 적용됩니다.',
+ 'Try the tournament':'직접 플레이해 보세요',
+ 'Preview uses the shared World Cup selection module without recording official statistics.':'기존 월드컵 후보 선택 기능으로 미리 플레이할 수 있습니다. 공식 통계는 기록하지 않습니다.',
+ 'Play private preview':'비공개 미리보기 플레이', 'Untitled World Cup':'제목 없는 월드컵',
+ 'Changes remain private until independently approved and published.':'변경 사항은 다른 관리자의 승인과 게시가 완료될 때까지 비공개로 유지됩니다.',
+ 'Save your draft. Prepare for review.':'초안을 저장하고 검토를 준비하세요',
+ 'Saving creates a new draft revision. It never publishes or removes existing photos.':'저장하면 새 초안 리비전이 생성됩니다. 자동으로 게시되거나 기존 사진이 삭제되지 않습니다.',
+ 'Save draft':'초안 저장', 'Review names, candidate photos and usage-rights evidence.':'후보 이름과 사진, 사용 권한 근거를 확인하세요.',
+ 'A different administrator must approve a submitted revision.':'제출한 리비전은 다른 관리자가 승인해야 합니다.',
+ 'Open saved draft for review preparation':'저장한 초안에서 검토 준비',
+ 'Enter a title and choose a category before continuing.':'다음 단계로 진행하기 전에 제목과 카테고리를 입력하세요.',
+ 'Draft saved. The current publication and existing photos are preserved.':'초안을 저장했습니다. 현재 게시본과 기존 사진은 보존됩니다.',
+ 'At least four active candidates are required for a playable preview.':'플레이 미리보기에는 활성 후보가 최소 4명 필요합니다.',
+ 'Preview complete. No official statistics were recorded.':'미리보기를 마쳤습니다. 공식 통계는 기록되지 않았습니다.',
+ 'Sign-out failed. Please retry.':'로그아웃하지 못했습니다. 다시 시도하세요.', 'Signed out.':'로그아웃했습니다.',
+ 'Staging configuration unavailable.':'스테이징 설정을 불러올 수 없습니다.',
+ 'Sign-in failed. Check your Staging account.':'로그인하지 못했습니다. 스테이징 계정 정보를 확인하세요.',
+ 'Selected new photo':'선택한 새 사진', 'Choose a JPG, PNG or WebP photo up to 8 MB.':'8MB 이하의 JPG, PNG 또는 WebP 사진을 선택하세요.',
+ 'Uploading and verifying photo...':'사진을 업로드하고 검증하고 있습니다...',
+ 'Upload is not finalized. Refresh before retrying.':'업로드가 완료되지 않았습니다. 새로고침 후 다시 시도하세요.',
+ 'Upload complete. Record usage rights before creating a replacement.':'업로드를 완료했습니다. 교체 초안을 만들기 전에 사용 권한을 기록하세요.',
+ 'Photo uploaded and technically verified.':'사진 업로드와 기술 검증을 완료했습니다.',
+ 'Upload failed. Your current photo is unchanged.':'업로드하지 못했습니다. 현재 사진은 변경되지 않았습니다.',
+ 'Confirm usage rights and provide evidence first.':'사용 권한 확인란을 선택하고 근거를 입력하세요.',
+ 'Usage rights recorded. Ready to create a replacement draft.':'사용 권한을 기록했습니다. 사진 교체 초안을 생성할 수 있습니다.',
+ 'Upload and record usage rights first.':'사진을 업로드하고 사용 권한을 먼저 기록하세요.',
+ 'Confirm this draft is ready for independent review.':'다른 관리자의 검토를 받을 준비가 되었는지 확인란을 선택하세요.',
+ 'Submitted. A different authorized reviewer must approve it.':'검토를 요청했습니다. 권한이 있는 다른 검토자가 승인해야 합니다.',
+ 'Only the creator can edit this metadata.':'제작자 본인만 기본 정보를 편집할 수 있습니다.',
+ 'Start a new World Cup?':'새 월드컵을 시작하시겠습니까?',
+ 'Unsaved text changes will be discarded. Saved server revisions and photos remain unchanged.':'저장하지 않은 입력 내용은 사라집니다. 서버에 저장된 리비전과 사진은 그대로 유지됩니다.',
+ 'Staging management is unavailable.':'스테이징 관리 기능을 사용할 수 없습니다.',
+ 'This draft uses a separate cover photo. The current text-save RPC cannot preserve it. Use photo management; text saving is disabled for this revision.':'이 초안에는 별도로 등록한 대표 사진이 있습니다. 현재 기본 정보 저장 기능으로 이 사진을 보존할 수 없어 기본 정보 저장이 제한됩니다. 사진 관리 기능을 이용하세요.',
+ 'Enter a title, description, category and supported candidate count.':'제목, 설명, 카테고리 및 지원되는 후보 수를 확인하세요.',
+ 'Candidate count must match the selected size.':'후보 수가 선택한 인원과 일치해야 합니다.',
+ 'Every candidate needs a plain-text name of up to 300 characters.':'모든 후보의 이름을 HTML 없이 300자 이내로 입력하세요.',
+ 'Only the creator can save these candidate and text changes. Photo management remains available to administrators.':'제작자 본인만 후보와 기본 정보 변경 사항을 저장할 수 있습니다. 관리자는 사진 관리 기능을 계속 이용할 수 있습니다.',
+ 'Dashboard data is unavailable. Check administrator access and Staging runtime.':'대시보드 데이터를 불러올 수 없습니다. 관리자 권한과 스테이징 관리 기능 활성화 상태를 확인하세요.',
+ 'Invalid dashboard response.':'대시보드 응답 형식이 올바르지 않습니다.', 'Private preview unavailable.':'비공개 미리보기를 사용할 수 없습니다.',
+ 'Your session has expired. Sign in again.':'로그인이 만료되었습니다. 다시 로그인하세요.',
+ 'Administrator access is required. Check account provisioning and membership.':'관리자 권한이 필요합니다. 계정 등록 및 관리자 자격을 확인하세요.',
+ 'Staging photo management is disabled. Contact the site operator.':'스테이징 사진 관리 기능이 비활성화되어 있습니다. 운영자에게 문의하세요.',
+ 'Administrator data is unavailable. Contact the site operator.':'관리자 데이터를 불러올 수 없습니다. 운영자에게 문의하세요.',
+ 'Use the same-origin Staging media gateway.':'현재 스테이징 사이트의 사진 게이트웨이를 사용해야 합니다.',
+ 'Sign in to continue.':'계속하려면 로그인하세요.',
+ 'Media request rejected. Access may be disabled, or the revision may have changed.':'사진 관리 요청이 거부되었습니다. 접근 권한이 없거나 리비전이 변경되었을 수 있습니다.',
+ 'Unsupported action.':'지원하지 않는 작업입니다.', 'Invalid image reference.':'사진 참조 정보가 올바르지 않습니다.',
+ 'Each participant needs a unique ID.':'각 후보에는 고유한 ID가 필요합니다.',
+ 'This round is not supported.':'지원하지 않는 라운드입니다.', 'Not enough participants.':'후보 수가 부족합니다.',
+ 'Invalid completed game count.':'완료한 게임 수가 올바르지 않습니다.', 'Duplicate participant ID.':'중복된 후보 ID가 있습니다.',
+ 'Invalid ranking data.':'순위 데이터가 올바르지 않습니다.',
+ 'Failed to fetch':'서버에 연결하지 못했습니다. 네트워크 상태를 확인하고 다시 시도하세요.',
+ 'fetch failed':'서버에 연결하지 못했습니다. 네트워크 상태를 확인하고 다시 시도하세요.',
+ 'NetworkError when attempting to fetch resource.':'네트워크 오류로 데이터를 불러오지 못했습니다. 다시 시도하세요.',
+ 'Load failed':'데이터를 불러오지 못했습니다. 다시 시도하세요.',
+ 'The operation was aborted.':'요청이 중단되었습니다. 다시 시도하세요.',
+ 'save draft':'초안 저장', 'review media':'사진 사용 권한 검토', 'admin media replace':'관리자 사진 교체',
+ 'admin media begin':'사진 업로드 시작', 'admin media finish':'사진 업로드 검증 완료',
+ 'admin media submit':'관리자 검토 요청', 'submit':'검토 요청', 'approve':'승인', 'reject':'반려',
+ 'publish':'게시', 'rollback':'게시본 복원', 'unpublish':'비공개 전환', 'verify upload':'업로드 검증',
+ 'reserve upload':'업로드 예약', 'admin media request delete':'사진 삭제 요청',
+ 'none':'없음', 'draft':'초안', 'submitted':'검토 대기', 'approved':'승인됨', 'rejected':'반려됨',
+ 'legacy_snapshot':'이전 스냅샷', 'Staging':'스테이징'
+};
+
+const patterns = [
+ [/^(\d+) of (\d+) World Cups shown\. (.*)$/, (a,b,tail)=>`전체 ${b}개 중 ${a}개 표시. ${translate(tail,'ko')}`],
+ [/^(\d+) candidates$/, n=>`후보 ${n}명`],
+ [/^Version (\d+) \| ([a-z_]+) \| Revision: (.+)$/, (n,s,id)=>`버전 ${n} | ${translate(s,'ko')} | 리비전: ${id}`],
+ [/^Version (\d+) \((.+)\)$/, (n,id)=>`버전 ${n} (${id})`],
+ [/^(\d+) active candidates \| Requested: (.+) \| Publication: (.+)$/, (n,size,state)=>`활성 후보 ${n}명 | 요청 인원: ${translate(size,'ko')} | 게시 상태: ${translate(state,'ko')}`],
+ [/^(approve|reject|publish|rollback) completed\. Server data refreshed\.$/, op=>`${translate(op,'ko')} 작업을 완료했습니다. 서버 데이터를 새로 불러왔습니다.`],
+ [/^Enter exactly (\d+) names$/, n=>`후보 이름 ${n}개를 입력하세요`],
+ [/^Duplicate names found: (.*)$/, names=>`중복된 이름이 있습니다: ${names}`],
+ [/^Enter exactly (\d+) plain-text names, one per line\. URLs and HTML are not allowed\.$/, n=>`후보 이름 ${n}개를 한 줄에 하나씩 입력하세요. URL과 HTML은 사용할 수 없습니다.`],
+ [/^Candidate (\d+) name$/, n=>`후보 ${n} 이름`],
+ [/^(.+) (horizontal|vertical) position$/, (name,axis)=>`${name} 사진 ${axis==='horizontal'?'가로':'세로'} 위치`],
+ [/^(\d+) candidate photos$/, n=>`후보 사진 ${n}개`],
+ [/^(\d+) active candidates \/ (\d+) requested$/, (n,total)=>`활성 후보 ${n}명 / 요청 인원 ${total}명`],
+ [/^Step (\d+) of 5$/, n=>`5단계 중 ${n}단계`],
+ [/^Your champion: (.*)$/, name=>`최종 우승: ${name}`],
+ [/^Round of (\d+) [·?] Match (\d+) of (\d+)$/, (round,n,total)=>`${round}강 · ${total}경기 중 ${n}번째`],
+ [/^Previous publication: (.*)$/, id=>`이전 게시본: ${translate(id,'ko')}`],
+ [/^Replacement draft created: (.+)\. Stored photo previews refreshed\.$/, id=>`사진 교체 초안을 생성했습니다: ${id}. 저장된 사진 미리보기를 갱신했습니다.`],
+ [/^Request rejected: ([a-z_]+)(?: \[[^\]]+\])?\. Check your permissions and current revision\.$/, name=>`요청이 거부되었습니다(${name}). 권한과 현재 리비전을 확인하세요.`]
+];
+export function translate(value, language='en') {
+ const text=String(value ?? '');if(language!=='ko')return text;
+ const trimmed=text.trim();let result=KO[trimmed];
+ if(result===undefined)for(const [regex,format] of patterns){const match=trimmed.match(regex);if(match){result=format(...match.slice(1));break;}}
+ return result===undefined?text:text.replace(trimmed,result);
+}
+export function hasTranslation(value) {
+ const s=String(value).trim();return s in KO || patterns.some(([regex])=>regex.test(s));
+}
+
+export function installAdminLanguage(root=document) {
+ let language='en';try{if(localStorage.getItem(LANGUAGE_KEY)==='ko')language='ko';}catch{/* Storage may be blocked; switching still works for this page. */}
+ const records=new WeakMap();
+ const skipped=element=>element?.closest('[data-i18n-skip],[data-i18n-date],script,style,[data-admin-language]');
+ function updateText(node){
+  if(skipped(node.parentElement))return;
+  const current=node.nodeValue;let state=records.get(node);
+  if(!state||current!==state.last)state={en:current,last:current};
+  const next=translate(state.en,language);state.last=next;records.set(node,state);
+  if(next!==current)node.nodeValue=next;
+ }
+ const attributes=new WeakMap();
+ function updateElement(element){
+  if(element.dataset?.i18nDate){
+   const date=new Date(element.dataset.i18nDate);
+   if(!Number.isNaN(date.getTime())){
+    const options=element.dataset.i18nDateOnly?{year:'numeric',month:'numeric',day:'numeric'}:{year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'};
+    const text=new Intl.DateTimeFormat(language==='ko'?'ko-KR':'en-US',options).format(date);
+    if(element.textContent!==text)element.textContent=text;
+   }
+   return;
+  }
+  if(skipped(element))return;
+  // Option values remain canonical English status codes for existing filter logic.
+  if(element.tagName==='OPTION'&&!element.hasAttribute('value'))element.setAttribute('value',element.textContent);
+  let state=attributes.get(element)||{};
+  for(const name of ['placeholder','title','aria-label','alt']){
+   if(!element.hasAttribute(name))continue;
+   const current=element.getAttribute(name);let item=state[name];if(!item||current!==item.last)item={en:current};
+   const next=translate(item.en,language);item.last=next;state[name]=item;if(next!==current)element.setAttribute(name,next);
+  }
+  attributes.set(element,state);
+ }
+ function apply(scope=root){
+  if(scope.nodeType===Node.TEXT_NODE){updateText(scope);return;}
+  if(scope.nodeType===Node.ELEMENT_NODE)updateElement(scope);
+  const walker=document.createTreeWalker(scope,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT);
+  while(walker.nextNode()){const n=walker.currentNode;if(n.nodeType===Node.TEXT_NODE)updateText(n);else updateElement(n);}
+ }
+ function setLanguage(value){
+  language=value==='ko'?'ko':'en';try{localStorage.setItem(LANGUAGE_KEY,language);}catch{}
+  document.documentElement.lang=language;
+  for(const b of document.querySelectorAll('[data-admin-language]'))b.setAttribute('aria-pressed',String(b.dataset.adminLanguage===language));
+  apply();
+ }
+ for(const b of document.querySelectorAll('[data-admin-language]'))b.addEventListener('click',()=>setLanguage(b.dataset.adminLanguage));
+ setLanguage(language);
+ const observer=new MutationObserver(mutations=>{
+  for(const m of mutations){
+   if(m.type==='characterData')updateText(m.target);
+   else if(m.type==='attributes')updateElement(m.target);
+   else for(const node of m.addedNodes)apply(node);
+  }
+ });
+ observer.observe(root,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['placeholder','title','aria-label','alt']});
+ return {get language(){return language;},setLanguage,apply,disconnect:()=>observer.disconnect()};
+}
