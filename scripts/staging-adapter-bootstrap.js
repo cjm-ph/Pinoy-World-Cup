@@ -24,6 +24,7 @@ async function initialize(){
    repository=root.PinoyStaticContentRepositoryV2.create(bundle);
   }
   let view=await root.PinoyContentViewAdapterV2.prepare(repository);
+  await import('./photo-display.js');
   const staging=await import("./staging-public-content.mjs");
   view=await staging.prepareStagingView(view);
   state.repository=repository;state.viewModel=view;

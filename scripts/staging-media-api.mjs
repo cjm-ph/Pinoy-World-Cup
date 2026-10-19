@@ -22,6 +22,7 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
   const rpc = async (name, args) => {
     const { data, error } = await client.schema('pwc41_api').rpc(name, args);
     if (error) {
+      if(['admin_media_photo_draft','admin_media_save_draft'].includes(name)&&['PGRST202','42883'].includes(error.code))throw Error('Photo-card database functions are not installed. Apply the approved Staging SQL before using this feature.');
       // Only known diagnostic codes may leave this boundary; never message/details/hint.
       const code = /^(PGRST[0-9]{3}|[0-9]{5})$/.test(error.code || '') ? error.code : 'RPC_FAILED';
       throw Error(`Request rejected: ${name}${name === 'list_published' ? ' ['+code+']' : ''}. Check your permissions and current revision.`);
@@ -51,6 +52,7 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
   }
   return {
     rpc, adminCatalog,
+    photoDraft: (t,aid,slot,display_settings)=>rpc('admin_media_photo_draft',{req:uuid(),tid:t.id,aid,new_rid:'rev_'+uuid(),expected:t.edit_version,slot,display_settings}),
     authorize: tid => rpc('admin_media_assert_owner', { tid }),
     published: () => rpc('list_published', {}),
     revision: rid => rpc('get_revision', { rid }),

@@ -33,6 +33,8 @@ export const publicFiles = [
   "scripts/staging-admin-model.mjs",
   "scripts/staging-admin-i18n.mjs",
   "scripts/creator-gemini-support.mjs",
+  "scripts/photo-display.js",
+  "scripts/photo-card-editor.mjs",
   "scripts/creator_model_v3.js",
   "templates/staging-admin.css"
 ];

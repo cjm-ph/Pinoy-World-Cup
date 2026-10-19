@@ -1,6 +1,28 @@
 // Administrator-only presentation layer. Never translates form values or server content.
 export const LANGUAGE_KEY = 'pwc-staging-admin-language';
 export const KO = {
+ 'Click a photo card or drop an image to add or replace a photo.':'사진 카드를 클릭하거나 이미지를 끌어 놓아 사진을 추가하거나 교체하세요.',
+ 'Add or replace photo':'사진 추가 또는 교체',
+ 'Complete usage rights':'사용 권한 확인 완료하기',
+ 'Only the creator can edit text and candidates. Administrators can manage photos and review revisions.':'기본 정보와 후보는 제작자 본인만 편집할 수 있습니다. 관리자는 사진 관리와 리비전 검토를 진행할 수 있습니다.',
+ 'Preview device':'미리보기 기기', 'Desktop game preview':'데스크톱 게임 미리보기',
+ 'Mobile game preview':'모바일 게임 미리보기',
+ 'Photo-card database functions are not installed. Apply the approved Staging SQL before using this feature.':'사진 카드 DB 함수가 설치되지 않았습니다. 승인된 스테이징 SQL을 먼저 적용해야 합니다.',
+ 'Replace photo':'사진 교체', '＋ Add photo':'+ 사진 추가',
+ 'Choose cover photo':'대표 사진 선택', 'Choose candidate photo':'후보 사진 선택',
+ 'Full image':'전체 사진', 'Game card preview':'게임 카드 미리보기',
+ 'Adjust display area manually':'표시 영역 직접 조절', 'Automatic game display':'자동 게임 표시',
+ 'Drag the image to move it. The frame shows the game area; the dimmed border shows the rest of the image.':'사진을 드래그해 위치를 이동하세요. 테두리 안은 게임 표시 영역이며, 어두운 바깥쪽에서 전체 사진을 확인할 수 있습니다.',
+ 'Zoom':'확대·축소', 'Before / After':'적용 전 / 적용 후',
+ 'Apply display area':'표시 영역 적용', 'Return to automatic':'자동으로 되돌리기',
+ 'Saving display area...':'표시 영역을 저장하고 있습니다...', 'Display area saved.':'표시 영역을 저장했습니다.',
+ 'Optimizing and uploading...':'사진을 최적화하고 업로드하고 있습니다...', 'Photo updated.':'사진을 적용했습니다.',
+ 'Confirm photo usage rights':'사진 사용 권한 확인',
+ 'Technical verification is complete. Usage rights still require your confirmation and evidence.':'파일 기술 검증을 마쳤습니다. 사진을 적용하려면 사용 권한 확인과 근거 입력이 필요합니다.',
+ 'Confirm and apply photo':'확인 후 사진 적용', 'Save the tournament draft first.':'토너먼트 초안을 먼저 저장하세요.',
+ 'Photo uploaded but not applied. Existing photo preserved; usage rights are still unconfirmed.':'사진은 업로드했지만 적용하지 않았습니다. 기존 사진은 유지되며, 새 사진의 사용 권한은 아직 확인되지 않았습니다.',
+ 'Click or drop a photo. Optimization and upload run automatically. Usage rights require confirmation before applying.':'카드를 클릭하거나 사진을 끌어 놓으세요. 최적화와 업로드는 자동으로 진행합니다. 사진 적용 전 사용 권한 확인이 필요합니다.',
+ 'A photo operation is already running.':'사진 작업이 진행 중입니다.',
  'Session verification':'로그인 검증', 'Administrator permission check':'관리자 권한 검사',
  'Upload session admission':'업로드 세션 할당', 'Image request body':'사진 요청 데이터 읽기',
  'Image decoding':'사진 디코딩', 'Optimized image validation':'최적화 사진 검증',
@@ -262,6 +284,7 @@ export const KO = {
 };
 
 const patterns = [
+ [/^Photo ready: (\d+) bytes → (\d+) bytes\.$/,(a,b)=>`사진 적용 완료: 원본 ${(Number(a)/1048576).toFixed(2)}MB → 최적화 ${(Number(b)/1024).toFixed(1)}KB.`],
  [/^Photo request failed at (.+): (.+) Reference: ([0-9a-f-]{36}|unavailable)\.$/,(stage,reason,ref)=>`사진 처리 실패 · ${translate(stage,'ko')}: ${translate(reason,'ko')} 추적 번호: ${ref==='unavailable'?'없음':ref}.`],
  [/^Media request rejected \(HTTP (\d+)\)\. Detailed diagnostics require the updated Staging gateway\.$/,status=>`사진 관리 요청이 거부되었습니다(HTTP ${status}). 상세 원인을 확인하려면 수정된 스테이징 게이트웨이를 배포해야 합니다.`],
  [/^(\d+) of (\d+) World Cups shown\. (.*)$/, (a,b,tail)=>`전체 ${b}개 중 ${a}개 표시. ${translate(tail,'ko')}`],

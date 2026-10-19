@@ -18,12 +18,12 @@ export function workFromRevision(t, r) {
   return {tournament_id: t.id, base_revision_id: r.id, title: r.title, description: r.description || '',
     category_id: r.category_ids?.[0] || '', requested_size: r.requested_size || t.requested_size || 8,
     cover_participant_id: (r.participants || []).find(p => r.cover_asset_id && p.image_asset_id === r.cover_asset_id)?.id || null, cover_asset_id: r.cover_asset_id,
+    cover_settings: (r.presentations||[]).find(m=>!m.participant_id&&m.context==='start')?.settings||{},
     participants: (r.participants || []).map(p => ({...p, image_asset_id: p.image_asset_id || null,
       pending_url: p.pending_url || '', presentations: Object.fromEntries((r.presentations || [])
         .filter(m => m.participant_id === p.id).map(m => [m.context, m.settings]))}))};
 }
 export function draftPayload(work) {
-  if (work.cover_asset_id && !work.cover_participant_id) throw Error('This draft uses a separate cover photo. The current text-save RPC cannot preserve it. Use photo management; text saving is disabled for this revision.');
   const plain = s => typeof s === 'string' && !/[<>\u0000-\u0008]/.test(s);
   if (!plain(work.title) || !work.title.trim() || !plain(work.description) || !work.category_id
     || ![8,16,32].includes(Number(work.requested_size))) throw Error('Enter a title, description, category and supported candidate count.');
@@ -39,8 +39,7 @@ export function draftPayload(work) {
 }
 export function canEditMetadata(t, uid) {
   return !!t && t.creator_id === uid && ['private','public'].includes(t.visibility)
-    && ['draft','rejected','approved'].includes(t.revision?.state)
-    && (!t.revision.cover_asset_id || t.revision.participants?.some(p => p.image_asset_id === t.revision.cover_asset_id));
+    && ['draft','rejected','approved'].includes(t.revision?.state);
 }
 
 export function createDashboardApi(client, media, uuid = () => crypto.randomUUID()) {
@@ -55,7 +54,7 @@ export function createDashboardApi(client, media, uuid = () => crypto.randomUUID
     async save(work, t) {
       // Existing save_draft is owner-only. Never pretend admin membership bypasses it.
       if (t && !canEditMetadata(t, (await client.auth.getUser()).data.user?.id)) throw Error('Only the creator can save these candidate and text changes. Photo management remains available to administrators.');
-      return media.rpc('save_draft', {req: uuid(), tid: work.tournament_id, rid: 'rev_' + uuid(),
+      return media.rpc('admin_media_save_draft', {req: uuid(), tid: work.tournament_id, rid: 'rev_' + uuid(),
         expected: t?.edit_version || 0, payload: draftPayload(work)});
     },
     async preview(aid) {

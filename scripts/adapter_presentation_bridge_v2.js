@@ -11,6 +11,8 @@ function paint(container,image,fallback,background,settings,cls){
  image.onerror=()=>{image.hidden=true;if(background)background.hidden=true;if(fallback)fallback.hidden=false;};
  if(settings.fit)image.style.objectFit=settings.fit;
  if(settings.position)image.style.objectPosition=settings.position;
+ if(root.PWCPhotoDisplay&&settings.b2_zoom)root.PWCPhotoDisplay.apply(image,settings);
+ else{image.style.transform='none';image.style.transformOrigin='50% 50%';}
  if(image.getAttribute('src')!==settings.source)image.src=settings.source;
  else if(image.complete&&image.naturalWidth&&fallback)fallback.hidden=true;
  if(background){background.hidden=false;background.style.objectPosition=settings.position||'50% 50%';if(background.getAttribute('src')!==settings.source)background.src=settings.source;}

@@ -76,7 +76,8 @@ export function createGateway({ auth, db, storage, decoder, admission }) {
           await atStage('STORAGE_VERIFY',()=>fail(created ? 'persisted object mismatch' : 'object collision'));
         await actor(token, tid);
         // Wrapper rechecks admin + owner transactionally before existing finalize_upload.
-        return await atStage('FINALIZE_ASSET',()=>db.finish({ actorId: user.id, requestId, assetId }));
+        const result=await atStage('FINALIZE_ASSET',()=>db.finish({ actorId: user.id, requestId, assetId }));
+        return {...result,original_bytes:input.length,optimized_bytes:data.bytes,width:data.w,height:data.h};
       } finally { try{await release();}catch(error){console.warn(JSON.stringify({event:'media_cleanup_failed',...diagnostics(error),stage:'RELEASE_SESSION'}));} }
     },
     async requestDeletion({ token, tid, assetId, requestId }) {
