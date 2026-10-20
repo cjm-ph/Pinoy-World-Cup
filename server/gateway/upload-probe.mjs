@@ -3,7 +3,7 @@ import {identity,readBounded,fail} from './gateway.mjs';
 import {atStage,diagnostics} from './media-errors.mjs';
 export function createUploadProbe({auth,db,admission}){
  let active=0;
- return async({token,tid,body,trace,onProgress,mode})=>{
+ return async({token,tid,body,trace,onProgress=()=>{},mode})=>{
   if(!['existing','body-first'].includes(mode))fail('invalid probe mode');
   if(active>=4)fail('decoder capacity');
   active++;
