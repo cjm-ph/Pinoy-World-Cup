@@ -50,41 +50,43 @@ export function descriptor(out) {
 }
 // All adapters are server-owned; none are browser inputs. No external calls at import time.
 export function createGateway({ auth, db, storage, decoder, admission }) {
-  async function actor(token, tid) {
-    const user = await atStage('AUTH_VERIFY',async()=>identity(await auth.verify(token))); // signature, issuer, audience, expiry required
-    await atStage('ADMIN_CHECK',()=>db.assertAdminOwner(token, user.id, tid));
+  async function actor(token, tid,step=atStage) {
+    const user = await step('AUTH_VERIFY',async()=>identity(await auth.verify(token))); // signature, issuer, audience, expiry required
+    await step('ADMIN_CHECK',()=>db.assertAdminOwner(token, user.id, tid));
     return user;
   }
   return {
-    async upload({ token, tid, requestId, assetId, body }) {
+    async upload({ token, tid, requestId, assetId, body,onProgress=()=>{} }) {
       if (!uuid.test(requestId) || !/^asset_/.test(assetId) || !uuid.test(assetId.slice(6))) fail('invalid ids');
-      const user = await actor(token, tid);
-      const release = await atStage('ADMISSION',()=>admission.acquire(user.id,{token,tid})); // shared rate + concurrency budget
+      const started=performance.now(),timings={};
+      const step=async(stage,action)=>{onProgress(stage);const t=performance.now();try{return await atStage(stage,action);}finally{timings[stage]=+((timings[stage]||0)+performance.now()-t).toFixed(2);}};
+      const user = await actor(token, tid,step);
+      const release = await step('ADMISSION',()=>admission.acquire(user.id,{token,tid})); // shared rate + concurrency budget
       let reservationAttempted=false;
       try {
-        const input = await atStage('READ_BODY',async()=>{const bytes=await readBounded(body);magic(bytes);return bytes;});
-        const output = await atStage('IMAGE_DECODE',()=>decoder.decode(input));
-        const data = await atStage('OPTIMIZED_VALIDATION',()=>descriptor(output));
-        await actor(token, tid); // rights may have changed while decoding
+        const input = await step('READ_BODY',async()=>{const bytes=await readBounded(body);magic(bytes);return bytes;});
+        const output = await step('IMAGE_DECODE',()=>decoder.decode(input,onProgress));
+        const data = await step('OPTIMIZED_VALIDATION',()=>descriptor(output));
+        // admin_media_begin revalidates the user JWT, administrator and tournament after decoding.
         reservationAttempted=true;
-        const job = await atStage('RESERVE_ASSET',()=>db.begin(token, { requestId, tid, assetId, ...data }));
+        const job = await step('RESERVE_ASSET',()=>db.begin(token, { requestId, tid, assetId, ...data }));
         if (!uuid.test(job.owner_id)) fail('invalid asset owner');
         const key = `${job.owner_id}/${assetId}.webp`;
         if (job.bucket !== 'pwc41-optimized' || job.object_key !== key || job.asset_id !== assetId) fail('unsafe upload target');
         // Adapter MUST use create-only semantics. On collision, hash actual stored bytes.
-        const created = await atStage('STORAGE_CREATE',()=>storage.create(job.bucket, key, output.bytes, { upsert: false, contentType: 'image/webp' }));
-        const persisted = await atStage('STORAGE_VERIFY',()=>storage.read(job.bucket, key));
+        const created = await step('STORAGE_CREATE',()=>storage.create(job.bucket, key, output.bytes, { upsert: false, contentType: 'image/webp' }));
+        const persisted = await step('STORAGE_VERIFY',()=>storage.read(job.bucket, key));
         if (persisted.length !== data.bytes || digest(persisted) !== data.sha)
-          await atStage('STORAGE_VERIFY',()=>fail(created ? 'persisted object mismatch' : 'object collision'));
-        await actor(token, tid);
+          await step('STORAGE_VERIFY',()=>fail(created ? 'persisted object mismatch' : 'object collision'));
+        await step('ADMIN_CHECK',()=>db.assertAdminOwner(token,user.id,tid));
         // Wrapper rechecks admin + owner transactionally before existing finalize_upload.
-        const result=await atStage('FINALIZE_ASSET',()=>db.finish({ actorId: user.id, requestId, assetId }));
-        return {...result,original_bytes:input.length,optimized_bytes:data.bytes,width:data.w,height:data.h};
+        const result=await step('FINALIZE_ASSET',()=>db.finish({ actorId: user.id, requestId, assetId }));
+        timings.image=output.timings;return {...result,original_bytes:input.length,optimized_bytes:data.bytes,width:data.w,height:data.h,timings};
       } catch(error) {
         try{if(reservationAttempted)await db.abandon?.({actorId:user.id,requestId,assetId});}
         catch(cleanup){console.warn(JSON.stringify({event:'media_reservation_release_failed',...diagnostics(cleanup)}));}
         throw error;
-      } finally { try{await release();}catch(error){console.warn(JSON.stringify({event:'media_cleanup_failed',...diagnostics(error),stage:'RELEASE_SESSION'}));} }
+      } finally {const releaseStart=performance.now(); try{await release();}catch(error){console.warn(JSON.stringify({event:'media_cleanup_failed',...diagnostics(error),stage:'RELEASE_SESSION'}));}timings.RELEASE_SESSION=+(performance.now()-releaseStart).toFixed(2);timings.totalServerMs=+(performance.now()-started).toFixed(2);timings.serverUptimeMs=Math.round(process.uptime()*1000); }
     },
     async requestDeletion({ token, tid, assetId, requestId }) {
       if (!uuid.test(requestId) || !/^asset_/.test(assetId) || !uuid.test(assetId.slice(6))) fail('invalid ids');

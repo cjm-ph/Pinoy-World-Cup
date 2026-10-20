@@ -27,7 +27,7 @@
    var backdrop=element('img','carousel-backdrop');backdrop.alt='';backdrop.setAttribute('aria-hidden','true');backdrop.src=source;
    var photo=element('img','carousel-photo');photo.alt='';photo.style.objectPosition=position;backdrop.style.objectPosition=position;
    if(settings.fit)photo.style.objectFit=settings.fit;
-   if(root.PWCPhotoDisplay&&settings.b2_zoom)root.PWCPhotoDisplay.apply(photo,settings);
+   if(root.PWCPhotoDisplay&&(settings.b2_zoom||settings.devices))root.PWCPhotoDisplay.apply(photo,settings);
    photo.onload=function(){fallback.hidden=true;};photo.onerror=function(){photo.hidden=true;backdrop.hidden=true;fallback.hidden=false;};
    photo.src=source;slide.append(backdrop,photo);
   }

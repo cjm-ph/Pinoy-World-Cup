@@ -47,7 +47,7 @@
   var scale=Math.max(w/nw,h/nh),reserved=caption.clientHeight-35;
   var position=settings.position||p.object_position||'50% 50%';var parts=position.split(/\s+/).map(parseFloat);
   var x=(w-nw*scale)*(Number.isFinite(parts[0])?parts[0]/100:.5),y=(h-nh*scale)*(Number.isFinite(parts[1])?parts[1]/100:.5);
-  if(settings.b2_zoom&&root.PWCPhotoDisplay){var crop=root.PWCPhotoDisplay.geometry(nw,nh,w,h,settings);scale=crop.width/nw;x=crop.x;y=crop.y;}
+  if((settings.b2_zoom||settings.devices)&&root.PWCPhotoDisplay){var crop=root.PWCPhotoDisplay.geometry(nw,nh,w,h,settings);scale=crop.width/nw;x=crop.x;y=crop.y;}
   else if(head){
    scale=Math.min(scale,(w-16)/(nw*head[2]),(h-reserved-24)/(nh*head[3]));
    x=w/2-(head[0]+head[2]/2)*nw*scale;

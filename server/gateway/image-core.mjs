@@ -1,6 +1,10 @@
 import sharp from 'sharp';
 import { magic, descriptor, limits } from './gateway.mjs';
-export async function normalizeImage(input) {
+// Only visual WebP chunks may bypass a second lossy encoding. Metadata and
+// unknown chunks always take the stripping/encoding path. Full decode is mandatory.
+function cleanWebP(bytes){let at=12,images=0;const counts={};while(at+8<=bytes.length){const tag=bytes.toString('ascii',at,at+4),size=bytes.readUInt32LE(at+4);if(!['VP8 ','VP8L','VP8X','ALPH'].includes(tag)||at+8+size>bytes.length)return false;counts[tag]=(counts[tag]||0)+1;if(counts[tag]>1)return false;if(tag==='VP8 '||tag==='VP8L')images++;at+=8+size+(size%2);}return at===bytes.length&&images===1;}
+export async function normalizeImage(input,onProgress=()=>{}) {
+    const metrics={};const decodeStart=performance.now();onProgress('IMAGE_RESIZE');
     const bytes = Buffer.from(input);
     if (bytes.length > limits.input) throw Error('input too large');
     const format = magic(bytes);
@@ -12,21 +16,29 @@ export async function normalizeImage(input) {
     if (metadata.format !== format || (metadata.pages ?? 1) !== 1 ||
         !metadata.width || !metadata.height || metadata.width > 12000 || metadata.height > 12000 ||
         metadata.width * metadata.height > 24000000) throw Error('invalid input dimensions/frames');
+    if(format==='webp'&&bytes.length<=limits.output&&metadata.width<=1600&&metadata.height<=1600&&!metadata.exif&&!metadata.xmp&&!metadata.icc&&!metadata.iptc&&cleanWebP(bytes)){
+      onProgress('IMAGE_VALIDATE');const validationStart=performance.now();await sharp(bytes,options).raw().toBuffer();
+      const result={bytes,width:metadata.width,height:metadata.height};descriptor(result);
+      return {...result,timings:{decodeResizeMs:+(validationStart-decodeStart).toFixed(2),encodeMs:0,encodeAttempts:0,validationMs:+(performance.now()-validationStart).toFixed(2),passthrough:true}};
+    }
     // No keepMetadata/withMetadata: sharp strips metadata by default.
     // A valid input below 8 MiB can still exceed the 420 KiB database limit
     // after a single quality-75 encode. Retry within the SAME output constraints.
-    let data,info;
+    const base=await sharp(bytes,options).rotate().toColourspace('srgb').resize({width:1600,height:1600,fit:'inside',withoutEnlargement:true}).raw().toBuffer({resolveWithObject:true});
+    metrics.decodeResizeMs=+(performance.now()-decodeStart).toFixed(2);const encodeStart=performance.now();onProgress('IMAGE_ENCODE');
+    let data,info;let attempts=0;
     for(const [size,quality] of [[1600,75],[1280,60],[1024,45],[800,35]]) {
-      ({data,info}=await sharp(bytes, options).rotate().toColourspace('srgb')
+      attempts++;({data,info}=await sharp(base.data,{raw:{width:base.info.width,height:base.info.height,channels:base.info.channels}})
         .resize({width:size,height:size,fit:'inside',withoutEnlargement:true})
         .webp({quality,effort:4}).toBuffer({resolveWithObject:true}));
       if(data.length<=limits.output)break;
     }
+    metrics.encodeMs=+(performance.now()-encodeStart).toFixed(2);metrics.encodeAttempts=attempts;const validationStart=performance.now();onProgress('IMAGE_VALIDATE');
     const result = { bytes:data, width:info.width, height:info.height };
     descriptor(result);
     const check = await sharp(data, options).metadata();
     if (check.format!=='webp' || check.width!==info.width || check.height!==info.height ||
         (check.pages ?? 1)!==1 || check.exif || check.xmp || check.icc || check.iptc) throw Error('output validation');
     await sharp(data, options).raw().toBuffer(); // full output decode, not just header inspection
-    return result;
+    metrics.validationMs=+(performance.now()-validationStart).toFixed(2);return {...result,timings:metrics};
 }

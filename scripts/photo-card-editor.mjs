@@ -39,47 +39,47 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
     const localUrl=file?URL.createObjectURL(file):null,url=localUrl||photoUrl;let retry=null;
     const dialog=node('dialog',null,'photo-display-dialog');dialog.setAttribute('aria-label','Edit display area');
     const heading=node('h2',file?'Upload and edit photo':'Edit display area'),name=node('p',slot.name);if(slot.id!=='cover')name.dataset.i18nSkip='';
-    const manualLabel=node('label',null,'checkbox'),manual=node('input');manual.type='checkbox';
-    let settings=globalThis.PWCPhotoDisplay.normalize(file?{}:slot.settings),drag;
-    manual.checked=settings.b2_zoom!==1||settings.position!=='50% 50%';
-    manualLabel.append(manual,document.createTextNode('Adjust display area manually'));
-    const screenLabel=node('label','Preview screen'),screen=node('select');screen.setAttribute('aria-label','Preview screen');
-    for(const [value,label] of (slot.id==='cover'?[['cover','Cover (start screen)']]:[['vs','VS match'],['result','Winner screen']])){const option=node('option',label);option.value=value;screen.append(option);}screenLabel.append(screen);
+    const baseline=file?{}:(slot.settings||{});
+    let settings={fit:baseline.fit==='contain'?'contain':'cover',position:baseline.position||'50% 50%',b2_zoom:baseline.b2_zoom||1,devices:{desktop:globalThis.PWCPhotoDisplay.normalize(baseline,'desktop'),mobile:globalThis.PWCPhotoDisplay.normalize(baseline,'mobile')}},drag;
     const previews=node('div',null,'photo-device-previews');
-    const images=[],stages=[],viewports=[];
+    const images=[],stages=[],viewports=[],controls=[],zooms=[],fits=[];const started=performance.now(),metrics={browserResizeMs:null,browserCompressionMs:null};
     for(const [label,width,height] of [['Desktop game preview',1440,900],['Mobile game preview',390,844]]){
      const column=node('section'),stage=node('div',null,'photo-pan-stage photo-game-preview'),image=node('img');
      stage.style.aspectRatio=String(globalThis.PWCPhotoDisplay.gameRatio(width,height));
-     image.src=url;image.alt='';stage.append(image);column.append(node('h3',label),stage);previews.append(column);images.push(image);stages.push(stage);viewports.push([width,height]);
-     stage.onpointerdown=e=>{if(!manual.checked||busy)return;e.preventDefault();stage.setPointerCapture(e.pointerId);drag={stage,x:e.clientX,y:e.clientY,p:settings.position.split(' ').map(parseFloat)};};
+     const device=images.length===0?'desktop':'mobile';column.dataset.device=device;
+     const fit=node('select');fit.setAttribute('aria-label',device==='desktop'?'Desktop display mode':'Mobile display mode');
+     for(const [value,text] of [['contain','Fit - show whole photo'],['cover','Fill - fill frame']]){const option=node('option',text);option.value=value;fit.append(option);}fit.value=settings.devices[device].fit;const modeButtons=node('div',null,'photo-fit-toggle');modeButtons.setAttribute('role','group');modeButtons.setAttribute('aria-label',fit.getAttribute('aria-label'));for(const [value,text] of [['contain','Fit'],['cover','Fill']]){const button=node('button',text);button.type='button';button.dataset.fit=value;button.dataset.i18nSkip='';button.onclick=()=>{fit.value=value;fit.dispatchEvent(new Event('change'));};modeButtons.append(button);controls.push(button);}
+     const zoomLabel=node('label','Zoom'),zoom=node('input');zoom.type='range';zoom.min='1';zoom.max='2.5';zoom.step='.01';zoom.value=String(settings.devices[device].b2_zoom);zoom.setAttribute('aria-label',device==='desktop'?'Desktop zoom':'Mobile zoom');zoomLabel.append(zoom);
+     const auto=node('button','Auto fit','btn small');auto.type='button';
+     const autoDevice=()=>{settings.devices[device]=globalThis.PWCPhotoDisplay.automatic(image.naturalWidth,image.naturalHeight);zoom.value='1';fit.value=settings.devices[device].fit;paint();};
+     auto.onclick=autoDevice;fit.onchange=()=>{settings.devices[device].fit=fit.value;paint();};zoom.oninput=()=>{settings.devices[device].b2_zoom=Number(zoom.value);paint();};
+     controls.push(fit,auto);zooms.push(zoom);fits.push(fit);
+     image.src=url;image.alt='';stage.append(image);const surface=node('div',null,'photo-preview-surface');surface.append(stage);column.append(node('h3',label),surface,modeButtons,zoomLabel,auto);previews.append(column);images.push(image);stages.push(stage);viewports.push([width,height]);
+     stage.onpointerdown=e=>{if(busy||saving)return;e.preventDefault();stage.setPointerCapture(e.pointerId);drag={stage,x:e.clientX,y:e.clientY,p:settings.devices[device].position.split(' ').map(parseFloat)};};
      stage.onpointermove=e=>{if(!drag||drag.stage!==stage||!image.naturalWidth)return;
-      const g=globalThis.PWCPhotoDisplay.geometry(image.naturalWidth,image.naturalHeight,stage.clientWidth,stage.clientHeight,settings);
-      const x=g.width-stage.clientWidth,y=g.height-stage.clientHeight;
-      settings.position=`${(x>0?Math.max(0,Math.min(100,drag.p[0]-(e.clientX-drag.x)/x*100)):50).toFixed(3)}% ${(y>0?Math.max(0,Math.min(100,drag.p[1]-(e.clientY-drag.y)/y*100)):50).toFixed(3)}%`;paint();};
+      const g=globalThis.PWCPhotoDisplay.geometry(image.naturalWidth,image.naturalHeight,stage.clientWidth,stage.clientHeight,settings,device);
+      const x=stage.clientWidth-g.width,y=stage.clientHeight-g.height;
+      settings.devices[device].position=`${(Math.abs(x)>.01?Math.max(0,Math.min(100,drag.p[0]+(e.clientX-drag.x)/x*100)):50).toFixed(3)}% ${(Math.abs(y)>.01?Math.max(0,Math.min(100,drag.p[1]+(e.clientY-drag.y)/y*100)):50).toFixed(3)}%`;paint();};
      stage.onpointerup=stage.onpointercancel=()=>{drag=null;};
     }
-    const zoomLabel=node('label','Zoom'),zoom=node('input');zoom.type='range';zoom.min='1';zoom.max='2.5';zoom.step='.01';zoom.value=String(settings.b2_zoom);zoomLabel.append(zoom);
     const message=node('p','', 'help');message.setAttribute('role','status');
-    const apply=node('button',file?'Apply photo':'Apply display area','btn primary'),reset=node('button','Return to automatic','btn'),close=node('button','Cancel','btn');
-    function paint(){zoom.disabled=!manual.checked||busy;for(const image of images)globalThis.PWCPhotoDisplay.apply(image,settings);for(const stage of stages)stage.classList.toggle('manual',manual.checked);}
-    manual.onchange=()=>{if(!manual.checked){settings={fit:'cover',position:'50% 50%',b2_zoom:1};zoom.value='1';}paint();};zoom.oninput=()=>{settings.b2_zoom=Number(zoom.value);paint();};
-    function ratios(){viewports[0]=innerWidth>=768?[innerWidth,innerHeight]:[1440,900];viewports[1]=innerWidth<768?[innerWidth,innerHeight]:[390,844];stages.forEach((stage,i)=>{const ratio=globalThis.PWCPhotoDisplay[screen.value==='cover'?'coverRatio':screen.value==='result'?'resultRatio':'gameRatio'](...viewports[i]);stage.style.aspectRatio=String(ratio);stage.style.width=`min(100%, ${Math.min(240,innerHeight*.3)*ratio}px)`;stage.style.maxHeight='240px';});}
-    screen.onchange=ratios;window.addEventListener('resize',ratios);
-    const rights=node('div',null,'photo-upload-rights'),basisLabel=node('label','Photo usage rights'),basis=node('select');basis.setAttribute('aria-label','Photo usage rights');
-    for(const [value,text] of [['','Choose a truthful rights statement'],['own','I took this photo and permit its use'],['permission','I have a license or permission to use it']]){const option=node('option',text);option.value=value;basis.append(option);}basisLabel.append(basis);
-    const notes=node('textarea');notes.setAttribute('aria-label','Source / notes (optional)');notes.placeholder='Source / notes (optional)';
-    rights.append(basisLabel,notes);rights.hidden=!file;
-    let saving=false;
-    const enabled=()=>{apply.disabled=saving||!!file&&!basis.value;};basis.onchange=enabled;
-    async function persist(value){if(busy||saving||file&&!basis.value)return;busy=saving=true;apply.disabled=reset.disabled=close.disabled=manual.disabled=basis.disabled=true;paint();message.textContent=file?'Optimizing and uploading...':'Saving display area...';
-     try{const result=file?await (retry?retry(value,{basis:basis.value,notes:notes.value.trim()}):upload(slot.id,file,value,{basis:basis.value,notes:notes.value.trim()})):await saveDisplay(slot.id,value);
+    const apply=node('button','Apply photo','btn primary'),close=node('button','Cancel','btn');
+    function paint(){images.forEach((image,i)=>{globalThis.PWCPhotoDisplay.apply(image,settings,i===0?'desktop':'mobile');zooms[i].disabled=busy||!ready;stages[i].classList.add('manual');stages[i].closest('section').querySelectorAll('[data-fit]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.fit===settings.devices[i===0?'desktop':'mobile'].fit)));});}
+    function ratios(){viewports[0]=innerWidth>=768?[innerWidth,innerHeight]:[1440,900];viewports[1]=innerWidth<768?[innerWidth,innerHeight]:[390,844];stages.forEach((stage,i)=>{const ratio=globalThis.PWCPhotoDisplay[slot.id==='cover'?'coverRatio':'gameRatio'](...viewports[i]);stage.style.aspectRatio=String(ratio);stage.style.width=`min(100%, ${Math.min(160,innerHeight*.3)*ratio}px)`;stage.style.maxHeight='160px';});}
+    window.addEventListener('resize',ratios);
+    const notes=node('textarea');notes.setAttribute('aria-label','Source / notes (optional)');notes.placeholder='Source / notes (optional)';notes.maxLength=4000;notes.hidden=!file;
+    let saving=false,ready=false;
+    const enabled=()=>{notes.disabled=saving;apply.disabled=saving||!ready;controls.forEach(e=>e.disabled=saving||!ready);};
+    async function persist(value){if(busy||saving||!ready)return;const appliedAt=performance.now();busy=saving=true;apply.disabled=close.disabled=true;controls.forEach(e=>e.disabled=true);notes.disabled=true;paint();message.textContent=file?'Optimizing and uploading...':'Saving display area...';
+     try{const result=file?await (retry?retry(value,{notes:notes.value.trim()}):upload(slot.id,file,value,{notes:notes.value.trim(),onProgress:text=>{message.textContent=text;}})):await saveDisplay(slot.id,value);
+      globalThis.PWCAdminPerformance??={};globalThis.PWCAdminPerformance.lastPhoto={...metrics,...result?.timings,operation:file?'upload':'framing',totalClientMs:+(performance.now()-appliedAt).toFixed(2)};
       dialog.close();busy=false;await refresh();notify(result?.optimized_bytes?`Photo ready: ${file.size} bytes \u2192 ${result.optimized_bytes} bytes.`:file?'Photo updated.':'Display area saved.','success');}
      catch(e){retry=e.resume||retry;message.textContent=e.message;notify(e.message,'error');}
-     finally{busy=saving=false;reset.disabled=close.disabled=manual.disabled=basis.disabled=false;enabled();paint();}}
-    apply.onclick=()=>persist(manual.checked?settings:{fit:'cover',position:'50% 50%'});
-    reset.onclick=()=>{settings={fit:'cover',position:'50% 50%',b2_zoom:1};manual.checked=false;zoom.value='1';paint();};
+     finally{busy=saving=false;close.disabled=false;enabled();paint();}}
+    apply.onclick=()=>persist(settings);
     close.onclick=()=>dialog.close();dialog.oncancel=e=>{if(saving)e.preventDefault();};dialog.onclose=()=>{window.removeEventListener('resize',ratios);if(localUrl)URL.revokeObjectURL(localUrl);dialog.remove();input.value='';};
-    dialog.append(heading,name,manualLabel,screenLabel,previews,zoomLabel,rights,message,apply,reset,close);document.body.append(dialog);dialog.showModal();ratios();paint();enabled();
+    const actions=node('div',null,'photo-editor-actions');actions.append(close,apply);const header=node('div',null,'photo-editor-heading'),titles=node('div');titles.append(heading,name);header.append(titles);if(root.closest('#wizardPanel')){const numbers=document.getElementById('wizardProgress')?.textContent.match(/\d+/g);if(numbers?.length>=2){const badge=node('span',numbers[0]+' / '+numbers[numbers.length-1],'photo-step-badge');badge.dataset.i18nSkip='';header.append(badge);}}dialog.append(header,previews,notes,message,actions);document.body.append(dialog);dialog.showModal();ratios();paint();enabled();
+    Promise.all(images.map(image=>image.decode())).then(()=>{metrics.browserDecodeMs=+(performance.now()-started).toFixed(2);if(file){for(const [i,device] of ['desktop','mobile'].entries()){settings.devices[device]=globalThis.PWCPhotoDisplay.automatic(images[i].naturalWidth,images[i].naturalHeight);fits[i].value=settings.devices[device].fit;}}ready=true;enabled();paint();}).catch(()=>{ready=false;enabled();message.textContent='Unable to decode this photo. Choose a valid image.';});
    }
    function accept(file){if(!file||busy)return;if(!canEdit()){status.textContent='This revision cannot be edited.';return;}if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024){status.textContent='Choose a JPG, PNG or WebP photo up to 8 MB.';return;}openEditor(file);}
    pick.onclick=()=>input.click();input.onchange=()=>accept(input.files[0]);
@@ -88,5 +88,6 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
    void load();
   }
  }
+ const responsive=new ResizeObserver(()=>{if(!root.isConnected){responsive.disconnect();return;}const slots=getSlots();for(const card of root.querySelectorAll('.photo-editor-card')){const slot=slots.find(s=>s.id===card.dataset.photoSlot),image=card.querySelector('.photo-original img');if(!slot||!image)continue;globalThis.PWCPhotoDisplay.apply(image,slot.settings);const r=globalThis.PWCPhotoDisplay[slot.id==='cover'?'coverRatio':'gameRatio'](innerWidth,innerHeight),frame=image.parentElement;frame.style.aspectRatio=String(r);frame.style.width=`min(100%, ${150*r}px)`;}});responsive.observe(root);
  root.refresh=refresh;void refresh();return root;
 }

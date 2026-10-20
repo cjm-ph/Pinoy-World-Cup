@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { descriptor, limits } from './gateway.mjs';
 export function createDecoder({ worker = new URL('./image-child.mjs',import.meta.url), timeoutMs = 10000, maxActive = 4 } = {}) {
   let active=0;
-  return { decode(bytes) {
+  return { decode(bytes,onProgress=()=>{}) {
     if (!Buffer.isBuffer(bytes) || bytes.length>limits.input) return Promise.reject(Error('invalid decoder input'));
     if (active>=maxActive) return Promise.reject(Error('decoder capacity'));
     active++;
@@ -17,7 +17,8 @@ export function createDecoder({ worker = new URL('./image-child.mjs',import.meta
         child=fork(fileURLToPath(worker),[],{env:{},execArgv:['--max-old-space-size=128'],
           serialization:'advanced',stdio:['ignore','ignore','ignore','ipc']});
         timer=setTimeout(()=>settle(Error('decoder timeout')),timeoutMs);
-        child.once('message',result=>{
+        child.on('message',result=>{
+          if(['IMAGE_RESIZE','IMAGE_ENCODE','IMAGE_VALIDATE'].includes(result?.progress)){onProgress(result.progress);return;}
           try { if(result?.error)throw Error(result.error);descriptor(result);settle(null,result); }
           catch(error){settle(error);}
         });

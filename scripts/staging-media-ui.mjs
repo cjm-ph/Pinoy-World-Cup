@@ -48,6 +48,7 @@ async function navigate(next) {
  setPage(next);
 }
 function toggleMenu(open) { $('adminSidebar').classList.toggle('open',open);$('menuScrim').classList.toggle('open',open);$('mobileMenu').setAttribute('aria-expanded',String(open)); }
+async function guardSession(){const {data,error}=await client.auth.getSession();if(error||!data.session||!authorized){lock();throw Error('Sign in with an authorized Staging administrator account.');}}
 async function guard(tid=selected?.id) {
  const {data,error}=await client.auth.getSession();
  if(error || !data.session || !authorized) {lock();throw Error('Sign in with an authorized Staging administrator account.');}
@@ -102,19 +103,26 @@ function renderReviews() {
  if(!rows.length){const tr=make('tr'),td=make('td','No submissions match this view.','empty');td.colSpan=4;tr.append(td);$('reviewRows').append(tr);}
 }
 async function refreshAdmin(keepSelection=false,{quiet=false}={}) {
- const chosen=keepSelection?selected?.id:null;const at=epoch;
- const {data,error}=await client.auth.getSession();if(error||!data.session){lock();say('Sign in with an authorized Staging administrator account.');return;}
+ const started=performance.now(),chosen=keepSelection?selected?.id:null,at=epoch,measure={};
+ say('Restoring administrator session...');
+ const sessionStart=performance.now();const {data,error}=await client.auth.getSession();measure.sessionMs=performance.now()-sessionStart;
+ if(error||!data.session){lock();say('Sign in with an authorized Staging administrator account.');return;}
  $('loginSignOut').hidden=false;$('loginRetry').hidden=false;
- // Authorization works even with an empty tournament catalog.
- let catalog;
- try { catalog=await api.adminCatalog(); } catch(error) { lock(); throw error; }
- const identity=await client.auth.getUser();if(identity.error||!identity.data.user)throw Error('Administrator session could not be verified.');
- let details;try {details=await dashboard.context();}catch(error){lock();throw error;}if(at!==epoch)return;
- user=identity.data.user;context=details;
- tournaments=details?details.tournaments:catalog;
- categories=details?details.categories:[];
- const results=[];
- for(const t of tournaments){try{const rid=t.draft_revision_id||t.published_revision_id;results.push({...t,revision:rid?completeRevision(t,await api.revision(rid)):null});}catch{results.push({...t,revision:null});}}
+ say('Checking administrator permissions with Supabase...');
+ const slow=setTimeout(()=>say('Waiting for Supabase administrator data...'),1500);let details,catalog;
+ const permissionStart=performance.now();
+ try{details=await dashboard.context();if(!details)catalog=await api.adminCatalog();}catch(error){lock();throw error;}finally{clearTimeout(slow);}
+ measure.permissionMs=performance.now()-permissionStart;
+ // Session user is display/ownership UI data only. The RPC above is the authority.
+ const identity=data.session.user?{data:{user:data.session.user}}:await client.auth.getUser();
+ if(identity.error||!identity.data.user)throw Error('Administrator session could not be verified.');if(at!==epoch)return;
+ user=identity.data.user;context=details;tournaments=details?details.tournaments:catalog;categories=details?details.categories:[];
+ say('Loading tournament data...');const readStart=performance.now(),results=[];
+ // New context embeds exact revisions. Older installations use bounded parallel reads.
+ for(let offset=0;offset<tournaments.length;offset+=4){const group=await Promise.all(tournaments.slice(offset,offset+4).map(async t=>{try{const rid=t.draft_revision_id||t.published_revision_id;return {...t,revision:rid?completeRevision(t,t.revision?.id===rid?t.revision:await api.revision(rid)):null};}catch{return {...t,revision:null};}}));results.push(...group);}
+ measure.revisionMs=performance.now()-readStart;measure.totalMs=performance.now()-started;
+ globalThis.PWCAdminPerformance??={};globalThis.PWCAdminPerformance.lastLogin=measure;
+ const nav=performance.getEntriesByType('navigation')[0];if(nav)globalThis.PWCAdminPerformance.pageTtfbMs=nav.responseStart-nav.requestStart;
  if(at!==epoch)return;
  tournaments=results;authorized=true;
  // Older installation: reuse category IDs returned by get_revision, never invent IDs.
@@ -128,6 +136,7 @@ async function refreshAdmin(keepSelection=false,{quiet=false}={}) {
  options('stagingTournament',tournaments.map(t=>[t.id,t.revision?.title||t.id]),chosen||undefined);
  renderCatalog();if(user.email)$('adminIdentity').dataset.i18nSkip='';$('adminIdentity').textContent=user.email||'Administrator';$('stagingManagement').hidden=false;$('stagingLogin').hidden=true;
  if(chosen && tournaments.some(t=>t.id===chosen))await loadSelected(chosen);
+ if(quiet||keepSelection)say('Administrator data refreshed.');
  else if(!keepSelection&&!quiet){setPage('dashboard');say('Administrator access confirmed. Welcome to your workspace.','success');}
 }
 async function loadSelected(id=$('stagingTournament').value) {
@@ -135,7 +144,10 @@ async function loadSelected(id=$('stagingTournament').value) {
  const at=epoch;
  const editable=['private','public'].includes(t.visibility);
  if(editable)await api.authorize(t.id);else await guard(null);
- const r=completeRevision(t,await api.revision(t.draft_revision_id||t.published_revision_id));if(at!==epoch)return;
+ const rid=t.draft_revision_id||t.published_revision_id;const r=completeRevision(t,t.revision?.id===rid?t.revision:await api.revision(rid));if(at!==epoch)return;
+ paintSelected(t,r);
+}
+function paintSelected(t,r){
  selected=t;revision=r;t.revision=r;asset=null;rightsRecorded=false;
  $('stagingFile').value='';$('stagingEvidence').value='';$('stagingRightsAck').checked=$('stagingSubmitAck').checked=false;$('uploadStatus').textContent='';$('newPhoto').hidden=true;
  if(newPhotoUrl)URL.revokeObjectURL(newPhotoUrl);newPhotoUrl=null;
@@ -157,39 +169,41 @@ function photoSlots(inWizard=false){
  return [{id:'cover',name:'Cover',asset:r?.cover_asset_id,settings:inWizard?work?.cover_settings:(revision?.presentations||[]).find(p=>!p.participant_id&&p.context==='start')?.settings},
  ...participants.map(p=>({id:p.id,name:p.name,asset:p.image_asset_id,settings:inWizard?p.presentations?.vs:(revision.presentations||[]).find(m=>m.participant_id===p.id&&m.context==='vs')?.settings}))];
 }
-function rightsEvidence(rights){
- if(!['own','permission'].includes(rights?.basis))throw Error('Choose a truthful rights statement');
- return (rights.basis==='own'?'Uploader explicitly states: I took this photo and permit its use.':'Uploader explicitly states: I have a license or permission to use this photo.')+(rights.notes?' Source / notes: '+rights.notes:'');
-}
 async function photoOperation(action){if(photoWorking)throw Error('A photo operation is already running.');photoWorking=true;try{return await action();}finally{photoWorking=false;}}
 function cards(inWizard=false){
  const currentTournament=()=>inWizard?tournaments.find(t=>t.id===work?.tournament_id):selected;
  const storageAction=async(name)=>{const t=currentTournament();if(!t)throw Error('Save the tournament draft first.');return api.rpc(name,{tid:t.id});};
  return createPhotoCards({storageDiagnostics:()=>storageAction('admin_media_storage_diagnostics'),releaseExpired:()=>storageAction('admin_media_release_expired'),canEdit:()=>{const t=inWizard?tournaments.find(t=>t.id===work?.tournament_id):selected;return authorized&&(!t||(['private','public'].includes(t.visibility)&&(['draft','rejected','approved'].includes(t.revision?.state)||(inWizard&&t.creator_id===user?.id&&t.revision?.state==='submitted'))));},getSlots:()=>photoSlots(inWizard),loadPhoto:photo,getLanguage:()=>adminLanguage.language,notify:say,
  upload:async(slot,file,settings,rights)=>photoOperation(async()=>{
-  const evidence=rightsEvidence(rights);
+  if(context?.photo_workflow_version!=='045'||!context?.photo_fit_modes)throw Error('Photo workflow update is not installed. Apply the approved Staging 045 and 046 SQL first.');
+  const note=rights?.notes||'';
   if(inWizard&&(!work.base_revision_id||dirty||tournaments.find(t=>t.id===work.tournament_id)?.revision?.state==='submitted'))await saveWork({quiet:true,force:true});
   const t=inWizard?tournaments.find(t=>t.id===work.tournament_id):selected;
-  if(!t)throw Error('Save the tournament draft first.');await guard(t.id);
-  const out=await api.upload(t.id,file);
+  if(!t)throw Error('Save the tournament draft first.');await guardSession();
+  const out=await api.upload(t.id,file,rights?.onProgress);
   if(out.technical_state!=='ready'||!out.asset_id)throw Error('Upload is not finalized. Refresh before retrying.');
-  return finishUploadedPhoto(t.id,out,slot,inWizard,evidence,settings);
+  return finishUploadedPhoto(t.id,out,slot,inWizard,note,settings,rights?.onProgress);
 
  }),saveDisplay:async(slot,settings)=>photoOperation(async()=>{
+  if(context?.photo_workflow_version!=='045'||!context?.photo_fit_modes)throw Error('Photo workflow update is not installed. Apply the approved Staging 045 and 046 SQL first.');
   if(inWizard&&tournaments.find(t=>t.id===work.tournament_id)?.revision?.state==='submitted')await saveWork({quiet:true,force:true});
-  const t=inWizard?tournaments.find(t=>t.id===work.tournament_id):selected;await guard(t?.id);
+  const t=inWizard?tournaments.find(t=>t.id===work.tournament_id):selected;await guardSession();
   const aid=photoSlots(inWizard).find(p=>p.id===slot)?.asset;if(!aid)throw Error('No photo uploaded');
-  await api.photoDraft(t,aid,slot,settings);await reloadPhotoState(t.id,inWizard);
+  const result=await api.photoDraft(t,aid,slot,settings);await reloadPhotoState(t.id,inWizard,result);
  })});}
-async function finishUploadedPhoto(tid,out,slot,inWizard,evidence,settings){
+async function finishUploadedPhoto(tid,out,slot,inWizard,note,settings,onProgress){
  try{
-  await guard(tid);const t=tournaments.find(t=>t.id===tid);
-  await api.rights(out.asset_id,evidence);await api.photoDraft(t,out.asset_id,slot,settings);
-  await reloadPhotoState(t.id,inWizard);return out;
- }catch(error){error.resume=(nextSettings=settings,nextRights)=>photoOperation(()=>finishUploadedPhoto(tid,out,slot,inWizard,nextRights?rightsEvidence(nextRights):evidence,nextSettings));throw error;}
+  await guardSession();const t=tournaments.find(t=>t.id===tid);onProgress?.('Saving photo settings...');
+  const result=await api.applyPhoto(t,out.asset_id,slot,settings,note);
+  await reloadPhotoState(t.id,inWizard,result);return out;
+ }catch(error){error.resume=(nextSettings=settings,nextNotes)=>photoOperation(()=>finishUploadedPhoto(tid,out,slot,inWizard,nextNotes?.notes??note,nextSettings,onProgress));throw error;}
 }
-async function reloadPhotoState(tid,inWizard){
- selected=tournaments.find(t=>t.id===tid);await refreshAdmin(true,{quiet:true});
+async function reloadPhotoState(tid,inWizard,result){
+ selected=tournaments.find(t=>t.id===tid);
+ if(result?.revision?.id===result?.revision_id&&selected){
+  Object.assign(selected,{draft_revision_id:result.revision_id,edit_version:result.edit_version,candidate_inputs:result.candidate_inputs||selected.candidate_inputs});
+  paintSelected(selected,completeRevision(selected,result.revision));
+ }else await refreshAdmin(true,{quiet:true});
  if(inWizard){work=workFromRevision(selected,revision);dirty=false;}
  renderCatalog();
 }
@@ -296,7 +310,7 @@ try {
  const config=window.PWC_STAGING;if(config?.supabaseUrl!==STAGING_URL||!/^sb_publishable_/.test(config.publishableKey||''))throw Error('Staging configuration unavailable.');
  client=window.supabase.createClient(STAGING_URL,config.publishableKey,{auth:{storageKey:'pwc-staging-auth'}});
  api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin});dashboard=createDashboardApi(client,api);
- $('adminLoginForm').onsubmit=e=>{e.preventDefault();void run(async()=>{const credentials={email:$('stagingEmail').value.trim(),password:$('stagingPassword').value};lock();const {error}=await client.auth.signInWithPassword(credentials);$('stagingPassword').value='';if(error)throw Error('Sign-in failed. Check your Staging account.');await refreshAdmin();});};
+ $('adminLoginForm').onsubmit=e=>{e.preventDefault();void run(async()=>{const credentials={email:$('stagingEmail').value.trim(),password:$('stagingPassword').value};lock();say('Signing in with Supabase...');const authStart=performance.now();const {error}=await client.auth.signInWithPassword(credentials);globalThis.PWCAdminPerformance??={};globalThis.PWCAdminPerformance.lastPasswordSignInMs=+(performance.now()-authStart).toFixed(2);$('stagingPassword').value='';if(error)throw Error('Sign-in failed. Check your Staging account.');await refreshAdmin();});};
  $('stagingSignOut').onclick=signOut;$('loginSignOut').onclick=signOut;$('loginRetry').onclick=()=>run(()=>refreshAdmin());
  $('stagingRefresh').onclick=()=>run(()=>refreshAdmin(true));
  for(const b of all('[data-page],[data-go]'))b.onclick=()=>run(()=>navigate(b.dataset.page||b.dataset.go));
@@ -319,7 +333,7 @@ try {
  $('wizardBack').onclick=()=>run(()=>goStep(step-1));$('wizardNext').onclick=()=>run(()=>goStep(step+1));
  $('previewClose').onclick=()=>{$('previewDialog').close();game=null;};
  window.addEventListener('pwc-admin-language-change',()=>{for(const support of all('[data-gemini-support]'))support.refreshPrompt();});
- window.addEventListener('resize',()=>{if(game){$('previewGame').style.setProperty('--game-photo-ratio',globalThis.PWCPhotoDisplay.gameRatio(innerWidth,innerHeight));const winner=$('previewGame').querySelector(':scope>.preview-frame');if(winner)winner.style.aspectRatio=String(globalThis.PWCPhotoDisplay.resultRatio(innerWidth,innerHeight));}});
+ window.addEventListener('resize',()=>{if(game){$('previewGame').style.setProperty('--game-photo-ratio',globalThis.PWCPhotoDisplay.gameRatio(innerWidth,innerHeight));const winner=$('previewGame').querySelector(':scope>.preview-frame');if(winner){winner.style.aspectRatio=String(globalThis.PWCPhotoDisplay.resultRatio(innerWidth,innerHeight));const image=winner.querySelector('img');if(image)globalThis.PWCPhotoDisplay.apply(image,game.round[0]?.presentations?.result);}all('#previewGame .match img').forEach((image,i)=>globalThis.PWCPhotoDisplay.apply(image,game.round[game.index+i]?.presentations?.vs));}});
  window.addEventListener('beforeunload',e=>{if(dirty||photoWorking){e.preventDefault();e.returnValue='';}});
  client.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){lock();say('Signed out.');}else if(event==='SIGNED_IN'){
   if(authorized&&user?.id===session?.user?.id)return;

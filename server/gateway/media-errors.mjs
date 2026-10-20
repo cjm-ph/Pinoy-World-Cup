@@ -1,6 +1,7 @@
 // Only bounded diagnostic codes cross the HTTP/log boundary. Never raw error messages.
-export const stages = new Set(['AUTH_VERIFY','ADMIN_CHECK','ADMISSION','READ_BODY','IMAGE_DECODE','OPTIMIZED_VALIDATION','RESERVE_ASSET','STORAGE_CREATE','STORAGE_VERIFY','FINALIZE_ASSET','REPLACE_DRAFT','SUBMIT_REVIEW','RELEASE_SESSION','REQUEST']);
+export const stages = new Set(['IMAGE_RESIZE','IMAGE_ENCODE','IMAGE_VALIDATE','AUTH_VERIFY','ADMIN_CHECK','ADMISSION','READ_BODY','IMAGE_DECODE','OPTIMIZED_VALIDATION','RESERVE_ASSET','STORAGE_CREATE','STORAGE_VERIFY','FINALIZE_ASSET','REPLACE_DRAFT','SUBMIT_REVIEW','RELEASE_SESSION','REQUEST']);
 const reasons = new Map([
+ ['ready permitted tournament asset required','ASSET_NOT_READY'],
  ['authentication rejected','SESSION_INVALID'],['invalid token','SESSION_INVALID'],
  ['authentication required','SESSION_INVALID'],
  ['admin required','ADMIN_REQUIRED'],['admin media disabled','RUNTIME_DISABLED'],

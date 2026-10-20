@@ -45,7 +45,11 @@ export function canEditMetadata(t, uid) {
 export function createDashboardApi(client, media, uuid = () => crypto.randomUUID()) {
   return {
     async context() {
-      const {data, error} = await client.schema('pwc41_api').rpc('admin_dashboard_context', {});
+      let timer,response;try{response=await Promise.race([client.schema('pwc41_api').rpc('admin_dashboard_context', {}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Supabase administrator lookup timed out. Retry the permission check.')),20000);})]);}finally{clearTimeout(timer);}
+      const {data,error,status}=response;
+      if(['PT401','PGRST301','PGRST303'].includes(error?.code))throw Error('Supabase session verification failed. Sign in again.');
+      if(['PT403','42501'].includes(error?.code))throw Error('Supabase administrator access was denied. Sign in with an authorized account.');
+      if(status>=500)throw Error('Supabase is temporarily unavailable. Retry the permission check.');
       if (error?.code === 'PGRST202' || error?.code === '42883') return null;
       if (error) throw Error('Dashboard data is unavailable. Check administrator access and Staging runtime.');
       if (!data || !Array.isArray(data.tournaments) || !Array.isArray(data.categories)) throw Error('Invalid dashboard response.');
@@ -53,7 +57,8 @@ export function createDashboardApi(client, media, uuid = () => crypto.randomUUID
     },
     async save(work, t) {
       // Existing save_draft is owner-only. Never pretend admin membership bypasses it.
-      if (t && !canEditMetadata(t, (await client.auth.getUser()).data.user?.id)) throw Error('Only the creator can save these candidate and text changes. Photo management remains available to administrators.');
+      const cached=client.auth.getSession?(await client.auth.getSession()).data.session?.user:null;
+      if (t && !canEditMetadata(t, (cached||(await client.auth.getUser()).data.user)?.id)) throw Error('Only the creator can save these candidate and text changes. Photo management remains available to administrators.');
       return media.rpc('admin_media_save_draft', {req: uuid(), tid: work.tournament_id, rid: 'rev_' + uuid(),
         expected: t?.edit_version || 0, payload: draftPayload(work)});
     },
