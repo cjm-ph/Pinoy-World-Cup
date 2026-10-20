@@ -28,6 +28,7 @@ export const publicFiles = [
   "templates/result_immersive_test.css",
   "scripts/staging-media-api.mjs",
   "scripts/staging-media-ui.mjs",
+  "scripts/staging-tournament-management.mjs",
   "scripts/staging-public-content.mjs",
   "scripts/staging-member-auth.mjs",
   "scripts/staging-admin-model.mjs",

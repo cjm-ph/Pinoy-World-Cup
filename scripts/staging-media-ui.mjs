@@ -1,6 +1,7 @@
+import {createTournamentManagement,managementActions} from './staging-tournament-management.mjs';
 import {createPhotoCards} from './photo-card-editor.mjs';
 import {createGeminiSupport} from './creator-gemini-support.mjs';
-import {installAdminLanguage} from './staging-admin-i18n.mjs';
+import {installAdminLanguage,translate} from './staging-admin-i18n.mjs';
 import {createMediaApi, STAGING_URL} from './staging-media-api.mjs';
 import {STEPS, statusOf, filterTournaments, workFromRevision, canEditMetadata, createDashboardApi, draftPayload} from './staging-admin-model.mjs';
 const $ = id => document.getElementById(id);
@@ -10,6 +11,7 @@ const adminLanguage=installAdminLanguage();
 const dataText=(tag,text,className)=>{const node=make(tag,text,className);node.dataset.i18nSkip='';return node;};
 const dateText=(tag,date,dateOnly=false)=>{const node=make(tag);node.dataset.i18nDate=date;if(dateOnly)node.dataset.i18nDateOnly='true';return node;};
 let client, api, dashboard, user, tournaments=[], categories=[], context=null, selected=null, revision=null;
+let managementApi,management={available:false,trash:[]};
 let photoWorking=false;
 let authorized=false, working=false, epoch=0, page='dashboard', asset=null, rightsRecorded=false;
 let work=null, editing=null, step=0, dirty=false, newPhotoUrl=null, game=null;
@@ -17,6 +19,7 @@ const photoUrls=new Map(), photosPending=new Map();
 function say(message, kind='') { $('stagingStatus').textContent=message; $('stagingStatus').className='notice '+kind; $('loginStatus').textContent=message; }
 function clearPhotos() { for(const url of photoUrls.values()) URL.revokeObjectURL(url); photoUrls.clear(); photosPending.clear(); if(newPhotoUrl)URL.revokeObjectURL(newPhotoUrl);newPhotoUrl=null; }
 function lock() {
+ management={available:false,trash:[]};$('trashRows').replaceChildren();
  epoch++; authorized=false;selected=revision=asset=work=editing=game=null;user=null;dirty=false;tournaments=[];categories=[];context=null;clearPhotos();
  $('stagingManagement').hidden=true;$('stagingLogin').hidden=false;
  $('stagingPassword').value=''; delete $('adminIdentity').dataset.i18nSkip;$('adminIdentity').textContent='Administrator';
@@ -36,7 +39,7 @@ function options(id, rows, value) { const select=$(id);select.replaceChildren(..
 function setPage(next) {
  page=next;all('[data-view]').forEach(n=>n.hidden=n.dataset.view!==next);
  all('[data-page]').forEach(n=>{n.classList.toggle('active',n.dataset.page===next); if(n.dataset.page===next)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');});
- $('pageCrumb').textContent=({dashboard:'Dashboard',tournaments:'Tournaments',create:'Create World Cup',reviews:'Review Queue',comments:'Comments',members:'Members',staff:'Staff Permissions',settings:'Settings',editor:'Tournament details'})[next];
+ $('pageCrumb').textContent=({dashboard:'Dashboard',tournaments:'Tournaments',create:'Create World Cup',reviews:'Review Queue',comments:'Comments',members:'Members',staff:'Staff Permissions',settings:'Settings',editor:'Tournament details',trash:'Trash'})[next];
  toggleMenu(false);window.scrollTo({top:0,behavior:'instant'});
 }
 async function navigate(next) {
@@ -78,12 +81,27 @@ function completeRevision(t,r){
   participants:(r.participants||[]).map(p=>({...p,pending_url:(t.candidate_inputs||[]).find(input=>input.id===p.id)?.pending_url||p.pending_url||''}))};
 }
 function statusBadge(t) {return make('span',statusOf(t),'badge '+statusOf(t).toLowerCase());}
+function renderTrash(){
+ $('trashHelp').textContent=management.available?'Permanent deletion is unavailable. Existing data is preserved.':'Tournament management requires approved Staging 048 migration.';
+ $('trashRows').replaceChildren(...management.trash.map(t=>{const tr=make('tr'),actions=make('td');tr.append(dataText('td',t.title||t.id),dateText('td',t.trashed_at));const restore=make('button','Restore as private','btn small');restore.disabled=!management.available;restore.onclick=()=>run(()=>manageTournament(t,'restore'));const remove=make('button','Permanently delete','btn small danger');remove.disabled=true;remove.title='Permanent deletion is unavailable. Existing data is preserved.';actions.append(restore,remove);tr.append(actions);return tr;}));
+}
+async function manageTournament(t,action){
+ if(!management.available)throw Error('Tournament management requires approved Staging 048 migration.');
+ const title=t.revision?.title||t.title||t.id;
+ const labels={trash:'Move to trash',restore:'Restore as private',publish:'Publish approved version',unpublish:'Make private'};
+ const message=action==='trash'?'Public access will be blocked. Existing photos and settings are preserved.':action==='restore'?'Restoration keeps this tournament private.':'Existing approval and publication rules still apply.';
+ if(!await confirmAction(labels[action],title+'\n'+translate(message,adminLanguage.language)))return;
+ await guardSession();await managementApi.change(t,action);
+ try{await refreshAdmin(false,{quiet:true});}catch(error){lock();throw error;}
+ say('Tournament management updated.','success');
+}
 function renderCatalog() {
+ renderTrash();
  const rows=filterTournaments(tournaments,{search:$('tournamentSearch').value,category:$('categoryFilter').value,status:$('statusFilter').value});
  $('tournamentRows').replaceChildren(...rows.map(t=>{
   const tr=make('tr'), title=make('td');title.append(dataText('span',t.revision?.title||t.id,'table-title'),dataText('span',t.id,'table-id'));tr.append(title,(t.revision?.category_ids?.length?dataText('td',t.revision.category_ids.map(catName).join(', ')):make('td','Not available')));
-  const state=make('td');state.append(statusBadge(t));tr.append(state,make('td',t.revision?(t.revision.participants||[]).filter(p=>p.active).length:'Unavailable'),make('td',t.visibility==='public'?'Public':'Private'));
-  const action=make('td'),button=make('button','Manage','btn small');button.onclick=()=>run(()=>openTournament(t.id));action.append(button);tr.append(action);return tr;
+  const state=make('td');state.append(make('span',({draft:'Draft',submitted:'Pending',approved:'Approved',rejected:'Rejected',legacy_snapshot:'Legacy snapshot'})[t.revision?.state]||'Not available','badge'));tr.append(state,make('td',t.revision?(t.revision.participants||[]).filter(p=>p.active).length:'Unavailable'),make('td',t.visibility==='public'?'Public':'Private'));
+  const action=make('td'),button=make('button','Manage','btn small');button.onclick=()=>run(()=>openTournament(t.id));action.append(button);const actions=managementActions(t,management.available);for(const [op,label,enabled] of [[t.visibility==='public'?'unpublish':'publish',t.visibility==='public'?'Make private':'Publish approved version',t.visibility==='public'?actions.unpublish:actions.publish],['trash','Move to trash',actions.trash]]){const b=make('button',label,'btn small');b.disabled=!enabled;b.onclick=()=>run(()=>manageTournament(t,op));action.append(b);}tr.append(action);return tr;
  }));
  if(!rows.length){const tr=make('tr'),td=make('td',tournaments.length?'No World Cups match these filters.':'No World Cups yet. Create your first draft to get started.','empty');td.colSpan=6;tr.append(td);$('tournamentRows').append(tr);}
  $('tournamentCount').textContent=`${rows.length} of ${tournaments.length} World Cups shown. `+(context?'Includes archived and blocked content.':'Current catalog includes private and public content only.');
@@ -113,6 +131,7 @@ async function refreshAdmin(keepSelection=false,{quiet=false}={}) {
  const permissionStart=performance.now();
  try{details=await dashboard.context();if(!details)catalog=await api.adminCatalog();}catch(error){lock();throw error;}finally{clearTimeout(slow);}
  measure.permissionMs=performance.now()-permissionStart;
+ try{management=await managementApi.load();}catch{management={available:false,trash:[]};}
  // Session user is display/ownership UI data only. The RPC above is the authority.
  const identity=data.session.user?{data:{user:data.session.user}}:await client.auth.getUser();
  if(identity.error||!identity.data.user)throw Error('Administrator session could not be verified.');if(at!==epoch)return;
@@ -124,7 +143,7 @@ async function refreshAdmin(keepSelection=false,{quiet=false}={}) {
  globalThis.PWCAdminPerformance??={};globalThis.PWCAdminPerformance.lastLogin=measure;
  const nav=performance.getEntriesByType('navigation')[0];if(nav)globalThis.PWCAdminPerformance.pageTtfbMs=nav.responseStart-nav.requestStart;
  if(at!==epoch)return;
- tournaments=results;authorized=true;
+ tournaments=results.filter(t=>management.available?!management.trash.some(d=>d.id===t.id):t.visibility!=='archived');authorized=true;
  // Older installation: reuse category IDs returned by get_revision, never invent IDs.
  if(!context)categories=[...new Set(tournaments.flatMap(t=>t.revision?.category_ids||[]))].map(id=>({id,name:id}));
  const filter=$('categoryFilter').value;options('categoryFilter',[['','All categories'],...categories.map(c=>[c.id,c.name])],filter);
@@ -223,7 +242,7 @@ function updateControls(){
  $('editorPreview').disabled=!revision;
  const own=selected?.creator_id===user?.id,adminCreated=isAdminCreated(selected);
  $('memberReviewControls').hidden=false;$('stagingApprove').hidden=$('rejectRevision').hidden=adminCreated;$('stagingPublish').hidden=own;
- $('adminPublicationControls').hidden=!own;
+ $('adminPublicationControls').hidden=false;$('editorPublishNow').hidden=!own;
  $('editorPublishNow').disabled=!authorized||!own||!['private','public'].includes(selected?.visibility)||!['draft','submitted','approved','rejected'].includes(revision?.state);
  $('editorMakePrivate').disabled=!authorized||!selected||selected.visibility!=='public';
  $('openPublicSite').hidden=selected?.visibility!=='public';
@@ -309,6 +328,7 @@ async function signOut(){await run(async()=>{lock();const {error}=await client.a
 try {
  const config=window.PWC_STAGING;if(config?.supabaseUrl!==STAGING_URL||!/^sb_publishable_/.test(config.publishableKey||''))throw Error('Staging configuration unavailable.');
  client=window.supabase.createClient(STAGING_URL,config.publishableKey,{auth:{storageKey:'pwc-staging-auth'}});
+ managementApi=createTournamentManagement(client);
  api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin});dashboard=createDashboardApi(client,api);
  $('adminLoginForm').onsubmit=e=>{e.preventDefault();void run(async()=>{const credentials={email:$('stagingEmail').value.trim(),password:$('stagingPassword').value};lock();say('Signing in with Supabase...');const authStart=performance.now();const {error}=await client.auth.signInWithPassword(credentials);globalThis.PWCAdminPerformance??={};globalThis.PWCAdminPerformance.lastPasswordSignInMs=+(performance.now()-authStart).toFixed(2);$('stagingPassword').value='';if(error)throw Error('Sign-in failed. Check your Staging account.');await refreshAdmin();});};
  $('stagingSignOut').onclick=signOut;$('loginSignOut').onclick=signOut;$('loginRetry').onclick=()=>run(()=>refreshAdmin());

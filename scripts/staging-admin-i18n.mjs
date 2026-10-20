@@ -1,6 +1,23 @@
 // Administrator-only presentation layer. Never translates form values or server content.
 export const LANGUAGE_KEY = 'pwc-staging-admin-language';
 export const KO = {
+ 'Trash':'휴지통',
+ 'Move to trash':'휴지통으로 이동',
+ 'Moved to trash':'삭제 시각',
+ 'Restore as private':'비공개로 복원',
+ 'Make private':'비공개로 전환',
+ 'Publish approved version':'승인된 버전 공개',
+ 'Permanently delete':'완전 삭제',
+ 'Restored tournaments remain private. Photos and settings are preserved.':'복원된 토너먼트는 비공개로 유지되며 사진과 편집 설정은 보존됩니다.',
+ 'Permanent deletion is unavailable. Existing data is preserved.':'완전 삭제는 안전성 검증 전까지 사용할 수 없습니다. 기존 데이터는 보존됩니다.',
+ 'Tournament management requires approved Staging 048 migration.':'토너먼트 관리에는 승인된 Staging 048 마이그레이션 적용이 필요합니다.',
+ 'Tournament operation failed. Refresh administrator data before trying again.':'작업에 실패했습니다. 관리자 데이터를 새로고침한 뒤 다시 시도하세요.',
+ 'Tournament management unavailable. Refresh administrator data.':'관리 기능을 사용할 수 없습니다. 관리자 데이터를 새로고침하세요.',
+ 'Invalid tournament management response. Refresh administrator data.':'잘못된 관리 응답입니다. 관리자 데이터를 새로고침하세요.',
+ 'Public access will be blocked. Existing photos and settings are preserved.':'공개 노출이 차단됩니다. 기존 사진과 편집 설정은 보존됩니다.',
+ 'Restoration keeps this tournament private.':'복원 후에도 비공개 상태를 유지합니다.',
+ 'Existing approval and publication rules still apply.':'기존 승인 및 공개 정책이 적용됩니다.',
+ 'Tournament management updated.':'토너먼트 관리 상태를 갱신했습니다.',
  'VS and winner photos use Fill. Adjust each device position and zoom below.':'VS·우승 사진은 Fill로 표시합니다. 아래에서 기기별 위치와 확대율을 조절하세요.',
  'The upload body must contain raw image bytes.':'업로드 본문이 이미지 바이너리 형식이 아닙니다.',
  'The image request body was interrupted before it could be read.':'이미지 요청 본문을 읽기 전에 전송이 중단되었습니다.',
