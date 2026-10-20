@@ -3,19 +3,22 @@ import {uploadTrace} from './upload-trace.mjs';
 import {diagnostics} from './media-errors.mjs';
 import { createServer } from 'node:http';
 // No listener starts on import. Deployment must explicitly supply authenticated adapters.
-export function createMediaServer(gateway) {
+export function createMediaServer(gateway,{uploadProbe}={}) {
+  const sockets=new WeakMap();let socketSequence=0;
   const server = createServer(async (req,res) => {
     let reference;
     try {
       const u=new URL(req.url,'http://localhost');
-      if (u.pathname==='/admin/media/upload' && req.method==='POST') {
+      const probe=u.pathname==='/admin/media/upload-probe' && !!uploadProbe;
+      if ((u.pathname==='/admin/media/upload'||probe) && req.method==='POST') {
         if (!req.headers.authorization?.startsWith('Bearer ')) throw Error('authentication required');
         reference=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(u.searchParams.get('request')||'')?u.searchParams.get('request'):randomUUID();
         const trace=uploadTrace(req,res,reference);res.setHeader('X-PWC-Upload-Reference',reference);
+        if(probe){let socket=sockets.get(req.socket);if(!socket){socket={id:++socketSequence,requests:0};sockets.set(req.socket,socket);}socket.requests++;console.info(JSON.stringify({event:'media_probe_start',reference,mode:['existing','body-first'].includes(u.searchParams.get('mode'))?u.searchParams.get('mode'):'invalid',socket_id:socket.id,socket_request:socket.requests,http_version:req.httpVersion}));}
         const streaming=req.headers.accept==='application/x-ndjson';
         const emit=value=>{if(!res.destroyed)res.write(JSON.stringify({...value,reference})+'\n');};
         if(streaming){res.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store','X-Accel-Buffering':'no'});res.flushHeaders();}
-        let value;try{value=await gateway.upload({ token:req.headers.authorization.slice(7),
+        let value;try{value=await (probe?uploadProbe:gateway.upload)({ token:req.headers.authorization.slice(7),mode:u.searchParams.get('mode'),
           tid:u.searchParams.get('tid'), requestId:u.searchParams.get('request'),
           assetId:u.searchParams.get('asset'), body:req,trace,onProgress:streaming?stage=>emit({type:'progress',stage}):undefined });
         }catch(error){if(!streaming)throw error;console.warn(JSON.stringify({event:'media_request_failed',...diagnostics(error),reference}));emit({type:'error',diagnostic:{...diagnostics(error),reference}});res.end();return;}
