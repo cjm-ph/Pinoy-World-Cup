@@ -383,6 +383,7 @@ export const KO = {
 };
 
 const patterns = [
+ [/^Upload ended without a final result \(HTTP (\d+)\)\. Last stage: (.+)\. Existing photo is unchanged\.$/,(status,stage)=>`업로드가 최종 결과 없이 종료되었습니다(HTTP ${status}). 마지막 단계: ${translate(stage,'ko')}. 기존 사진은 유지됩니다.`],
  [/^Upload stage: (.+)\.$/, stage=>translate(stage,'ko')+'...'],
  [/^Sending photo: (\d+)%\.$/, n=>translate('Sending photo...','ko')+' '+n+'%'],
  [/^Photo ready: (\d+) bytes → (\d+) bytes\.$/,(a,b)=>`사진 적용 완료: 원본 ${(Number(a)/1048576).toFixed(2)}MB → 최적화 ${(Number(b)/1024).toFixed(1)}KB.`],

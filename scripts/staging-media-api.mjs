@@ -57,8 +57,8 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
     return response.json();
   }
   function uploadStream(url,body,token,onProgress){return new Promise((resolve,reject)=>{
-    const xhr=new XMLHttpRequest(),started=performance.now();let cursor=0,buffer='',result,failure,uploadMs,ttfbMs,receivedStage=false;
-    const progress=stage=>{if(stageNames[stage]){receivedStage=true;onProgress(`Upload stage: ${stageNames[stage]}.`);}};
+    const xhr=new XMLHttpRequest(),started=performance.now();let cursor=0,buffer='',result,failure,uploadMs,ttfbMs,receivedStage=false,lastStage='REQUEST';
+    const progress=stage=>{if(stageNames[stage]){receivedStage=true;lastStage=stage;onProgress(`Upload stage: ${stageNames[stage]}.`);}};
     function read(final=false){buffer+=xhr.responseText.slice(cursor);cursor=xhr.responseText.length;const lines=buffer.split('\n');buffer=lines.pop();if(final&&buffer.trim()){lines.push(buffer);buffer='';}
      for(const line of lines){if(!line.trim())continue;let value;try{value=JSON.parse(line);}catch{failure=Error('Upload response was incomplete. Retry safely.');continue;}
       if(value.type==='progress')progress(value.stage);else if(value.type==='result')result=value.data;
@@ -70,7 +70,7 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
     xhr.upload.onload=()=>{uploadMs=performance.now()-started;if(!receivedStage)onProgress('Waiting for Staging server response...');};
     xhr.onreadystatechange=()=>{if(xhr.readyState===2)ttfbMs=performance.now()-started;};
     xhr.onprogress=()=>read();xhr.onerror=xhr.ontimeout=()=>reject(Error('Upload connection failed. Existing photo is unchanged.'));
-    xhr.onload=()=>{read(true);if(failure||xhr.status<200||xhr.status>=300||!result){reject(failure||Error(mediaFailureMessage({status:xhr.status})));return;}
+    xhr.onload=()=>{read(true);if(failure||xhr.status<200||xhr.status>=300||!result){reject(failure||Error(xhr.status>=200&&xhr.status<300&&!result?`Upload ended without a final result (HTTP ${xhr.status}). Last stage: ${stageNames[lastStage]}. Existing photo is unchanged.`:mediaFailureMessage({status:xhr.status})));return;}
      const timings={...(result.timings||{}),requestMs:+(performance.now()-started).toFixed(2),uploadTransferMs:uploadMs,ttfbMs};resolve({...result,timings});};
     onProgress('Sending photo...');xhr.send(body);
    });}
