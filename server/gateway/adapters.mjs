@@ -14,6 +14,9 @@ export function supabaseAdapters({ url, publishableKey, serviceKey, fetchImpl = 
     const r = await request(`/rest/v1/rpc/${name}`, token, key, { method:'POST',
       headers: { 'Content-Type':'application/json', 'Content-Profile':'pwc41_api' }, body:JSON.stringify(args) });
     if (!r.ok) {let detail;try{detail=await r.json();}catch{}throw upstreamFailure({status:r.status,code:detail?.code,message:detail?.message,rpc:name});} // never echo remote body/tokens
+    // These two RPCs return void. HTTP 204 is successful and has no JSON body.
+    // Value-returning RPCs must still supply parseable results; never mask errors.
+    if(r.status===204 && ['admin_media_release','admin_media_abandon'].includes(name))return null;
     return r.json();
   }
   function objectPath(bucket, key) {
