@@ -60,12 +60,21 @@ export function createGateway({ auth, db, storage, decoder, admission }) {
     async upload({ token, tid, requestId, assetId, body,onProgress=()=>{},trace }) {
       if (!uuid.test(requestId) || !/^asset_/.test(assetId) || !uuid.test(assetId.slice(6))) fail('invalid ids');
       const started=performance.now(),timings={};
-      const step=async(stage,action)=>{trace?.stage(stage);onProgress(stage);const t=performance.now();try{return await atStage(stage,action);}finally{const ms=performance.now()-t;trace?.stageEnd(stage,ms);timings[stage]=+((timings[stage]||0)+ms).toFixed(2);}};
+      let awaitingBody=true;
+      const assertConnected=()=>{if(body?.aborted || (body?.destroyed && body?.complete===false) || trace?.disconnected?.())fail('upload body interrupted');};
+      const step=async(stage,action)=>{trace?.stage(stage);onProgress(stage);const t=performance.now();try{return await atStage(stage,async()=>{
+        if(awaitingBody)assertConnected();
+        const result=await action();
+        // Keep the acquired release callback even if the peer closed during admission.
+        if(awaitingBody && stage!=='ADMISSION')assertConnected();
+        return result;
+      });}finally{const ms=performance.now()-t;trace?.stageEnd(stage,ms);timings[stage]=+((timings[stage]||0)+ms).toFixed(2);}};
       const user = await actor(token, tid,step);
       const release = await step('ADMISSION',()=>admission.acquire(user.id,{token,tid})); // shared rate + concurrency budget
       let reservationAttempted=false;
       try {
         const input = await step('READ_BODY',async()=>{const bytes=await readBounded(body,{onBytes:total=>trace?.bytes(total)});magic(bytes);return bytes;});
+        awaitingBody=false;
         const output = await step('IMAGE_DECODE',()=>decoder.decode(input,onProgress));
         const data = await step('OPTIMIZED_VALIDATION',()=>descriptor(output));
         // admin_media_begin revalidates the user JWT, administrator and tournament after decoding.
