@@ -19,6 +19,7 @@ const reasons = new Map([
  ['decoder timeout','DECODE_TIMEOUT'],['decoder capacity','RATE_LIMITED'],
  ['decoder unavailable or crashed','DECODER_UNAVAILABLE'],
  ['invalid optimized output','OPTIMIZED_IMAGE_INVALID'],
+ ['binary body required','INVALID_BODY'],['upload body interrupted','BODY_INTERRUPTED'],['body stream failed','BODY_STREAM_FAILED'],
  ['body timeout','BODY_TIMEOUT'],['persisted object mismatch','STORAGE_MISMATCH'],
  ['object collision','STORAGE_MISMATCH'],['uploaded object missing','STORAGE_MISSING'],
  ['verified bytes mismatch','STORAGE_MISMATCH']

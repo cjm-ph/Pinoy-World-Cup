@@ -1,6 +1,9 @@
 // Administrator-only presentation layer. Never translates form values or server content.
 export const LANGUAGE_KEY = 'pwc-staging-admin-language';
 export const KO = {
+ 'The upload body must contain raw image bytes.':'업로드 본문이 이미지 바이너리 형식이 아닙니다.',
+ 'The image request body was interrupted before it could be read.':'이미지 요청 본문을 읽기 전에 전송이 중단되었습니다.',
+ 'The server could not read the image request stream.':'서버에서 이미지 요청 스트림을 읽지 못했습니다.',
  'Display mode':'사진 맞춤 방식',
  'Desktop display mode':'PC 사진 맞춤 방식',
  'Mobile display mode':'모바일 사진 맞춤 방식',

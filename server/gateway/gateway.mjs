@@ -25,7 +25,8 @@ export async function readBounded(stream,{timeoutMs=15000}={}) {
   });
   try {
     while(true){
-      const {value:chunk,done}=await Promise.race([iterator.next(),deadline]);
+      let next;try{next=await Promise.race([iterator.next(),deadline]);}catch(error){if(error?.message==='body timeout')throw error;fail(['ECONNRESET','ABORT_ERR','ERR_STREAM_PREMATURE_CLOSE','ERR_STREAM_DESTROYED'].includes(error?.code)?'upload body interrupted':'body stream failed');}
+      const {value:chunk,done}=next;
       if(done)break;
       if (!(chunk instanceof Uint8Array)) fail('binary body required');
       total += chunk.byteLength;
