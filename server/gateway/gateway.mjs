@@ -16,7 +16,7 @@ export function magic(bytes) {
   if (bytes.toString('ascii',0,4) === 'RIFF' && bytes.toString('ascii',8,12) === 'WEBP') return 'webp';
   fail('unsupported bytes');
 }
-export async function readBounded(stream,{timeoutMs=15000}={}) {
+export async function readBounded(stream,{timeoutMs=15000,onBytes=()=>{}}={}) {
   const chunks = []; let total = 0;let timer;
   const iterator=stream?.[Symbol.asyncIterator]?.() ?? stream?.[Symbol.iterator]?.();
   if(!iterator)fail('binary body required');
@@ -29,7 +29,7 @@ export async function readBounded(stream,{timeoutMs=15000}={}) {
       const {value:chunk,done}=next;
       if(done)break;
       if (!(chunk instanceof Uint8Array)) fail('binary body required');
-      total += chunk.byteLength;
+      total += chunk.byteLength;onBytes(total);
       if (total > limits.input) fail('input too large');
       chunks.push(Buffer.from(chunk));
     }
@@ -57,15 +57,15 @@ export function createGateway({ auth, db, storage, decoder, admission }) {
     return user;
   }
   return {
-    async upload({ token, tid, requestId, assetId, body,onProgress=()=>{} }) {
+    async upload({ token, tid, requestId, assetId, body,onProgress=()=>{},trace }) {
       if (!uuid.test(requestId) || !/^asset_/.test(assetId) || !uuid.test(assetId.slice(6))) fail('invalid ids');
       const started=performance.now(),timings={};
-      const step=async(stage,action)=>{onProgress(stage);const t=performance.now();try{return await atStage(stage,action);}finally{timings[stage]=+((timings[stage]||0)+performance.now()-t).toFixed(2);}};
+      const step=async(stage,action)=>{trace?.stage(stage);onProgress(stage);const t=performance.now();try{return await atStage(stage,action);}finally{const ms=performance.now()-t;trace?.stageEnd(stage,ms);timings[stage]=+((timings[stage]||0)+ms).toFixed(2);}};
       const user = await actor(token, tid,step);
       const release = await step('ADMISSION',()=>admission.acquire(user.id,{token,tid})); // shared rate + concurrency budget
       let reservationAttempted=false;
       try {
-        const input = await step('READ_BODY',async()=>{const bytes=await readBounded(body);magic(bytes);return bytes;});
+        const input = await step('READ_BODY',async()=>{const bytes=await readBounded(body,{onBytes:total=>trace?.bytes(total)});magic(bytes);return bytes;});
         const output = await step('IMAGE_DECODE',()=>decoder.decode(input,onProgress));
         const data = await step('OPTIMIZED_VALIDATION',()=>descriptor(output));
         // admin_media_begin revalidates the user JWT, administrator and tournament after decoding.
@@ -85,9 +85,9 @@ export function createGateway({ auth, db, storage, decoder, admission }) {
         timings.image=output.timings;return {...result,original_bytes:input.length,optimized_bytes:data.bytes,width:data.w,height:data.h,timings};
       } catch(error) {
         try{if(reservationAttempted)await db.abandon?.({actorId:user.id,requestId,assetId});}
-        catch(cleanup){console.warn(JSON.stringify({event:'media_reservation_release_failed',...diagnostics(cleanup)}));}
+        catch(cleanup){console.warn(JSON.stringify({event:'media_reservation_release_failed',reference:trace?.reference,...diagnostics(cleanup)}));}
         throw error;
-      } finally {const releaseStart=performance.now(); try{await release();}catch(error){console.warn(JSON.stringify({event:'media_cleanup_failed',...diagnostics(error),stage:'RELEASE_SESSION'}));}timings.RELEASE_SESSION=+(performance.now()-releaseStart).toFixed(2);timings.totalServerMs=+(performance.now()-started).toFixed(2);timings.serverUptimeMs=Math.round(process.uptime()*1000); }
+      } finally {const releaseStart=performance.now();trace?.event('release_session_start');try{await release();trace?.event('release_session_ok');}catch(error){console.warn(JSON.stringify({event:'media_cleanup_failed',reference:trace?.reference,...diagnostics(error),stage:'RELEASE_SESSION'}));}trace?.stageEnd('RELEASE_SESSION',performance.now()-releaseStart);timings.RELEASE_SESSION=+(performance.now()-releaseStart).toFixed(2);timings.totalServerMs=+(performance.now()-started).toFixed(2);timings.serverUptimeMs=Math.round(process.uptime()*1000);trace?.operationEnd(); }
     },
     async requestDeletion({ token, tid, assetId, requestId }) {
       if (!uuid.test(requestId) || !/^asset_/.test(assetId) || !uuid.test(assetId.slice(6))) fail('invalid ids');

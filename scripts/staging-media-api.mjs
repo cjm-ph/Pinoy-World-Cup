@@ -58,21 +58,24 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
   }
   function uploadStream(url,body,token,onProgress){return new Promise((resolve,reject)=>{
     const xhr=new XMLHttpRequest(),started=performance.now();let cursor=0,buffer='',result,failure,uploadMs,ttfbMs,receivedStage=false,lastStage='REQUEST';
-    const progress=stage=>{if(stageNames[stage]){receivedStage=true;lastStage=stage;onProgress(`Upload stage: ${stageNames[stage]}.`);}};
+    const reference=new URL(url).searchParams.get('request'),events=[];globalThis.PWCAdminPerformance??={};const traces=globalThis.PWCAdminPerformance.uploadTraces??=[];const trace={reference,events,timeoutMs:120000,bodyBytes:body?.size??body?.byteLength??null};traces.push(trace);if(traces.length>10)traces.shift();
+    const record=event=>{if(events.length<40)events.push({event,ms:+(performance.now()-started).toFixed(2),status:xhr.status||0,stage:lastStage});};
+    const rejected=error=>{record('rejected');error.message+=` Trace reference: ${reference}.`;reject(error);};
+    const progress=stage=>{if(stageNames[stage]){receivedStage=true;lastStage=stage;record('server_progress');onProgress(`Upload stage: ${stageNames[stage]}.`);}};
     function read(final=false){buffer+=xhr.responseText.slice(cursor);cursor=xhr.responseText.length;const lines=buffer.split('\n');buffer=lines.pop();if(final&&buffer.trim()){lines.push(buffer);buffer='';}
      for(const line of lines){if(!line.trim())continue;let value;try{value=JSON.parse(line);}catch{failure=Error('Upload response was incomplete. Retry safely.');continue;}
-      if(value.type==='progress')progress(value.stage);else if(value.type==='result')result=value.data;
+      if(value.type==='progress')progress(value.stage);else if(value.type==='result'){result=value.data;record('server_result');}
       else if(value.type==='error'||value.diagnostic)failure=Error(mediaFailureMessage({status:xhr.status},value.diagnostic));
       else if(value.asset_id)result=value;
      }}
     xhr.open('POST',url);xhr.timeout=120000;xhr.setRequestHeader('Authorization','Bearer '+token);xhr.setRequestHeader('Accept','application/x-ndjson');
     xhr.upload.onprogress=e=>{if(e.lengthComputable)onProgress(`Sending photo: ${Math.round(e.loaded/e.total*100)}%.`);};
-    xhr.upload.onload=()=>{uploadMs=performance.now()-started;if(!receivedStage)onProgress('Waiting for Staging server response...');};
+    xhr.upload.onload=()=>{record('body_sent');uploadMs=performance.now()-started;if(!receivedStage)onProgress('Waiting for Staging server response...');};
     xhr.onreadystatechange=()=>{if(xhr.readyState===2)ttfbMs=performance.now()-started;};
-    xhr.onprogress=()=>read();xhr.onerror=xhr.ontimeout=()=>reject(Error('Upload connection failed. Existing photo is unchanged.'));
-    xhr.onload=()=>{read(true);if(failure||xhr.status<200||xhr.status>=300||!result){reject(failure||Error(xhr.status>=200&&xhr.status<300&&!result?`Upload ended without a final result (HTTP ${xhr.status}). Last stage: ${stageNames[lastStage]}. Existing photo is unchanged.`:mediaFailureMessage({status:xhr.status})));return;}
+    xhr.onprogress=()=>read();xhr.onerror=()=>{record('network_error');rejected(Error('Upload connection failed. Existing photo is unchanged.'));};xhr.ontimeout=()=>{record('client_timeout');rejected(Error('Upload connection failed. Existing photo is unchanged.'));};xhr.onabort=()=>{record('client_abort');rejected(Error('Upload connection failed. Existing photo is unchanged.'));};
+    xhr.onload=()=>{record('response_end');read(true);if(failure||xhr.status<200||xhr.status>=300||!result){rejected(failure||Error(xhr.status>=200&&xhr.status<300&&!result?`Upload ended without a final result (HTTP ${xhr.status}). Last stage: ${stageNames[lastStage]}. Existing photo is unchanged.`:mediaFailureMessage({status:xhr.status})));return;}
      const timings={...(result.timings||{}),requestMs:+(performance.now()-started).toFixed(2),uploadTransferMs:uploadMs,ttfbMs};resolve({...result,timings});};
-    onProgress('Sending photo...');xhr.send(body);
+    record('send');onProgress('Sending photo...');xhr.send(body);
    });}
   return {
     rpc, adminCatalog,
