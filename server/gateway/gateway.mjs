@@ -51,6 +51,7 @@ export function descriptor(out) {
 }
 // All adapters are server-owned; none are browser inputs. No external calls at import time.
 export function createGateway({ auth, db, storage, decoder, admission }) {
+  let activeUploads=0; // Bounds unauthenticated receive plus all retained upload buffers.
   async function actor(token, tid,step=atStage) {
     const user = await step('AUTH_VERIFY',async()=>identity(await auth.verify(token))); // signature, issuer, audience, expiry required
     await step('ADMIN_CHECK',()=>db.assertAdminOwner(token, user.id, tid));
@@ -59,6 +60,9 @@ export function createGateway({ auth, db, storage, decoder, admission }) {
   return {
     async upload({ token, tid, requestId, assetId, body,onProgress=()=>{},trace }) {
       if (!uuid.test(requestId) || !/^asset_/.test(assetId) || !uuid.test(assetId.slice(6))) fail('invalid ids');
+      if(activeUploads>=4)await atStage('ADMISSION',()=>fail('media admission limited'));
+      activeUploads++;
+      try {
       const started=performance.now(),timings={};
       let awaitingBody=true;
       const assertConnected=()=>{if(body?.aborted || (body?.destroyed && body?.complete===false) || trace?.disconnected?.())fail('upload body interrupted');};
@@ -69,11 +73,12 @@ export function createGateway({ auth, db, storage, decoder, admission }) {
         if(awaitingBody && stage!=='ADMISSION')assertConnected();
         return result;
       });}finally{const ms=performance.now()-t;trace?.stageEnd(stage,ms);timings[stage]=+((timings[stage]||0)+ms).toFixed(2);}};
+      const input=await step('READ_BODY',()=>readBounded(body,{onBytes:total=>trace?.bytes(total)}));
       const user = await actor(token, tid,step);
       const release = await step('ADMISSION',()=>admission.acquire(user.id,{token,tid})); // shared rate + concurrency budget
       let reservationAttempted=false;
       try {
-        const input = await step('READ_BODY',async()=>{const bytes=await readBounded(body,{onBytes:total=>trace?.bytes(total)});magic(bytes);return bytes;});
+        await step('OPTIMIZED_VALIDATION',()=>magic(input));
         awaitingBody=false;
         const output = await step('IMAGE_DECODE',()=>decoder.decode(input,onProgress));
         const data = await step('OPTIMIZED_VALIDATION',()=>descriptor(output));
@@ -97,6 +102,7 @@ export function createGateway({ auth, db, storage, decoder, admission }) {
         catch(cleanup){console.warn(JSON.stringify({event:'media_reservation_release_failed',reference:trace?.reference,...diagnostics(cleanup)}));}
         throw error;
       } finally {const releaseStart=performance.now();trace?.event('release_session_start');try{await release();trace?.event('release_session_ok');}catch(error){console.warn(JSON.stringify({event:'media_cleanup_failed',reference:trace?.reference,...diagnostics(error),stage:'RELEASE_SESSION'}));}trace?.stageEnd('RELEASE_SESSION',performance.now()-releaseStart);timings.RELEASE_SESSION=+(performance.now()-releaseStart).toFixed(2);timings.totalServerMs=+(performance.now()-started).toFixed(2);timings.serverUptimeMs=Math.round(process.uptime()*1000);trace?.operationEnd(); }
+      } finally {activeUploads--;}
     },
     async requestDeletion({ token, tid, assetId, requestId }) {
       if (!uuid.test(requestId) || !/^asset_/.test(assetId) || !uuid.test(assetId.slice(6))) fail('invalid ids');

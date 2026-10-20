@@ -15,15 +15,15 @@ export function createMediaServer(gateway,{uploadProbe}={}) {
         reference=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(u.searchParams.get('request')||'')?u.searchParams.get('request'):randomUUID();
         const trace=uploadTrace(req,res,reference);res.setHeader('X-PWC-Upload-Reference',reference);
         if(probe){let socket=sockets.get(req.socket);if(!socket){socket={id:++socketSequence,requests:0};sockets.set(req.socket,socket);}socket.requests++;console.info(JSON.stringify({event:'media_probe_start',reference,mode:['existing','body-first'].includes(u.searchParams.get('mode'))?u.searchParams.get('mode'):'invalid',socket_id:socket.id,socket_request:socket.requests,http_version:req.httpVersion}));}
-        const streaming=req.headers.accept==='application/x-ndjson';
+        const streaming=probe && req.headers.accept==='application/x-ndjson';
         const emit=value=>{if(!res.destroyed)res.write(JSON.stringify({...value,reference})+'\n');};
         if(streaming){res.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store','X-Accel-Buffering':'no'});res.flushHeaders();}
         let value;try{value=await (probe?uploadProbe:gateway.upload)({ token:req.headers.authorization.slice(7),mode:u.searchParams.get('mode'),
           tid:u.searchParams.get('tid'), requestId:u.searchParams.get('request'),
-          assetId:u.searchParams.get('asset'), body:req,trace,onProgress:streaming?stage=>emit({type:'progress',stage}):undefined });
+          assetId:u.searchParams.get('asset'), body:req,trace,onProgress:streaming?stage=>emit({type:'progress',stage}):()=>{} });
         }catch(error){if(!streaming)throw error;console.warn(JSON.stringify({event:'media_request_failed',...diagnostics(error),reference}));emit({type:'error',diagnostic:{...diagnostics(error),reference}});res.end();return;}
         if(streaming){emit({type:'result',data:{...value,reference}});res.end();return;}
-        res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));
+        res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({...value,reference}));
       } else if (u.pathname==='/admin/media/delete-request' && req.method==='POST') {
         if (!req.headers.authorization?.startsWith('Bearer ')) throw Error('authentication required');
         const value=await gateway.requestDeletion({token:req.headers.authorization.slice(7),
