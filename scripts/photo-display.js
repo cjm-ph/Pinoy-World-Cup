@@ -19,5 +19,7 @@
  function coverRatio(width,height){return Math.min(width-24,620)/(width>=768?Math.max(230,Math.min(height*.38,350)):Math.max(170,Math.min(height*.32,280)));}
  // Aspect-ratio heuristic, not image-content recognition. Existing settings never use this.
  function automatic(nw,nh){return {fit:nw>0&&nh>0&&nw/nh<=.75?'contain':'cover',position:'50% 50%',b2_zoom:1};}
- root.PWCPhotoDisplay={normalize,apply,geometry,automatic,gameRatio,resultRatio,coverRatio};
+ // Game display policy overrides only fit, never mutates stored framing.
+ function gameSettings(settings){const s=settings||{};return {...s,fit:'cover',devices:Object.fromEntries(['desktop','mobile'].map(d=>[d,{...normalize(s,d),fit:'cover'}]))};}
+ root.PWCPhotoDisplay={normalize,apply,geometry,automatic,gameSettings,gameRatio,resultRatio,coverRatio};
 })(globalThis);

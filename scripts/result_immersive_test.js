@@ -56,6 +56,7 @@
    y=Math.max(12-head[1]*nh*scale,Math.min(h-reserved-12-(head[1]+head[3])*nh*scale,y));
    image.dataset.headBox=JSON.stringify([x+head[0]*nw*scale,y+head[1]*nh*scale,head[2]*nw*scale,head[3]*nh*scale]);
   }else if(settings.fit==='contain'||p.object_fit==='contain'){scale=Math.min(w/nw,(h-reserved)/nh);x=(w-nw*scale)/2;y=(h-reserved-nh*scale)/2;}
+  if(root.PWCPhotoDisplay){var filled=root.PWCPhotoDisplay.geometry(nw,nh,w,h,root.PWCPhotoDisplay.gameSettings({...settings,position}));scale=filled.width/nw;x=filled.x;y=filled.y;}
   image.style.cssText='width:'+nw*scale+'px;height:'+nh*scale+'px;left:'+x+'px;top:'+y+'px;object-fit:contain;object-position:'+position;
  }
  var originalFinish=root.finish;

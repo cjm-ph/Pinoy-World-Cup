@@ -58,7 +58,7 @@ function chooseFit(image,participant,settings){
   image.dataset.fit=fit==='cover'?'cover':'contain-head';
  }else image.dataset.fit=fit;
  image.style.objectFit=fit;image.style.objectPosition=position;
- if((settings.b2_zoom||settings.devices)&&root.PWCPhotoDisplay)root.PWCPhotoDisplay.apply(image,settings);
+ if(root.PWCPhotoDisplay){root.PWCPhotoDisplay.apply(image,root.PWCPhotoDisplay.gameSettings({...settings,position}));image.dataset.fit='cover';}
 }
 // The engine calls this global display function for both choices every match.
 root.fill=function(button,participant){

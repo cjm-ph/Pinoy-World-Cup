@@ -1,6 +1,7 @@
 // Administrator-only presentation layer. Never translates form values or server content.
 export const LANGUAGE_KEY = 'pwc-staging-admin-language';
 export const KO = {
+ 'VS and winner photos use Fill. Adjust each device position and zoom below.':'VS·우승 사진은 Fill로 표시합니다. 아래에서 기기별 위치와 확대율을 조절하세요.',
  'The upload body must contain raw image bytes.':'업로드 본문이 이미지 바이너리 형식이 아닙니다.',
  'The image request body was interrupted before it could be read.':'이미지 요청 본문을 읽기 전에 전송이 중단되었습니다.',
  'The server could not read the image request stream.':'서버에서 이미지 요청 스트림을 읽지 못했습니다.',

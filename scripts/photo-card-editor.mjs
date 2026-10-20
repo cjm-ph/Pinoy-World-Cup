@@ -31,7 +31,7 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
    card.onclick=e=>{if(!busy&&canEdit()&&!e.target.closest('button,input,select,textarea,label'))input.click();};
    let photoUrl;
    async function load(){if(!slot.asset)return;try{photoUrl=await loadPhoto(slot.asset);if(!photoUrl||!card.isConnected)return;
-    const image=node('img');image.src=photoUrl;image.alt=slot.name;image.dataset.i18nSkip='';frame.replaceChildren(image);globalThis.PWCPhotoDisplay.apply(image,slot.settings);const r=globalThis.PWCPhotoDisplay[slot.id==='cover'?'coverRatio':'gameRatio'](innerWidth,innerHeight);frame.style.aspectRatio=String(r);frame.style.width=`min(100%, ${150*r}px)`;frame.style.height='auto';frame.style.marginInline='auto';
+    const image=node('img');image.src=photoUrl;image.alt=slot.name;image.dataset.i18nSkip='';frame.replaceChildren(image);globalThis.PWCPhotoDisplay.apply(image,slot.id==='cover'?slot.settings:globalThis.PWCPhotoDisplay.gameSettings(slot.settings));const r=globalThis.PWCPhotoDisplay[slot.id==='cover'?'coverRatio':'gameRatio'](innerWidth,innerHeight);frame.style.aspectRatio=String(r);frame.style.width=`min(100%, ${150*r}px)`;frame.style.height='auto';frame.style.marginInline='auto';
    }catch(e){status.textContent=e.message;}}
    edit.onclick=()=>openEditor();
    function openEditor(file){
@@ -39,7 +39,7 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
     const localUrl=file?URL.createObjectURL(file):null,url=localUrl||photoUrl;let retry=null;
     const dialog=node('dialog',null,'photo-display-dialog');dialog.setAttribute('aria-label','Edit display area');
     const heading=node('h2',file?'Upload and edit photo':'Edit display area'),name=node('p',slot.name);if(slot.id!=='cover')name.dataset.i18nSkip='';
-    const baseline=file?{}:(slot.settings||{});
+    const stored=file?{}:(slot.settings||{}),baseline=slot.id==='cover'?stored:globalThis.PWCPhotoDisplay.gameSettings(stored);
     let settings={fit:baseline.fit==='contain'?'contain':'cover',position:baseline.position||'50% 50%',b2_zoom:baseline.b2_zoom||1,devices:{desktop:globalThis.PWCPhotoDisplay.normalize(baseline,'desktop'),mobile:globalThis.PWCPhotoDisplay.normalize(baseline,'mobile')}},drag;
     const previews=node('div',null,'photo-device-previews');
     const images=[],stages=[],viewports=[],controls=[],zooms=[],fits=[];const started=performance.now(),metrics={browserResizeMs:null,browserCompressionMs:null};
@@ -51,7 +51,7 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
      for(const [value,text] of [['contain','Fit - show whole photo'],['cover','Fill - fill frame']]){const option=node('option',text);option.value=value;fit.append(option);}fit.value=settings.devices[device].fit;const modeButtons=node('div',null,'photo-fit-toggle');modeButtons.setAttribute('role','group');modeButtons.setAttribute('aria-label',fit.getAttribute('aria-label'));for(const [value,text] of [['contain','Fit'],['cover','Fill']]){const button=node('button',text);button.type='button';button.dataset.fit=value;button.dataset.i18nSkip='';button.onclick=()=>{fit.value=value;fit.dispatchEvent(new Event('change'));};modeButtons.append(button);controls.push(button);}
      const zoomLabel=node('label','Zoom'),zoom=node('input');zoom.type='range';zoom.min='1';zoom.max='2.5';zoom.step='.01';zoom.value=String(settings.devices[device].b2_zoom);zoom.setAttribute('aria-label',device==='desktop'?'Desktop zoom':'Mobile zoom');zoomLabel.append(zoom);
      const auto=node('button','Auto fit','btn small');auto.type='button';
-     const autoDevice=()=>{settings.devices[device]=globalThis.PWCPhotoDisplay.automatic(image.naturalWidth,image.naturalHeight);zoom.value='1';fit.value=settings.devices[device].fit;paint();};
+     const autoDevice=()=>{settings.devices[device]=slot.id==='cover'?globalThis.PWCPhotoDisplay.automatic(image.naturalWidth,image.naturalHeight):{fit:'cover',position:'50% 50%',b2_zoom:1};zoom.value='1';fit.value=settings.devices[device].fit;paint();};
      auto.onclick=autoDevice;fit.onchange=()=>{settings.devices[device].fit=fit.value;paint();};zoom.oninput=()=>{settings.devices[device].b2_zoom=Number(zoom.value);paint();};
      controls.push(fit,auto);zooms.push(zoom);fits.push(fit);
      image.src=url;image.alt='';stage.append(image);const surface=node('div',null,'photo-preview-surface');surface.append(stage);column.append(node('h3',label),surface,modeButtons,zoomLabel,auto);previews.append(column);images.push(image);stages.push(stage);viewports.push([width,height]);
@@ -69,7 +69,7 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
     window.addEventListener('resize',ratios);
     const notes=node('textarea');notes.setAttribute('aria-label','Source / notes (optional)');notes.placeholder='Source / notes (optional)';notes.maxLength=4000;notes.hidden=!file;
     let saving=false,ready=false;
-    const enabled=()=>{notes.disabled=saving;apply.disabled=saving||!ready;controls.forEach(e=>e.disabled=saving||!ready);};
+    const enabled=()=>{notes.disabled=saving;apply.disabled=saving||!ready;controls.forEach(e=>e.disabled=saving||!ready||(slot.id!=='cover'&&e.dataset.fit==='contain'));};
     async function persist(value){if(busy||saving||!ready)return;const appliedAt=performance.now();busy=saving=true;apply.disabled=close.disabled=true;controls.forEach(e=>e.disabled=true);notes.disabled=true;paint();message.textContent=file?'Optimizing and uploading...':'Saving display area...';
      try{const result=file?await (retry?retry(value,{notes:notes.value.trim()}):upload(slot.id,file,value,{notes:notes.value.trim(),onProgress:text=>{message.textContent=text;}})):await saveDisplay(slot.id,value);
       globalThis.PWCAdminPerformance??={};globalThis.PWCAdminPerformance.lastPhoto={...metrics,...result?.timings,operation:file?'upload':'framing',totalClientMs:+(performance.now()-appliedAt).toFixed(2)};
@@ -78,8 +78,8 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
      finally{busy=saving=false;close.disabled=false;enabled();paint();}}
     apply.onclick=()=>persist(settings);
     close.onclick=()=>dialog.close();dialog.oncancel=e=>{if(saving)e.preventDefault();};dialog.onclose=()=>{window.removeEventListener('resize',ratios);if(localUrl)URL.revokeObjectURL(localUrl);dialog.remove();input.value='';};
-    const actions=node('div',null,'photo-editor-actions');actions.append(close,apply);const header=node('div',null,'photo-editor-heading'),titles=node('div');titles.append(heading,name);header.append(titles);if(root.closest('#wizardPanel')){const numbers=document.getElementById('wizardProgress')?.textContent.match(/\d+/g);if(numbers?.length>=2){const badge=node('span',numbers[0]+' / '+numbers[numbers.length-1],'photo-step-badge');badge.dataset.i18nSkip='';header.append(badge);}}dialog.append(header,previews,notes,message,actions);document.body.append(dialog);dialog.showModal();ratios();paint();enabled();
-    Promise.all(images.map(image=>image.decode())).then(()=>{metrics.browserDecodeMs=+(performance.now()-started).toFixed(2);if(file){for(const [i,device] of ['desktop','mobile'].entries()){settings.devices[device]=globalThis.PWCPhotoDisplay.automatic(images[i].naturalWidth,images[i].naturalHeight);fits[i].value=settings.devices[device].fit;}}ready=true;enabled();paint();}).catch(()=>{ready=false;enabled();message.textContent='Unable to decode this photo. Choose a valid image.';});
+    const actions=node('div',null,'photo-editor-actions');actions.append(close,apply);const header=node('div',null,'photo-editor-heading'),titles=node('div');titles.append(heading,name);header.append(titles);if(root.closest('#wizardPanel')){const numbers=document.getElementById('wizardProgress')?.textContent.match(/\d+/g);if(numbers?.length>=2){const badge=node('span',numbers[0]+' / '+numbers[numbers.length-1],'photo-step-badge');badge.dataset.i18nSkip='';header.append(badge);}}dialog.append(header);if(slot.id!=='cover')dialog.append(node('p','VS and winner photos use Fill. Adjust each device position and zoom below.','help'));dialog.append(previews,notes,message,actions);document.body.append(dialog);dialog.showModal();ratios();paint();enabled();
+    Promise.all(images.map(image=>image.decode())).then(()=>{metrics.browserDecodeMs=+(performance.now()-started).toFixed(2);if(file){for(const [i,device] of ['desktop','mobile'].entries()){settings.devices[device]=slot.id==='cover'?globalThis.PWCPhotoDisplay.automatic(images[i].naturalWidth,images[i].naturalHeight):{fit:'cover',position:'50% 50%',b2_zoom:1};fits[i].value=settings.devices[device].fit;}}ready=true;enabled();paint();}).catch(()=>{ready=false;enabled();message.textContent='Unable to decode this photo. Choose a valid image.';});
    }
    function accept(file){if(!file||busy)return;if(!canEdit()){status.textContent='This revision cannot be edited.';return;}if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024){status.textContent='Choose a JPG, PNG or WebP photo up to 8 MB.';return;}openEditor(file);}
    pick.onclick=()=>input.click();input.onchange=()=>accept(input.files[0]);
@@ -88,6 +88,6 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
    void load();
   }
  }
- const responsive=new ResizeObserver(()=>{if(!root.isConnected){responsive.disconnect();return;}const slots=getSlots();for(const card of root.querySelectorAll('.photo-editor-card')){const slot=slots.find(s=>s.id===card.dataset.photoSlot),image=card.querySelector('.photo-original img');if(!slot||!image)continue;globalThis.PWCPhotoDisplay.apply(image,slot.settings);const r=globalThis.PWCPhotoDisplay[slot.id==='cover'?'coverRatio':'gameRatio'](innerWidth,innerHeight),frame=image.parentElement;frame.style.aspectRatio=String(r);frame.style.width=`min(100%, ${150*r}px)`;}});responsive.observe(root);
+ const responsive=new ResizeObserver(()=>{if(!root.isConnected){responsive.disconnect();return;}const slots=getSlots();for(const card of root.querySelectorAll('.photo-editor-card')){const slot=slots.find(s=>s.id===card.dataset.photoSlot),image=card.querySelector('.photo-original img');if(!slot||!image)continue;globalThis.PWCPhotoDisplay.apply(image,slot.id==='cover'?slot.settings:globalThis.PWCPhotoDisplay.gameSettings(slot.settings));const r=globalThis.PWCPhotoDisplay[slot.id==='cover'?'coverRatio':'gameRatio'](innerWidth,innerHeight),frame=image.parentElement;frame.style.aspectRatio=String(r);frame.style.width=`min(100%, ${150*r}px)`;}});responsive.observe(root);
  root.refresh=refresh;void refresh();return root;
 }
