@@ -1,4 +1,5 @@
 import {createTournamentManagement,managementActions} from './staging-tournament-management.mjs';
+import {createTournamentPurge} from './staging-tournament-purge.mjs';
 import {createPhotoCards} from './photo-card-editor.mjs';
 import {createGeminiSupport} from './creator-gemini-support.mjs';
 import {installAdminLanguage,translate} from './staging-admin-i18n.mjs';
@@ -12,6 +13,7 @@ const dataText=(tag,text,className)=>{const node=make(tag,text,className);node.d
 const dateText=(tag,date,dateOnly=false)=>{const node=make(tag);node.dataset.i18nDate=date;if(dateOnly)node.dataset.i18nDateOnly='true';return node;};
 let client, api, dashboard, user, tournaments=[], categories=[], context=null, selected=null, revision=null;
 let managementApi,management={available:false,trash:[]};
+let purgeApi,purgeState={enabled:false,jobs:[]};
 let photoWorking=false;
 let authorized=false, working=false, epoch=0, page='dashboard', asset=null, rightsRecorded=false;
 let work=null, editing=null, step=0, dirty=false, newPhotoUrl=null, game=null;
@@ -20,6 +22,7 @@ function say(message, kind='') { $('stagingStatus').textContent=message; $('stag
 function clearPhotos() { for(const url of photoUrls.values()) URL.revokeObjectURL(url); photoUrls.clear(); photosPending.clear(); if(newPhotoUrl)URL.revokeObjectURL(newPhotoUrl);newPhotoUrl=null; }
 function lock() {
  management={available:false,trash:[]};$('trashRows').replaceChildren();
+ purgeState={enabled:false,jobs:[]};
  epoch++; authorized=false;selected=revision=asset=work=editing=game=null;user=null;dirty=false;tournaments=[];categories=[];context=null;clearPhotos();
  $('stagingManagement').hidden=true;$('stagingLogin').hidden=false;
  $('stagingPassword').value=''; delete $('adminIdentity').dataset.i18nSkip;$('adminIdentity').textContent='Administrator';
@@ -82,8 +85,29 @@ function completeRevision(t,r){
 }
 function statusBadge(t) {return make('span',statusOf(t),'badge '+statusOf(t).toLowerCase());}
 function renderTrash(){
- $('trashHelp').textContent=management.available?'Permanent deletion is unavailable. Existing data is preserved.':'Tournament management requires approved Staging 048 migration.';
- $('trashRows').replaceChildren(...management.trash.map(t=>{const tr=make('tr'),actions=make('td');tr.append(dataText('td',t.title||t.id),dateText('td',t.trashed_at));const restore=make('button','Restore as private','btn small');restore.disabled=!management.available;restore.onclick=()=>run(()=>manageTournament(t,'restore'));const remove=make('button','Permanently delete','btn small danger');remove.disabled=true;remove.title='Permanent deletion is unavailable. Existing data is preserved.';actions.append(restore,remove);tr.append(actions);return tr;}));
+ $('trashHelp').textContent=purgeState.enabled?'Permanent deletion cannot be undone. Enter the exact tournament name to confirm.':management.available?'Permanent deletion is unavailable. Existing data is preserved.':'Tournament management requires approved Staging 048 migration.';
+ $('trashRows').replaceChildren(...management.trash.map(t=>{
+  const job=purgeState.jobs.find(j=>j.tournament_id===t.id),tr=make('tr'),actions=make('td');
+  tr.append(dataText('td',t.title||t.id),dateText('td',t.trashed_at));
+  const restore=make('button','Restore as private','btn small');restore.disabled=!management.available||!!job;restore.onclick=()=>run(()=>manageTournament(t,'restore'));
+  const remove=make('button',job?'Continue permanent deletion':'Permanently delete','btn small danger');remove.dataset.i18nSkip='';remove.disabled=!purgeState.enabled;
+  remove.onclick=()=>run(()=>permanentlyDelete(t));
+  actions.append(restore,remove);if(job){const state=make('p',`Deletion ${job.state}. Remaining files: ${job.remaining}.`,'help');state.dataset.i18nSkip='';actions.append(state);}
+  tr.append(actions);return tr;
+ }));
+}
+async function permanentlyDelete(t){
+ if(!purgeState.enabled)throw Error('Permanent deletion is disabled.');
+ const input=await confirmAction('Permanently Delete',`This cannot be undone.\nTarget ID: ${t.id}\nType the exact tournament name:\n${t.title||t.id}`,true,true);
+ if(input===false)return;
+ try{
+  const result=await purgeApi.erase(t,input,job=>{say(`Deleting tournament. Remaining files: ${job.remaining}.`);});
+  await refreshAdmin(false,{quiet:true});
+  say(result.state==='complete'?'Tournament permanently deleted.':'Deletion paused safely. Use Continue permanent deletion to proceed.',result.state==='complete'?'success':'');
+ }catch(error){
+  try{purgeState=await purgeApi.capability();renderTrash();}catch{}
+  throw error;
+ }
 }
 async function manageTournament(t,action){
  if(!management.available)throw Error('Tournament management requires approved Staging 048 migration.');
@@ -132,6 +156,7 @@ async function refreshAdmin(keepSelection=false,{quiet=false}={}) {
  try{details=await dashboard.context();if(!details)catalog=await api.adminCatalog();}catch(error){lock();throw error;}finally{clearTimeout(slow);}
  measure.permissionMs=performance.now()-permissionStart;
  try{management=await managementApi.load();}catch{management={available:false,trash:[]};}
+ purgeState=await purgeApi.capability();
  // Session user is display/ownership UI data only. The RPC above is the authority.
  const identity=data.session.user?{data:{user:data.session.user}}:await client.auth.getUser();
  if(identity.error||!identity.data.user)throw Error('Administrator session could not be verified.');if(at!==epoch)return;
@@ -254,9 +279,10 @@ function updateControls(){
  $('stagingPublish').disabled=!editable||revision?.state!=='approved';
  $('stagingRestore').disabled=!authorized||!selected||!['private','public'].includes(selected.visibility)||!$('stagingRollback').value;
 }
-function confirmAction(title,text,reason=false) {
+function confirmAction(title,text,reason=false,exactName=false) {
  return new Promise(resolve=>{const d=$('confirmDialog');$('confirmTitle').textContent=title;$('confirmText').textContent=text;$('reasonField').hidden=!reason;$('confirmReason').value='';
- const finish=value=>{d.close();d.oncancel=null;resolve(value);};$('confirmCancel').onclick=()=>finish(false);$('confirmAccept').onclick=()=>{if(reason&&!$('confirmReason').value.trim()){$('confirmReason').focus();return;}finish(reason?$('confirmReason').value.trim():true);};d.oncancel=e=>{e.preventDefault();finish(false);};d.showModal();});
+ $('reasonField').querySelector('label').textContent=exactName?'Tournament name':'Rejection reason';
+ const finish=value=>{d.close();d.oncancel=null;resolve(value);};$('confirmCancel').onclick=()=>finish(false);$('confirmAccept').onclick=()=>{if(reason&&!$('confirmReason').value.trim()){$('confirmReason').focus();return;}finish(reason?(exactName?$('confirmReason').value:$('confirmReason').value.trim()):true);};d.oncancel=e=>{e.preventDefault();finish(false);};d.showModal();});
 }
 async function changeRevision(op) {
  await guard();if(!revision||!selected)throw Error('Select a revision first.');
@@ -329,6 +355,7 @@ try {
  const config=window.PWC_STAGING;if(config?.supabaseUrl!==STAGING_URL||!/^sb_publishable_/.test(config.publishableKey||''))throw Error('Staging configuration unavailable.');
  client=window.supabase.createClient(STAGING_URL,config.publishableKey,{auth:{storageKey:'pwc-staging-auth'}});
  managementApi=createTournamentManagement(client);
+ purgeApi=createTournamentPurge(client);
  api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin});dashboard=createDashboardApi(client,api);
  $('adminLoginForm').onsubmit=e=>{e.preventDefault();void run(async()=>{const credentials={email:$('stagingEmail').value.trim(),password:$('stagingPassword').value};lock();say('Signing in with Supabase...');const authStart=performance.now();const {error}=await client.auth.signInWithPassword(credentials);globalThis.PWCAdminPerformance??={};globalThis.PWCAdminPerformance.lastPasswordSignInMs=+(performance.now()-authStart).toFixed(2);$('stagingPassword').value='';if(error)throw Error('Sign-in failed. Check your Staging account.');await refreshAdmin();});};
  $('stagingSignOut').onclick=signOut;$('loginSignOut').onclick=signOut;$('loginRetry').onclick=()=>run(()=>refreshAdmin());

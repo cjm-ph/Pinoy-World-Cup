@@ -29,6 +29,7 @@ export const publicFiles = [
   "scripts/staging-media-api.mjs",
   "scripts/staging-media-ui.mjs",
   "scripts/staging-tournament-management.mjs",
+  "scripts/staging-tournament-purge.mjs",
   "scripts/staging-public-content.mjs",
   "scripts/staging-member-auth.mjs",
   "scripts/staging-admin-model.mjs",
