@@ -3,12 +3,13 @@ import {uploadTrace} from './upload-trace.mjs';
 import {diagnostics} from './media-errors.mjs';
 import { createServer } from 'node:http';
 // No listener starts on import. Deployment must explicitly supply authenticated adapters.
-export function createMediaServer(gateway,{uploadProbe,purgeHttp}={}) {
+export function createMediaServer(gateway,{uploadProbe,purgeHttp,statisticsHttp}={}) {
   const sockets=new WeakMap();let socketSequence=0;
   const server = createServer(async (req,res) => {
     let reference;
     try {
       const u=new URL(req.url,'http://localhost');
+      if(u.pathname==='/play-statistics'||u.pathname.startsWith('/play-statistics/')){if(statisticsHttp)await statisticsHttp(req,res,u);else{res.writeHead(503);res.end();}return;}
       if(u.pathname==='/admin/media/tournament-purge' && purgeHttp && ['GET','POST'].includes(req.method)){await purgeHttp(req,res);return;}
       const probe=u.pathname==='/admin/media/upload-probe' && !!uploadProbe;
       if ((u.pathname==='/admin/media/upload'||probe) && req.method==='POST') {

@@ -2,6 +2,7 @@ import {createTournamentManagement,managementActions} from './staging-tournament
 import {createTournamentPurge} from './staging-tournament-purge.mjs';
 import {createPhotoCards} from './photo-card-editor.mjs';
 import {createGeminiSupport} from './creator-gemini-support.mjs';
+import {installAdminStatistics} from './staging-play-statistics.mjs';
 import {installAdminLanguage,translate} from './staging-admin-i18n.mjs';
 import {createMediaApi, STAGING_URL} from './staging-media-api.mjs';
 import {STEPS, statusOf, filterTournaments, workFromRevision, canEditMetadata, createDashboardApi, draftPayload} from './staging-admin-model.mjs';
@@ -11,7 +12,7 @@ const make = (tag, text, className) => { const node=document.createElement(tag);
 const adminLanguage=installAdminLanguage();
 const dataText=(tag,text,className)=>{const node=make(tag,text,className);node.dataset.i18nSkip='';return node;};
 const dateText=(tag,date,dateOnly=false)=>{const node=make(tag);node.dataset.i18nDate=date;if(dateOnly)node.dataset.i18nDateOnly='true';return node;};
-let client, api, dashboard, user, tournaments=[], categories=[], context=null, selected=null, revision=null;
+let client, api, dashboard, user, tournaments=[], categories=[], context=null, selected=null, revision=null,adminStatistics;
 let managementApi,management={available:false,trash:[]};
 let purgeApi,purgeState={enabled:false,jobs:[]};
 let photoWorking=false;
@@ -21,6 +22,7 @@ const photoUrls=new Map(), photosPending=new Map();
 function say(message, kind='') { $('stagingStatus').textContent=message; $('stagingStatus').className='notice '+kind; $('loginStatus').textContent=message; }
 function clearPhotos() { for(const url of photoUrls.values()) URL.revokeObjectURL(url); photoUrls.clear(); photosPending.clear(); if(newPhotoUrl)URL.revokeObjectURL(newPhotoUrl);newPhotoUrl=null; }
 function lock() {
+ adminStatistics?.reset();
  management={available:false,trash:[]};$('trashRows').replaceChildren();
  purgeState={enabled:false,jobs:[]};
  epoch++; authorized=false;selected=revision=asset=work=editing=game=null;user=null;dirty=false;tournaments=[];categories=[];context=null;clearPhotos();
@@ -354,6 +356,7 @@ async function signOut(){await run(async()=>{lock();const {error}=await client.a
 try {
  const config=window.PWC_STAGING;if(config?.supabaseUrl!==STAGING_URL||!/^sb_publishable_/.test(config.publishableKey||''))throw Error('Staging configuration unavailable.');
  client=window.supabase.createClient(STAGING_URL,config.publishableKey,{auth:{storageKey:'pwc-staging-auth'}});
+ adminStatistics=installAdminStatistics({client,getTournaments:()=>tournaments,getSelected:()=>selected});
  managementApi=createTournamentManagement(client);
  purgeApi=createTournamentPurge(client);
  api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin});dashboard=createDashboardApi(client,api);

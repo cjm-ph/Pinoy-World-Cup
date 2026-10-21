@@ -5,6 +5,7 @@ import { createDecoder } from './decoder.mjs';
 import { createMediaServer } from './http.mjs';
 import { createUploadProbe } from './upload-probe.mjs';
 import {createPurgeAdapters,createPurgeController,createPurgeHttp} from './tournament-purge.mjs';
+import {createStatisticsAdapters,createStatisticsHttp} from './play-statistics.mjs';
 
 export function readStagingEnvironment(env) {
   if (env.PWC_STAGING_SUPABASE_URL !== 'https://cmnomqsurdwhdbjgnsvw.supabase.co') throw Error('Staging URL required.');
@@ -12,12 +13,13 @@ export function readStagingEnvironment(env) {
   if (!env.PWC_STAGING_SERVICE_KEY || /\s/.test(env.PWC_STAGING_SERVICE_KEY)) throw Error('Server credential required.');
   const port=Number(env.PWC_STAGING_PORT || '8080');
   if (!Number.isInteger(port) || port<1024 || port>65535) throw Error('Invalid gateway port.');
-  return {url:env.PWC_STAGING_SUPABASE_URL,publishableKey:env.PWC_STAGING_PUBLISHABLE_KEY,serviceKey:env.PWC_STAGING_SERVICE_KEY,port,uploadProbe:env.PWC_STAGING_UPLOAD_PROBE==='temporary-enabled',tournamentPurge:env.PWC_STAGING_TOURNAMENT_PURGE==='reviewed-enabled'};
+  return {url:env.PWC_STAGING_SUPABASE_URL,publishableKey:env.PWC_STAGING_PUBLISHABLE_KEY,serviceKey:env.PWC_STAGING_SERVICE_KEY,port,playStatistics:env.PWC_STAGING_PLAY_STATISTICS==='enabled',uploadProbe:env.PWC_STAGING_UPLOAD_PROBE==='temporary-enabled',tournamentPurge:env.PWC_STAGING_TOURNAMENT_PURGE==='reviewed-enabled'};
 }
 export function composeStaging(config) {
   const adapters=supabaseAdapters(config);
   const purgeHttp=config.tournamentPurge===true?createPurgeHttp(createPurgeController({auth:adapters.auth,...createPurgeAdapters(config),enabled:true})):undefined;
-  return createMediaServer(createGateway({...adapters,decoder:createDecoder()}),{uploadProbe:config.uploadProbe===true?createUploadProbe(adapters):undefined,purgeHttp});
+  const statisticsHttp=createStatisticsHttp({rpc:createStatisticsAdapters(config),secret:config.serviceKey,enabled:config.playStatistics===true});
+  return createMediaServer(createGateway({...adapters,decoder:createDecoder()}),{uploadProbe:config.uploadProbe===true?createUploadProbe(adapters):undefined,purgeHttp,statisticsHttp});
 }
 // Imports and configuration tests do not start a listener or contact Supabase.
 if (process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {

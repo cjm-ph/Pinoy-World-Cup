@@ -35,12 +35,15 @@ async function initialize(){
   await script('scripts/vs_round_selection_test.js');await script('scripts/home_card_ordering.js');
   await script('scripts/adapter_home_ordering_v2.js');await script('scripts/home_quality.js');
   root.WorldCupVSPhotoSettings={byName:{}};
+  try{const stats=await import('./staging-play-statistics.mjs');stats.installPlayCollection(root);}catch{console.warn('Play statistics unavailable.');}
   await script('scripts/vs_immersive_test.js');
   // Mutate the existing overrides object: the approved VS module closes over it.
   for(const [id,settings] of Object.entries(view.vsPhotos))root.WorldCupVSPresentation.photos[id]=JSON.parse(JSON.stringify(settings));
   await script('scripts/adapter_carousel_v2.js');await script('scripts/result_immersive_test.js');
   await script('scripts/adapter_presentation_bridge_v2.js');
   await script('scripts/integrated_navigation_test.js');
+  // Optional collector failure must not prevent existing content/game startup.
+  try{const stats=await import('./staging-play-statistics.mjs');stats.installPublicStatistics(root);}catch{console.warn('Play statistics unavailable.');}
   layout.removeAttribute('style');layout.inert=false;
   status.hidden=true;state.status='ready';document.documentElement.dataset.contentState='ready';
   root.dispatchEvent(new CustomEvent('pinoy-content-ready'));

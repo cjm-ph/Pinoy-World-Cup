@@ -12,7 +12,7 @@ export function serveRender({ media, publicRoot }) {
   return createServer(async(req,res)=>{
     try {
       const url=new URL(req.url,'http://localhost');
-      if(url.pathname==='/media' || url.pathname.startsWith('/admin/media/')) {media.emit('request',req,res);return;}
+      if(url.pathname==='/media' || url.pathname.startsWith('/admin/media/') || url.pathname==='/play-statistics' || url.pathname.startsWith('/play-statistics/')) {media.emit('request',req,res);return;}
       if(!['GET','HEAD'].includes(req.method)){res.writeHead(405);res.end();return;}
       res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
       if(url.pathname==='/healthz') {res.writeHead(200,{'Content-Type':'text/plain'});res.end(req.method==='HEAD'?undefined:'ok');return;}
