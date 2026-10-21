@@ -30,6 +30,8 @@ export const KO = {
  'Fit - show whole photo':'Fit · 사진 전체 표시',
  'Fill - fill frame':'Fill · 영역 채우기',
  'Auto fit':'자동 맞춤',
+ 'Desktop display':'PC 표시', 'Mobile display':'모바일 표시',
+ 'Choose Fit or Fill, zoom and drag the photo for each device.':'기기별로 Fit 또는 Fill을 선택하고 확대·축소하거나 사진을 드래그하세요.',
  'Unable to decode this photo. Choose a valid image.':'사진을 읽지 못했습니다. 올바른 이미지 파일을 선택하세요.',
  'Photo workflow update is not installed. Apply the approved Staging 045 and 046 SQL first.':'사진 처리 업데이트가 설치되지 않았습니다. 승인된 Staging 045 및 046 SQL을 먼저 적용하세요.',
  'Waiting for Staging server response...':'Staging 서버 응답을 기다리고 있습니다...',
