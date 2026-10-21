@@ -40,7 +40,10 @@ root.start=function(t){
 };
 const show=root.show;
 root.show=function(id){
- const target=id==='play'?view.vsPhotos:id==='end'?view.resultPhotos:null;
+ // Staging has one candidate framing editor: the winner reuses the VS crop.
+ // Keep legacy result settings/data and non-Staging display behavior intact.
+ const sharedWinner=id==='end'&&root.PWC_STAGING?.supabaseUrl==='https://cmnomqsurdwhdbjgnsvw.supabase.co';
+ const target=id==='play'||sharedWinner?view.vsPhotos:id==='end'?view.resultPhotos:null;
  if(target)for(const [participantId,settings] of Object.entries(target))root.WorldCupVSPresentation.photos[participantId]=JSON.parse(JSON.stringify(settings));
  return show.apply(this,arguments);
 };
