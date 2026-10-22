@@ -1,0 +1,18 @@
+/* Staging privacy page and its account-area link only. */
+.privacy-policy-link{display:inline-block;line-height:20px;padding:12px 0;margin:-12px 0 -12px 12px;color:inherit;font-size:14px;text-underline-offset:3px;vertical-align:baseline}
+.privacy-policy-link:focus-visible,.privacy-page a:focus-visible{outline:3px solid #1267ff;outline-offset:4px;border-radius:3px}
+.privacy-page{--ink:#172333;--blue:#1267ff;margin:0;background:#fff;color:var(--ink);line-height:1.75}
+.privacy-page *{box-sizing:border-box}
+.privacy-page .privacy-header{min-height:74px;height:auto;gap:12px;flex-wrap:wrap;border-bottom:1px solid #e2e6ed}
+.privacy-page .home-brand{white-space:nowrap}
+.privacy-home-link{display:inline-flex;align-items:center;justify-content:flex-end;min-height:44px;color:inherit;font-size:14px;text-underline-offset:3px;margin-left:auto}
+.privacy-page .privacy-content{width:100%;max-width:76ch;padding:30px 0 72px;margin:0 auto;overflow-wrap:anywhere}
+.privacy-content h1{font-size:clamp(28px,4vw,40px);line-height:1.2;letter-spacing:-.7px;margin:28px 0 18px}
+.privacy-content h2{font-size:clamp(20px,2.6vw,25px);line-height:1.35;margin:0 0 18px}
+.privacy-content h3{font-size:17px;line-height:1.5;margin:24px 0 10px}
+.privacy-content section{margin-top:36px}
+.privacy-content p,.privacy-content ul{margin:0 0 18px}
+.privacy-content ul{padding-left:24px}
+.privacy-content li{margin-bottom:7px}
+.privacy-draft{padding:14px 16px;background:#fff8e7;border:1px solid #e6d8b6;border-radius:8px;font-size:14px;line-height:1.6}
+@media(max-width:700px){.privacy-page .privacy-header{min-height:64px}.privacy-home-link{font-size:12px}.privacy-page .privacy-content{padding-top:24px;font-size:16px}}

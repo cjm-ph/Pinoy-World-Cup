@@ -1,4 +1,6 @@
 export const publicFiles = [
+  "privacy.html",
+  "templates/staging-privacy.css",
   "scripts/staging-comments.mjs",
   "scripts/comment-text-policy.mjs",
   "scripts/comment-proof-worker.mjs",
