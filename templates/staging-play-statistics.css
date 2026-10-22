@@ -9,3 +9,8 @@
 #start .home-title-row:has(.stats-card-actions){grid-template-columns:minmax(0,1fr);padding-right:94px}#start .home-card .stats-card-link{min-width:0;width:auto;min-height:32px;font-size:13px;padding:6px 0;border:0;background:none;line-height:20px}
 #start .home-title-row:has(.stats-card-actions){padding-right:110px}.stats-card-link svg{width:14px;height:14px;flex:none}.stats-photo img[hidden]{display:none}
 #start .home-card .stats-card-link{min-height:44px}
+/* Mobile only: move actions to the edge without changing media or title styles. */
+@media(max-width:767px){
+ #start .stats-card-actions{right:7px;width:84px;max-width:calc(100% - 14px)}
+ #start .home-card .stats-card-link{gap:2px;max-width:100%;white-space:nowrap}
+}
