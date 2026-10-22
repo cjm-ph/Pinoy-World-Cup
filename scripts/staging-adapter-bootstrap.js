@@ -44,6 +44,7 @@ async function initialize(){
   await script('scripts/integrated_navigation_test.js');
   // Optional collector failure must not prevent existing content/game startup.
   try{const stats=await import('./staging-play-statistics.mjs');stats.installPublicStatistics(root);}catch{console.warn('Play statistics unavailable.');}
+  try{const comments=await import('./staging-comments.mjs');comments.installPublicComments(root);}catch{console.warn('Comments unavailable.');}
   layout.removeAttribute('style');layout.inert=false;
   status.hidden=true;state.status='ready';document.documentElement.dataset.contentState='ready';
   root.dispatchEvent(new CustomEvent('pinoy-content-ready'));

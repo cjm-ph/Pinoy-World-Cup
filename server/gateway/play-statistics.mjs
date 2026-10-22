@@ -8,7 +8,7 @@ export function createStatisticsAdapters({url,publishableKey,serviceKey,fetchImp
   if(!response.ok)throw Object.assign(Error('Statistics unavailable'),{httpStatus:response.status>=500?502:response.status===429?429:400});return response.json();
  };
 }
-export function createStatisticsHttp({rpc,secret,enabled=false,allowedOrigin='https://pinoy-worldcup-staging.onrender.com',now=Date.now}){
+export function createStatisticsHttp({rpc,secret,auth,memberBadges=false,enabled=false,allowedOrigin='https://pinoy-worldcup-staging.onrender.com',now=Date.now}){
  if(!secret)throw Error('Server signing secret required');
  const sign=value=>createHmac('sha256',secret).update('play-statistics-v1:'+value).digest('hex');
  const buckets=new Map();let active=0;
@@ -35,12 +35,16 @@ export function createStatisticsHttp({rpc,secret,enabled=false,allowedOrigin='ht
    }
    const read=async()=>{let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>8192)throw Error('Too large');chunks.push(chunk);}return JSON.parse(Buffer.concat(chunks).toString('utf8'));};
    const b=await Promise.race([read(),new Promise((_,reject)=>{timer=setTimeout(()=>{req.destroy();reject(Error('Body timeout'));},5000);})]);
+   let actor=null;
+   if(memberBadges&&req.headers.authorization?.startsWith('Bearer ')&&req.headers.authorization.length<=8200){
+    try{const user=await auth.verify(req.headers.authorization.slice(7));if(uuid.test(user?.id||'')&&user.isAnonymous===false)actor=user.id;}catch{/* Invalid auth grants no badge; existing metrics remain available. */}
+   }
    if(url.pathname==='/play-statistics/start'){
     if(!uuid.test(b.request)||typeof b.tid!=='string'||b.tid.length>160||typeof b.rid!=='string'||b.rid.length>160||!Array.isArray(b.lineup)||![4,8,16,32].includes(b.lineup.length)||b.lineup.some(x=>typeof x!=='string'||x.length>160))throw Error('Invalid start');
-    send(200,await rpc('play_statistics_start',{caller,req:b.request,tid:b.tid,rid:b.rid,lineup:b.lineup}));
+    send(200,await rpc(memberBadges?'play_statistics_member_start':'play_statistics_start',{caller,req:b.request,tid:b.tid,rid:b.rid,lineup:b.lineup,...(memberBadges?{actor}:{})}));
    }else if(url.pathname==='/play-statistics/events'){
     if(!uuid.test(b.game)||!Array.isArray(b.events)||!b.events.length||b.events.length>31||b.events.some(e=>!Number.isInteger(e.seq)||e.seq<1||e.seq>31||typeof e.winner!=='string'||e.winner.length>160))throw Error('Invalid events');
-    send(200,await rpc('play_statistics_events',{caller,gid:b.game,events:b.events}));
+    send(200,await rpc(memberBadges?'play_statistics_member_events':'play_statistics_events',{caller,gid:b.game,events:b.events,...(memberBadges?{actor}:{})}));
    }else send(404,{error:'Not found'});
   }catch(error){send(error.httpStatus||400,{error:'Statistics request was not accepted. Gameplay is unaffected.'});}
   finally{active--;clearTimeout(timer);}

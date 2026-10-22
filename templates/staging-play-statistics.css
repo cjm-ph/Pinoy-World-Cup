@@ -11,6 +11,14 @@
 #start .home-card .stats-card-link{min-height:44px}
 /* Mobile only: move actions to the edge without changing media or title styles. */
 @media(max-width:767px){
- #start .stats-card-actions{right:7px;width:84px;max-width:calc(100% - 14px)}
- #start .home-card .stats-card-link{gap:2px;max-width:100%;white-space:nowrap}
+ #start .stats-card-actions{right:7px;bottom:6px;width:84px;max-width:calc(100% - 14px)}
+ #start .home-card .stats-card-link{gap:2px;max-width:100%;white-space:nowrap;padding-block:0}
+ #start .stats-card-link:first-child>*{transform:translateY(3px)}
+ #start .stats-card-link:last-child>*{transform:translateY(-3px)}
 }
+.stats-public h1{overflow-wrap:anywhere}
+.stats-public .stats-rate-counts{font-size:12px;font-weight:400;color:#65768a;line-height:1.4;overflow-wrap:anywhere}
+.stats-public .stats-status:empty{display:none}
+.stats-public .stats-ad-slot{box-sizing:border-box;width:100%;max-width:468px;height:60px;margin:20px auto;overflow:hidden}
+.stats-public .stats-ad-slot[hidden],.stats-public .stats-ad-slot:empty{display:none}
+@media(max-width:760px){.stats-public .stats-ad-slot{max-width:320px;height:100px}}

@@ -1,4 +1,8 @@
 export const publicFiles = [
+  "scripts/staging-comments.mjs",
+  "scripts/comment-text-policy.mjs",
+  "scripts/comment-proof-worker.mjs",
+  "templates/staging-comments.css",
   "scripts/staging-statistics-ui.mjs",
   "scripts/staging-statistics-presentation.mjs",
   "scripts/content_model_v1.js",
