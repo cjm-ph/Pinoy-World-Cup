@@ -56,6 +56,7 @@ async function navigate(next) {
  }
  if(next==='create') {if(!work)newWork();else renderWizard();}
  setPage(next);
+ if(next==='comments'&&authorized)adminComments?.enter();
 }
 function toggleMenu(open) { $('adminSidebar').classList.toggle('open',open);$('menuScrim').classList.toggle('open',open);$('mobileMenu').setAttribute('aria-expanded',String(open)); }
 async function guardSession(){const {data,error}=await client.auth.getSession();if(error||!data.session||!authorized){lock();throw Error('Sign in with an authorized Staging administrator account.');}}
@@ -359,7 +360,7 @@ try {
  const config=window.PWC_STAGING;if(config?.supabaseUrl!==STAGING_URL||!/^sb_publishable_/.test(config.publishableKey||''))throw Error('Staging configuration unavailable.');
  client=window.supabase.createClient(STAGING_URL,config.publishableKey,{auth:{storageKey:'pwc-staging-auth'}});
  adminStatistics=installAdminStatistics({client,getTournaments:()=>tournaments,getSelected:()=>selected,getLanguage:()=>adminLanguage.language,loadPhoto:photo,navigate});
- adminComments=installAdminComments({client});
+ adminComments=installAdminComments({client,getLanguage:()=>adminLanguage.language});
  managementApi=createTournamentManagement(client);
  purgeApi=createTournamentPurge(client);
  api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin});dashboard=createDashboardApi(client,api);
