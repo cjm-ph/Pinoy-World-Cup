@@ -1,4 +1,6 @@
 export const publicFiles = [
+  "scripts/staging-statistics-ui.mjs",
+  "scripts/staging-statistics-presentation.mjs",
   "scripts/content_model_v1.js",
   "scripts/static_content_repository_v2.js",
   "scripts/content_view_adapter_v2.js",

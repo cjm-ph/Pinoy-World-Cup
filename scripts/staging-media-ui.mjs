@@ -44,7 +44,7 @@ function options(id, rows, value) { const select=$(id);select.replaceChildren(..
 function setPage(next) {
  page=next;all('[data-view]').forEach(n=>n.hidden=n.dataset.view!==next);
  all('[data-page]').forEach(n=>{n.classList.toggle('active',n.dataset.page===next); if(n.dataset.page===next)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');});
- $('pageCrumb').textContent=({dashboard:'Dashboard',tournaments:'Tournaments',create:'Create World Cup',reviews:'Review Queue',comments:'Comments',members:'Members',staff:'Staff Permissions',settings:'Settings',editor:'Tournament details',trash:'Trash'})[next];
+ $('pageCrumb').textContent=({dashboard:'Dashboard',statistics:'Statistics',tournaments:'Tournaments',create:'Create World Cup',reviews:'Review Queue',comments:'Comments',members:'Members',staff:'Staff Permissions',settings:'Settings',editor:'Tournament details',trash:'Trash'})[next];
  toggleMenu(false);window.scrollTo({top:0,behavior:'instant'});
 }
 async function navigate(next) {
@@ -356,7 +356,7 @@ async function signOut(){await run(async()=>{lock();const {error}=await client.a
 try {
  const config=window.PWC_STAGING;if(config?.supabaseUrl!==STAGING_URL||!/^sb_publishable_/.test(config.publishableKey||''))throw Error('Staging configuration unavailable.');
  client=window.supabase.createClient(STAGING_URL,config.publishableKey,{auth:{storageKey:'pwc-staging-auth'}});
- adminStatistics=installAdminStatistics({client,getTournaments:()=>tournaments,getSelected:()=>selected});
+ adminStatistics=installAdminStatistics({client,getTournaments:()=>tournaments,getSelected:()=>selected,getLanguage:()=>adminLanguage.language,loadPhoto:photo,navigate});
  managementApi=createTournamentManagement(client);
  purgeApi=createTournamentPurge(client);
  api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin});dashboard=createDashboardApi(client,api);
