@@ -1,4 +1,5 @@
 export const publicFiles = [
+  "content-policy.html",
   "scripts/creator-page-model.mjs",
   "scripts/creator-page-ui.mjs",
   "privacy.html",

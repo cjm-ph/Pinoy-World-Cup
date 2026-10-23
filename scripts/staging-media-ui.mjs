@@ -19,6 +19,7 @@ let managementApi,management={available:false,trash:[]};
 let purgeApi,purgeState={enabled:false,jobs:[]};
 let photoWorking=false, batchBusy=false;
 const creatorJobs=new Map();
+let creatorNotice='',creatorAutoTimer=null,creatorDeferredFiles=[],creatorFileBusy=false;
 const pendingCreatorPhotos=()=>[...creatorJobs.values()].some(job=>job.state!=='complete');
 let authorized=false, working=false, epoch=0, page='dashboard', asset=null, rightsRecorded=false;
 let work=null, editing=null, dirty=false, newPhotoUrl=null, game=null;
@@ -26,7 +27,7 @@ const photoUrls=new Map(), photosPending=new Map();
 function say(message, kind='') { $('stagingStatus').textContent=message; $('stagingStatus').className='notice '+kind; $('loginStatus').textContent=message; }
 function clearPhotos() { for(const url of photoUrls.values()) URL.revokeObjectURL(url); photoUrls.clear(); photosPending.clear(); if(newPhotoUrl)URL.revokeObjectURL(newPhotoUrl);newPhotoUrl=null; }
 function lock() {
- creatorJobs.clear();
+ creatorJobs.clear();creatorDeferredFiles=[];creatorNotice='';clearTimeout(creatorAutoTimer);creatorAutoTimer=null;
  adminStatistics?.reset();
  adminComments?.reset();
  management={available:false,trash:[]};$('trashRows').replaceChildren();
@@ -55,8 +56,8 @@ function setPage(next) {
 }
 async function navigate(next) {
  if((dirty||pendingCreatorPhotos()) && page==='create' && next!=='create') {
-  if(!await confirmAction('Leave unsaved changes?','Your current text and candidate edits have not been saved. Existing server drafts and uploaded photos are preserved.'))return;
-  work=null;editing=null;dirty=false;
+  if(!await confirmAction('Leave unsaved changes?','Unsaved inputs and queued local photos will be discarded. Existing server drafts and uploaded photos are preserved.'))return;
+  work=null;editing=null;dirty=false;creatorJobs.clear();creatorDeferredFiles=[];clearTimeout(creatorAutoTimer);creatorAutoTimer=null;
  }
  if(next==='create') {if(!work)newWork();else renderWizard();}
  setPage(next);
@@ -226,7 +227,7 @@ async function photoOperation(action){if(photoWorking||batchBusy)throw Error('A 
 function cards(inWizard=false){
  const currentTournament=()=>inWizard?tournaments.find(t=>t.id===work?.tournament_id):selected;
  const storageAction=async(name)=>{const t=currentTournament();if(!t)throw Error('Save the tournament draft first.');return api.rpc(name,{tid:t.id});};
- return createPhotoCards({storageDiagnostics:()=>storageAction('admin_media_storage_diagnostics'),releaseExpired:()=>storageAction('admin_media_release_expired'),canEdit:()=>{const t=inWizard?tournaments.find(t=>t.id===work?.tournament_id):selected;return authorized&&!batchBusy&&(!t||(['private','public'].includes(t.visibility)&&(['draft','rejected','approved'].includes(t.revision?.state)||(inWizard&&t.creator_id===user?.id&&t.revision?.state==='submitted'))));},getSlots:()=>photoSlots(inWizard),loadPhoto:photo,getLanguage:()=>adminLanguage.language,notify:say,
+ return createPhotoCards({devicePreviews:inWizard,storageDiagnostics:()=>storageAction('admin_media_storage_diagnostics'),releaseExpired:()=>storageAction('admin_media_release_expired'),canEdit:()=>{const t=inWizard?tournaments.find(t=>t.id===work?.tournament_id):selected;return authorized&&!batchBusy&&(!t||(['private','public'].includes(t.visibility)&&(['draft','rejected','approved'].includes(t.revision?.state)||(inWizard&&t.creator_id===user?.id&&t.revision?.state==='submitted'))));},getSlots:()=>photoSlots(inWizard),loadPhoto:photo,getLanguage:()=>adminLanguage.language,notify:say,
  upload:async(slot,file,settings,rights)=>photoOperation(async()=>{
   if(context?.photo_workflow_version!=='045'||!context?.photo_fit_modes)throw Error('Photo workflow update is not installed. Apply the approved Staging 045 and 046 SQL first.');
   const note=rights?.notes||'';if(inWizard)captureWizard();
@@ -306,33 +307,51 @@ async function changeRevision(op) {
  if(!note)return;
  await guard();if(op==='reject')await dashboard.reject(selected,revision,note);else if(op==='approve')await api.reviewPublish(selected,revision.id);else await api.transition(op,selected,op==='rollback'?$('stagingRollback').value:revision.id);await refreshAdmin(true);say(`${op} completed. Server data refreshed.`,'success');
 }
-function newWork(){$('wizardPanel').replaceChildren();creatorJobs.clear();work={tournament_id:window.CreatorModelV3.id('tournament'),base_revision_id:null,title:'',description:'',category_id:categories[0]?.id||'',requested_size:8,cover_participant_id:null,participants:[]};ensureCandidates();editing=null;dirty=false;renderWizard();}
+function newWork(){$('wizardPanel').replaceChildren();creatorJobs.clear();creatorDeferredFiles=[];creatorNotice='';work={tournament_id:window.CreatorModelV3.id('tournament'),base_revision_id:null,title:'',description:'',category_id:categories[0]?.id||'',requested_size:8,cover_participant_id:null,participants:[]};ensureCandidates();editing=null;dirty=false;renderWizard();}
 function captureWizard(){if(!work||!$('workTitle'))return;work.title=$('workTitle').value;work.description=$('workDescription').value;work.category_id=$('workCategory').value;for(const input of all('[data-candidate-name]')){const p=work.participants.find(p=>p.id===input.dataset.candidateName);if(p)p.name=input.value;}}
 function ensureCandidates(){while(work.participants.length<Number(work.requested_size))work.participants.push({...window.CreatorModelV3.member(''),image_asset_id:null});}
-function creatorChanged(repaint=false){if(!repaint)captureWizard();dirty=true;$('draftStatus').textContent='Unsaved changes';if(repaint)renderWizard();for(const support of all('[data-gemini-support]'))support.refreshPrompt();}
+function creatorChanged(repaint=false){if(!repaint)captureWizard();dirty=true;$('draftStatus').textContent='Unsaved changes';if(repaint)renderWizard();for(const support of all('[data-gemini-support]'))support.refreshPrompt();scheduleCreatorUpload();}
 function renderWizard(){
  if(!work)return;$('wizardTitle').textContent=editing?'Edit World Cup':'Create World Cup';$('draftStatus').textContent=dirty?'Unsaved changes':work.base_revision_id?'Saved draft':'Unsaved draft';
  $('wizardPublishedLink').hidden=!tournaments.some(t=>t.id===work.tournament_id&&t.visibility==='public');
  const bulkValue=$('bulkNames')?.value||'',bulkOpen=$('bulkNames')?.parentElement.open||false,hadPrompt=!!$('wizardPanel').querySelector('[data-gemini-support] textarea')?.value;
- const pendingNotes=$('creatorBatchNotes')?.value||'',pendingRights=$('creatorBatchRights')?.checked||false;
- $('wizardPanel').replaceChildren(createCreatorPage({work,categories,onError:message=>say(message,'error'),capture:captureWizard,onChange:creatorChanged,getLanguage:()=>adminLanguage.language,photos:cards(true),jobs:creatorJobs,busy:batchBusy||photoWorking,
+ const pendingNotes=$('creatorBatchNotes')?.value||'';
+ $('wizardPanel').replaceChildren(createCreatorPage({work,categories,notice:creatorNotice,onError:message=>say(message,'error'),capture:captureWizard,onChange:creatorChanged,getLanguage:()=>adminLanguage.language,photos:cards(true),jobs:creatorJobs,busy:batchBusy||photoWorking,
  onResize:size=>{captureWizard();if(work.participants.length>size){say('Remove candidates before reducing the candidate count.','error');renderWizard();return;}work.requested_size=size;ensureCandidates();dirty=true;renderWizard();},
- onFiles:files=>void run(()=>addCreatorFiles(files)),onUpload:(ack,notes)=>void run(()=>uploadCreatorJobs(null,ack,notes)),onRetry:(id,ack,notes)=>void run(()=>uploadCreatorJobs(id,ack,notes)),
+ onFiles:files=>void acceptCreatorFiles(files),onRetry:(id,notes)=>void run(()=>uploadCreatorJobs(id,notes)),
  onAdd:()=>{captureWizard();if(work.participants.length>=work.requested_size)return;work.participants.push({...window.CreatorModelV3.member(''),image_asset_id:null});dirty=true;renderWizard();},
  onRemove:id=>{captureWizard();work.participants=work.participants.filter(p=>p.id!==id);if(work.cover_participant_id===id)work.cover_participant_id=null;creatorJobs.delete(id);dirty=true;renderWizard();},
  onMove:(id,offset)=>{captureWizard();const i=work.participants.findIndex(p=>p.id===id),j=i+offset;if(j<0||j>=work.participants.length)return;[work.participants[i],work.participants[j]]=[work.participants[j],work.participants[i]];dirty=true;renderWizard();},
  onSave:()=>void run(()=>savePrivateWork()),onPublish:()=>void run(publishWork)}));
  $('bulkNames').value=bulkValue;$('bulkNames').parentElement.open=bulkOpen;if(hadPrompt)$('wizardPanel').querySelector('[data-gemini-support] button')?.click();
- $('creatorBatchNotes').value=pendingNotes;$('creatorBatchRights').checked=pendingRights;
+ $('creatorBatchNotes').value=pendingNotes;
+}
+function scheduleCreatorUpload(){
+ clearTimeout(creatorAutoTimer);creatorAutoTimer=setTimeout(()=>{creatorAutoTimer=null;
+  if(!work||!authorized||page!=='create')return;
+  if(working||batchBusy||photoWorking||creatorFileBusy){scheduleCreatorUpload();return;}
+  captureWizard();if(![...creatorJobs.values()].some(j=>j.state==='pending'))return;
+  const missing=[];if(!work.title.trim())missing.push('title');if(!work.category_id)missing.push('category');
+  if(missing.length){say('Photos are kept locally. Enter '+missing.join(' and ')+' to upload automatically.');return;}
+  void run(()=>uploadCreatorJobs(null,$('creatorBatchNotes')?.value||''));
+ },250);
+}
+async function acceptCreatorFiles(files){creatorDeferredFiles.push(...files);await drainCreatorFiles();}
+async function drainCreatorFiles(){
+ if(batchBusy||working||photoWorking||creatorFileBusy){if(creatorDeferredFiles.length)setTimeout(()=>void drainCreatorFiles(),250);return;}
+ if(!work||!authorized){creatorDeferredFiles=[];return;}
+ if(creatorDeferredFiles.length){creatorFileBusy=true;const files=creatorDeferredFiles.splice(0);try{await addCreatorFiles(files);}catch(e){say(e.message,'error');}finally{creatorFileBusy=false;}}
+ scheduleCreatorUpload();
 }
 async function addCreatorFiles(files){
- captureWizard();const valid=[],errors=[];for(const file of files){try{await validateCreatorFile(file);valid.push(file);}catch(e){errors.push(file.name+': '+e.message);}}
- const result=assignCreatorFiles(work,valid,()=>({...window.CreatorModelV3.member(''),image_asset_id:null}),creatorJobs);if(result.accepted)dirty=true;renderWizard();if(result.accepted)$('creatorBatchRights').checked=false;
+ captureWizard();const expectedWork=work,expectedEpoch=epoch,valid=[],errors=[];for(const file of files){try{await validateCreatorFile(file);valid.push(file);}catch(e){errors.push(file.name+': '+e.message);}}
+ if(work!==expectedWork||epoch!==expectedEpoch)return;captureWizard();
+ const result=assignCreatorFiles(work,valid,()=>({...window.CreatorModelV3.member(''),image_asset_id:null}),creatorJobs);if(result.accepted)dirty=true;creatorNotice=(result.excess?`${result.excess} excess files were not registered. `:'')+errors.join(' ');renderWizard();
  say(`${result.accepted} photos queued.`+(result.excess?` ${result.excess} excess files were not registered.`:'')+(errors.length?' '+errors.join(' '):''),errors.length||result.excess?'error':'');
 }
-async function uploadCreatorJobs(only,ack,notes){
- if(batchBusy||photoWorking)return;if(!ack)throw Error('Confirm permission to use the selected photos first.');captureWizard();
- const jobs=[...creatorJobs].filter(([id,j])=>(!only||id===only)&&j.state!=='complete');if(!jobs.length)return;
+async function uploadCreatorJobs(only,notes=''){
+ if(batchBusy||photoWorking)return;captureWizard();
+ const jobs=[...creatorJobs].filter(([id,j])=>(only?id===only&&j.state!=='complete':j.state==='pending'));if(!jobs.length)return;
  batchBusy=true;renderWizard();const at=epoch,tid=work.tournament_id;
  try{
   await saveWork({quiet:true,force:true});
@@ -347,7 +366,7 @@ async function uploadCreatorJobs(only,ack,notes){
    }catch(e){job.state='failed';job.error=e.message;}
   }
  }catch(e){for(const [,job]of jobs)if(job.state!=='complete'){job.state='failed';job.error='Draft save failed. '+e.message;}throw e;}
- finally{batchBusy=false;if(at===epoch&&work){renderWizard();const failed=jobs.filter(([,j])=>j.state==='failed').length;say(failed?`${failed} photos failed. Retry only those photos.`:'Selected photos saved.',failed?'error':'success');}}
+ finally{batchBusy=false;if(at===epoch&&work){renderWizard();const failed=jobs.filter(([,j])=>j.state==='failed').length;say(failed?`${failed} photos failed. Retry only those photos.`:'Selected photos saved.',failed?'error':'success');}void drainCreatorFiles();}
 }
 async function saveWork({quiet=false,force=false}={}){
  await guard(null);if(page==='create')captureWizard();
