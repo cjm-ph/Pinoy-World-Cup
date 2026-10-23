@@ -3,3 +3,6 @@ staging-deploy/public/
 .env
 .env.*
 *.log
+scripts/staging-championship-policy.test.mjs
+staging-deploy/admin-dashboard-validation/championship-rate-implementation.md
+staging-deploy/admin-dashboard-validation/statistics-followup-report.md

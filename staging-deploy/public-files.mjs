@@ -1,4 +1,6 @@
 export const publicFiles = [
+  "scripts/creator-page-model.mjs",
+  "scripts/creator-page-ui.mjs",
   "privacy.html",
   "templates/staging-privacy.css",
   "scripts/staging-comments.mjs",

@@ -23,12 +23,12 @@ export function workFromRevision(t, r) {
       pending_url: p.pending_url || '', presentations: Object.fromEntries((r.presentations || [])
         .filter(m => m.participant_id === p.id).map(m => [m.context, m.settings]))}))};
 }
-export function draftPayload(work) {
+export function draftPayload(work,{allowIncomplete=false}={}) {
   const plain = s => typeof s === 'string' && !/[<>\u0000-\u0008]/.test(s);
   if (!plain(work.title) || !work.title.trim() || !plain(work.description) || !work.category_id
     || ![8,16,32].includes(Number(work.requested_size))) throw Error('Enter a title, description, category and supported candidate count.');
-  if (work.participants.length !== Number(work.requested_size)) throw Error('Candidate count must match the selected size.');
-  if (work.participants.some(p => !plain(p.name) || !p.name.trim() || p.name.length > 300 || !plain(p.description || ''))) {
+  if (work.participants.length > Number(work.requested_size)||(!allowIncomplete&&work.participants.length !== Number(work.requested_size))) throw Error('Candidate count must match the selected size.');
+  if (work.participants.some(p => !plain(p.name) || (!allowIncomplete&&!p.name.trim()) || p.name.length > 300 || !plain(p.description || ''))) {
     throw Error('Every candidate needs a plain-text name of up to 300 characters.');
   }
   return {title: work.title.trim(), description: work.description, requested_size: Number(work.requested_size),
@@ -60,7 +60,7 @@ export function createDashboardApi(client, media, uuid = () => crypto.randomUUID
       const cached=client.auth.getSession?(await client.auth.getSession()).data.session?.user:null;
       if (t && !canEditMetadata(t, (cached||(await client.auth.getUser()).data.user)?.id)) throw Error('Only the creator can save these candidate and text changes. Photo management remains available to administrators.');
       return media.rpc('admin_media_save_draft', {req: uuid(), tid: work.tournament_id, rid: 'rev_' + uuid(),
-        expected: t?.edit_version || 0, payload: draftPayload(work)});
+        expected: t?.edit_version || 0, payload: draftPayload(work,{allowIncomplete:true})});
     },
     async preview(aid) {
       const target = await media.rpc('admin_media_preview_target', {aid});

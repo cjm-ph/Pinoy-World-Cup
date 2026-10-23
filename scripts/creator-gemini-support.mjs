@@ -55,7 +55,7 @@ export function createGeminiSupport({getContext,getLanguage=()=> 'en',onCandidat
   catch{prompt.focus();prompt.select();status.textContent='Automatic copy failed. Copy the selected prompt manually.';}
  };
  candidates.onclick=()=>onCandidates?.();
- actions.append(generate,copy,open,candidates);section.append(actions,status,node('p','In Gemini, copy only the suggested names, then paste them into bulk input below and apply them. Review the candidates before saving. No data is sent automatically; no Gemini API is used.'));
+ actions.append(generate,copy,open);if(onCandidates)actions.append(candidates);section.append(actions,status,node('p','In Gemini, copy only the suggested names, then paste them into bulk input below and apply them. Review the candidates before saving. No data is sent automatically; no Gemini API is used.'));
  section.refreshPrompt=()=>{try{refreshPrompt();}catch{generated=false;prompt.value='';status.textContent='Enter a title and a supported candidate count before generating a prompt.';}};
  return section;
 }
