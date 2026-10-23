@@ -1,8 +1,9 @@
+import {upstreamError} from './mixed-media-diagnostics.mjs';
 // Server credential never leaves this adapter; construction does not contact Supabase.
 export function createMixedMediaAdapters({url,publishableKey,serviceKey,fetchImpl=fetch}){
  if(url!=='https://cmnomqsurdwhdbjgnsvw.supabase.co')throw Error('Staging required');
- async function request(path,token,key,options={}){const response=await fetchImpl(url+path,{...options,redirect:'error',signal:AbortSignal.timeout(15000),headers:{apikey:key,Authorization:'Bearer '+token,...options.headers}});if(!response.ok)throw Error('Mixed-media contract or Storage unavailable');return response;}
- async function rpc(name,args,token=serviceKey,key=serviceKey){const r=await request('/rest/v1/rpc/'+name,token,key,{method:'POST',headers:{'Content-Type':'application/json','Content-Profile':'pwc41_api'},body:JSON.stringify(args)});return r.status===204?null:r.json();}
+ async function request(path,token,key,options={},rpcName){const response=await fetchImpl(url+path,{...options,redirect:'error',signal:AbortSignal.timeout(15000),headers:{apikey:key,Authorization:'Bearer '+token,...options.headers}});if(!response.ok){let code;try{const reader=response.body?.getReader();if(reader){let size=0;const parts=[];try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>8192)break;parts.push(value);}if(size<=8192){const detail=JSON.parse(Buffer.concat(parts).toString('utf8'));code=detail.code??detail.error??detail.statusCode;}}finally{await reader.cancel().catch(()=>{});}}}catch{}throw upstreamError(response.status,code,rpcName);}return response;}
+ async function rpc(name,args,token=serviceKey,key=serviceKey){const r=await request('/rest/v1/rpc/'+name,token,key,{method:'POST',headers:{'Content-Type':'application/json','Content-Profile':'pwc41_api'},body:JSON.stringify(args)},name);return r.status===204?null:r.json();}
  function path(key){if(!/^[0-9a-f-]{36}\/source_[0-9a-f-]{36}\.webp$/.test(key||''))throw Error('Invalid animation path');return '/storage/v1/object/pwc41-animated/'+key;}
  return {
   capability:(token,tid)=>rpc('admin_mixed_media_capability',{tid},token,publishableKey),

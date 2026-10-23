@@ -221,7 +221,7 @@ async function openTournament(id) { await loadSelected(id);setPage('editor');say
 function photoSlots(inWizard=false){
  const r=inWizard?work:revision;
  const participants=r?.participants||[];
- return participants.filter(p=>p.media?.type!=='youtube').map(p=>({id:p.id,name:p.name,asset:p.image_asset_id,settings:inWizard?p.presentations?.vs:(revision.presentations||[]).find(m=>m.participant_id===p.id&&m.context==='vs')?.settings}));
+ return participants.map(p=>({id:p.id,name:p.name,asset:p.image_asset_id,mediaType:p.media?.type,settings:p.media?.type==='youtube'?{fit:'contain',position:'50% 50%',b2_zoom:1}:inWizard?p.presentations?.vs:(revision.presentations||[]).find(m=>m.participant_id===p.id&&m.context==='vs')?.settings}));
 }
 async function photoOperation(action){if(photoWorking||batchBusy)throw Error('A photo operation is already running.');photoWorking=true;try{return await action();}finally{photoWorking=false;if(page==='create'&&work)renderWizard();}}
 function cards(inWizard=false){

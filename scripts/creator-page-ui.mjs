@@ -1,4 +1,5 @@
 import {createGeminiSupport} from './creator-gemini-support.mjs';
+const clipTime=seconds=>`${Math.floor((seconds??0)/60)}:${String((seconds??0)%60).padStart(2,'0')}`;
 // Stateless page renderer. Persistence and role checks are supplied by its caller.
 export function createCreatorPage({work,categories,capture,onChange,onResize,onFiles,onYouTube,onRetry,onAdd,onRemove,onMove,onSave,onPublish,photos,jobs,busy,notice,getLanguage,onError=()=>{}}){
  const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
@@ -23,8 +24,8 @@ export function createCreatorPage({work,categories,capture,onChange,onResize,onF
  const notes=el('textarea');notes.id='creatorBatchNotes';notes.maxLength=4000;notes.placeholder='Source / notes (optional)';notes.setAttribute('aria-label','Batch source / notes');notes.disabled=busy;candidates.append(notes);
  for(const p of work.participants){const row=el('div',undefined,'creator-candidate-input');row.dataset.candidateId=p.id;const input=el('input');input.value=p.name;input.maxLength=300;input.dataset.candidateName=p.id;input.dataset.i18nSkip='';input.setAttribute('aria-label','Candidate name');input.disabled=busy;input.oninput=()=>{p.name=input.value;onChange();};
   if(p.media?.type==='youtube'){
-   const info=el('div',undefined,'creator-video-info'),thumb=el('img');thumb.alt='Video thumbnail';thumb.src=p.image_asset_id?'/media?asset='+encodeURIComponent(p.image_asset_id):p.media.thumbnailUrl;thumb.onerror=()=>thumb.remove();
-   info.append(thumb,el('span',p.media.url),el('span','Start: '+p.media.startSeconds+' / '+(p.media.endSeconds===null?'End of video':'End: '+p.media.endSeconds)));row.append(info);
+   const info=el('div',undefined,'creator-video-info');
+   info.append(el('span',p.media.url),el('span','Start: '+clipTime(p.media.startSeconds)+' / '+(p.media.endSeconds==null?'End of video':'End: '+clipTime(p.media.endSeconds))));row.append(info);
   }
   const state=jobs.get(p.id);row.append(input,action('Move up',()=>onMove(p.id,-1)),action('Move down',()=>onMove(p.id,1)),action('Remove candidate',()=>onRemove(p.id)));
   if(state){const status=el('span',state.state==='complete'?'Upload complete':state.error||state.state,'creator-upload-state');status.setAttribute('role','status');row.append(status);if(state.state==='failed')row.append(action('Retry photo',()=>onRetry(p.id,notes.value)));}

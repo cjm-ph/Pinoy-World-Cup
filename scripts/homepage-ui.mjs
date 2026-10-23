@@ -5,6 +5,13 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
  const tabs=$('homeTabs'),grid=$('grid'),search=$('homeSearch'),empty=$('homeEmpty');
  let sort='popular',period='month',rows=[],offset=0,total=0,loading=false,failed=false,generation=0;
  const pick=createCoverPicker(random),registry=new Map(root.TOURNAMENTS.map(t=>[t.id,t]));
+ // Reuse this visit's cached card pair; never draw another popup candidate or mutate covers.
+ root.PWCHomepageStartCover=id=>{
+  const row=rows.find(r=>r.tournament_id===id),tournament=registry.get(id);
+  if(!row||tournament?._statistics_revision_id!==row.revision_id)return null;
+  const sources=pick(row).map(p=>publicImageUrl(p?.image_asset_id)).filter(Boolean);
+  return {source:sources[0]||'',fallbackSources:sources.slice(1),fit:'contain',position:'50% 50%'};
+ };
  const periods=el('div',undefined,'home-periods'),status=el('p',undefined,'home-read-status'),retry=el('button','Retry','home-tab'),more=el('button','Load more','home-tab');
  periods.setAttribute('role','group');periods.setAttribute('aria-label','Popularity period');status.setAttribute('role','status');
  retry.type=more.type='button';retry.hidden=more.hidden=true;tabs.replaceChildren();tabs.setAttribute('aria-label','World Cup order');

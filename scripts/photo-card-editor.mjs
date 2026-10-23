@@ -17,6 +17,7 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
    }catch(e){notify(e.message,'error');}finally{usage.disabled=false;}};
   }
   for(const slot of getSlots()){
+   const thumbnailOnly=slot.mediaType==='youtube';
    const card=node('article',null,'photo-editor-card');card.dataset.photoSlot=slot.id;
    const title=node('h3',slot.name);if(slot.id!=='cover')title.dataset.i18nSkip='';
    const pick=node('button',slot.asset?'Replace photo':'+ Add photo','btn photo-picker');pick.type='button';pick.disabled=busy||!canEdit();
@@ -26,9 +27,11 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
    const status=node('p','', 'help');status.setAttribute('role','status');
    const edit=node('button','Edit display area','btn small photo-edit');edit.type='button';edit.disabled=!slot.asset||busy||!canEdit();
    card.append(title,frame,pick,edit,input,status);root.append(card);
+   if(thumbnailOnly){pick.hidden=edit.hidden=true;frame.removeAttribute('tabindex');}
    frame.tabIndex=0;frame.setAttribute('role','button');frame.setAttribute('aria-label','Add or replace photo');
-   frame.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();if(!busy&&canEdit())input.click();}};
-   card.onclick=e=>{if(!busy&&canEdit()&&!e.target.closest('button,input,select,textarea,label'))input.click();};
+   if(thumbnailOnly){frame.removeAttribute('role');frame.removeAttribute('tabindex');frame.setAttribute('aria-label','Video thumbnail');}
+   frame.onkeydown=e=>{if(!thumbnailOnly&&(e.key==='Enter'||e.key===' ')){e.preventDefault();if(!busy&&canEdit())input.click();}};
+   card.onclick=e=>{if(!thumbnailOnly&&!busy&&canEdit()&&!e.target.closest('button,input,select,textarea,label'))input.click();};
    const previewDevices=[];
    if(devicePreviews&&slot.id!=='cover'){
     const previews=node('div',null,'photo-card-device-previews');
@@ -94,7 +97,7 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
     const actions=node('div',null,'photo-editor-actions');actions.append(close,apply);const header=node('div',null,'photo-editor-heading'),titles=node('div');titles.append(heading,name);header.append(titles);if(root.closest('#wizardPanel')){const numbers=document.getElementById('wizardProgress')?.textContent.match(/\d+/g);if(numbers?.length>=2){const badge=node('span',numbers[0]+' / '+numbers[numbers.length-1],'photo-step-badge');badge.dataset.i18nSkip='';header.append(badge);}}dialog.append(header);if(slot.id!=='cover')dialog.append(node('p','Choose Fit or Fill, zoom and drag the photo for each device.','help'));dialog.append(previews,notes,message,actions);document.body.append(dialog);dialog.showModal();ratios();paint();enabled();
     Promise.all(images.map(image=>image.decode())).then(()=>{metrics.browserDecodeMs=+(performance.now()-started).toFixed(2);if(file){for(const [i,device] of ['desktop','mobile'].entries()){settings.devices[device]=slot.id==='cover'?globalThis.PWCPhotoDisplay.automatic(images[i].naturalWidth,images[i].naturalHeight):{fit:'cover',position:'50% 50%',b2_zoom:1};fits[i].value=settings.devices[device].fit;}}ready=true;enabled();paint();}).catch(()=>{ready=false;enabled();message.textContent='Unable to decode this photo. Choose a valid image.';});
    }
-   function accept(file){if(!file||busy)return;if(!canEdit()){status.textContent='This revision cannot be edited.';return;}if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)||file.size>(file.type==='image/gif'?10:15)*1024*1024){status.textContent='Choose JPG, PNG or WebP up to 15 MiB; GIF/animated WebP up to 10 MiB.';return;}openEditor(file);}
+   function accept(file){if(!file||busy||thumbnailOnly)return;if(!canEdit()){status.textContent='This revision cannot be edited.';return;}if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)||file.size>(file.type==='image/gif'?10:15)*1024*1024){status.textContent='Choose JPG, PNG or WebP up to 15 MiB; GIF/animated WebP up to 10 MiB.';return;}openEditor(file);}
    pick.onclick=()=>input.click();input.onchange=()=>accept(input.files[0]);
    card.ondragover=e=>{e.preventDefault();card.classList.add('drag-over');};card.ondragleave=()=>card.classList.remove('drag-over');
    card.ondrop=e=>{e.preventDefault();card.classList.remove('drag-over');void accept(e.dataTransfer.files[0]);};

@@ -4,11 +4,12 @@
 const view=root.PinoyAdapterV2.viewModel;
 function paint(container,image,fallback,background,settings,cls){
  if(!settings)return;
- if(!settings.source){if(image)image.hidden=true;if(background)background.hidden=true;if(fallback)fallback.hidden=false;return;}
+ if(!settings.source){if(image){image.onload=image.onerror=null;image.hidden=true;image.removeAttribute('src');}if(background)background.hidden=true;if(fallback)fallback.hidden=false;return;}
  if(!image){image=document.createElement('img');if(cls)image.className=cls;image.alt='';container.appendChild(image);}
  image.hidden=false;
  image.onload=()=>{if(fallback)fallback.hidden=true;};
- image.onerror=()=>{image.hidden=true;if(background)background.hidden=true;if(fallback)fallback.hidden=false;};
+ const alternatives=[...(settings.fallbackSources||[])];
+ image.onerror=()=>{const next=alternatives.shift();if(next){settings.source=next;image.src=next;if(background)background.src=next;return;}image.hidden=true;if(background)background.hidden=true;if(fallback)fallback.hidden=false;};
  if(settings.fit)image.style.objectFit=settings.fit;
  if(settings.position)image.style.objectPosition=settings.position;
  if(cls==='round-cover'&&(settings.fit==='cover'||settings.fit==='contain'||settings.devices)){
@@ -36,7 +37,7 @@ const start=root.start,dialog=document.getElementById('roundSelection');
 root.start=function(t){
  const wasOpen=dialog.open,result=start.apply(this,arguments);
  if(!wasOpen&&dialog.open){
-  const id=(t||root.tour)?.id,settings=view.representatives[id]?.start,container=dialog.querySelector('.round-photo-frame');
+  const id=(t||root.tour)?.id,settings=root.PWCHomepageStartCover?.(id)||view.representatives[id]?.start,container=dialog.querySelector('.round-photo-frame');
   activeCover=settings;paint(container,container.querySelector('.round-cover'),container.querySelector('.round-emoji'),dialog.querySelector('.round-photo-backdrop'),settings,'round-cover');
  }
  return result;
