@@ -43,8 +43,11 @@ export async function normalizeAnimation(input,{allowSingleGif=false}={}){
  if(output.length>animationLimits.output)throw codedError('OUTPUT_LIMIT','Lossless animation exceeds 10 MiB output limit');
  const metadata=await sharp(output,opts).metadata(),after=describe(metadata);
  if(metadata.exif||metadata.xmp||metadata.icc||JSON.stringify(before)!==JSON.stringify(after))throw codedError('PRESERVATION_FAILED','Animation preservation verification failed');
- await sharp(output,opts).raw().toBuffer();
- let poster;try{poster=await sharp(bytes,{page:0,pages:1,failOn:'warning',limitInputPixels:24000000}).png().toBuffer();}catch{throw codedError('POSTER_REJECTED');}
+ // Full output decode remains mandatory. Reuse its first frame rather than decoding
+ // the original GIF again solely for the poster (lossless output preserves pixels).
+ const decoded=await sharp(output,opts).raw().toBuffer({resolveWithObject:true});
+ const firstFrame=decoded.data.subarray(0,after.width*after.height*decoded.info.channels);
+ let poster;try{poster=await sharp(firstFrame,{raw:{width:after.width,height:after.height,channels:decoded.info.channels}}).png().toBuffer();}catch{throw codedError('POSTER_REJECTED');}
  return {bytes:output,poster,...after};
  }catch(error){if(animationCodes.has(error?.diagnosticCode))throw error;throw codedError('DECODE_REJECTED');}
 }
