@@ -42,6 +42,7 @@ async function initialize(){
   for(const [id,settings] of Object.entries(view.vsPhotos))root.WorldCupVSPresentation.photos[id]=JSON.parse(JSON.stringify(settings));
   await script('scripts/adapter_carousel_v2.js');await script('scripts/result_immersive_test.js');
   await script('scripts/adapter_presentation_bridge_v2.js');
+  (await import('./mixed-media-game.mjs')).installMixedMediaGame(root);
   await script('scripts/integrated_navigation_test.js');
   // Optional collector failure must not prevent existing content/game startup.
   try{const stats=await import('./staging-play-statistics.mjs');stats.installPublicStatistics(root);}catch{console.warn('Play statistics unavailable.');}

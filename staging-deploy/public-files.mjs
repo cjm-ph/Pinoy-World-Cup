@@ -1,4 +1,7 @@
 export const publicFiles = [
+  "scripts/candidate-media-policy.mjs",
+  "scripts/mixed-media-game.mjs",
+  "templates/mixed-media.css",
   "scripts/homepage-ui.mjs",
   "scripts/homepage-cover-model.mjs",
   "scripts/homepage-read-api.mjs",

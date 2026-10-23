@@ -1,3 +1,4 @@
+import {prepareYouTubeCandidate,youtubeSource,isAnimationInput} from './candidate-media-policy.mjs';
 import {createCreatorPage} from './creator-page-ui.mjs';
 import {validateCreatorFile,assignCreatorFiles} from './creator-page-model.mjs';
 import {createTournamentManagement,managementActions} from './staging-tournament-management.mjs';
@@ -17,7 +18,7 @@ const dateText=(tag,date,dateOnly=false)=>{const node=make(tag);node.dataset.i18
 let client, api, dashboard, user, tournaments=[], categories=[], context=null, selected=null, revision=null,adminStatistics,adminComments;
 let managementApi,management={available:false,trash:[]};
 let purgeApi,purgeState={enabled:false,jobs:[]};
-let photoWorking=false, batchBusy=false;
+let photoWorking=false, batchBusy=false, youtubeBusy=false;
 const creatorJobs=new Map();
 let creatorNotice='',creatorAutoTimer=null,creatorDeferredFiles=[],creatorFileBusy=false;
 const pendingCreatorPhotos=()=>[...creatorJobs.values()].some(job=>job.state!=='complete');
@@ -198,7 +199,7 @@ async function loadSelected(id=$('stagingTournament').value) {
  const at=epoch;
  const editable=['private','public'].includes(t.visibility);
  if(editable)await api.authorize(t.id);else await guard(null);
- const rid=t.draft_revision_id||t.published_revision_id;const r=completeRevision(t,t.revision?.id===rid?t.revision:await api.revision(rid));if(at!==epoch)return;
+ const rid=t.draft_revision_id||t.published_revision_id;const r=completeRevision(t,await api.revision(rid));if(at!==epoch)return;
  paintSelected(t,r);
 }
 function paintSelected(t,r){
@@ -220,7 +221,7 @@ async function openTournament(id) { await loadSelected(id);setPage('editor');say
 function photoSlots(inWizard=false){
  const r=inWizard?work:revision;
  const participants=r?.participants||[];
- return participants.map(p=>({id:p.id,name:p.name,asset:p.image_asset_id,settings:inWizard?p.presentations?.vs:(revision.presentations||[]).find(m=>m.participant_id===p.id&&m.context==='vs')?.settings}));
+ return participants.filter(p=>p.media?.type!=='youtube').map(p=>({id:p.id,name:p.name,asset:p.image_asset_id,settings:inWizard?p.presentations?.vs:(revision.presentations||[]).find(m=>m.participant_id===p.id&&m.context==='vs')?.settings}));
 }
 async function photoOperation(action){if(photoWorking||batchBusy)throw Error('A photo operation is already running.');photoWorking=true;try{return await action();}finally{photoWorking=false;if(page==='create'&&work)renderWizard();}}
 function cards(inWizard=false){
@@ -233,6 +234,7 @@ function cards(inWizard=false){
   if(inWizard&&(!work.base_revision_id||dirty||tournaments.find(t=>t.id===work.tournament_id)?.revision?.state==='submitted'))await saveWork({quiet:true,force:true});
   const t=inWizard?tournaments.find(t=>t.id===work.tournament_id):selected;
   if(!t)throw Error('Save the tournament draft first.');await guardSession();
+  if(!inWizard&&await isAnimationInput(file))throw Error('Open Edit World Cup to replace animated media.');
   const out=await api.upload(t.id,file,rights?.onProgress);
   if(out.technical_state!=='ready'||!out.asset_id)throw Error('Upload is not finalized. Refresh before retrying.');
   return finishUploadedPhoto(t.id,out,slot,inWizard,note,settings,rights?.onProgress);
@@ -252,6 +254,12 @@ async function finishUploadedPhoto(tid,out,slot,inWizard,note,settings,onProgres
   await reloadPhotoState(t.id,inWizard,result);
   const applied=slot==='cover'?revision?.cover_asset_id:revision?.participants?.find(p=>p.id===slot)?.image_asset_id;
   if(applied!==out.asset_id)throw Error('Photo application was not confirmed. Refresh before retrying.');
+  if(!out.media&&inWizard){const candidate=work.participants.find(p=>p.id===slot);if(candidate)delete candidate.media;}
+  if(out.media){
+   if(!inWizard)throw Error('Mixed-media replacement requires the creator. Open Edit World Cup.');
+   const candidate=work.participants.find(p=>p.id===slot);candidate.media=out.media;dirty=true;
+   await saveWork({quiet:true,force:true});
+  }
   return out;
  }catch(error){error.resume=(nextSettings=settings,nextNotes)=>photoOperation(()=>finishUploadedPhoto(tid,out,slot,inWizard,nextNotes?.notes??note,nextSettings,onProgress));throw error;}
 }
@@ -259,7 +267,7 @@ async function reloadPhotoState(tid,inWizard,result){
  selected=tournaments.find(t=>t.id===tid);
  if(result?.revision?.id===result?.revision_id&&selected){
   Object.assign(selected,{draft_revision_id:result.revision_id,edit_version:result.edit_version,candidate_inputs:result.candidate_inputs||selected.candidate_inputs});
-  paintSelected(selected,completeRevision(selected,result.revision));
+  paintSelected(selected,completeRevision(selected,await api.revision(result.revision_id)));
  }else await refreshAdmin(true,{quiet:true});
  if(inWizard){work=workFromRevision(selected,revision);dirty=false;}
  renderCatalog();
@@ -315,15 +323,37 @@ function renderWizard(){
  $('wizardPublishedLink').hidden=!tournaments.some(t=>t.id===work.tournament_id&&t.visibility==='public');
  const bulkValue=$('bulkNames')?.value||'',bulkOpen=$('bulkNames')?.parentElement.open||false,hadPrompt=!!$('wizardPanel').querySelector('[data-gemini-support] textarea')?.value;
  const pendingNotes=$('creatorBatchNotes')?.value||'';
- $('wizardPanel').replaceChildren(createCreatorPage({work,categories,notice:creatorNotice,onError:message=>say(message,'error'),capture:captureWizard,onChange:creatorChanged,getLanguage:()=>adminLanguage.language,photos:cards(true),jobs:creatorJobs,busy:batchBusy||photoWorking,
+ $('wizardPanel').replaceChildren(createCreatorPage({work,categories,notice:creatorNotice,onError:message=>say(message,'error'),capture:captureWizard,onChange:creatorChanged,getLanguage:()=>adminLanguage.language,photos:cards(true),jobs:creatorJobs,busy:batchBusy||photoWorking||youtubeBusy,
  onResize:size=>{captureWizard();if(work.participants.length>size){say('Remove candidates before reducing the candidate count.','error');renderWizard();return;}work.requested_size=size;ensureCandidates();dirty=true;renderWizard();},
- onFiles:files=>void acceptCreatorFiles(files),onRetry:(id,notes)=>void run(()=>uploadCreatorJobs(id,notes)),
+ onYouTube:(url,start,end)=>run(()=>addYouTube(url,start,end)),onFiles:files=>void acceptCreatorFiles(files),onRetry:(id,notes)=>void run(()=>uploadCreatorJobs(id,notes)),
  onAdd:()=>{captureWizard();if(work.participants.length>=work.requested_size)return;work.participants.push({...window.CreatorModelV3.member(''),image_asset_id:null});dirty=true;renderWizard();},
  onRemove:id=>{captureWizard();work.participants=work.participants.filter(p=>p.id!==id);if(work.cover_participant_id===id)work.cover_participant_id=null;creatorJobs.delete(id);dirty=true;renderWizard();},
  onMove:(id,offset)=>{captureWizard();const i=work.participants.findIndex(p=>p.id===id),j=i+offset;if(j<0||j>=work.participants.length)return;[work.participants[i],work.participants[j]]=[work.participants[j],work.participants[i]];dirty=true;renderWizard();},
  onSave:()=>void run(()=>savePrivateWork()),onPublish:()=>void run(publishWork)}));
  $('bulkNames').value=bulkValue;$('bulkNames').parentElement.open=bulkOpen;if(hadPrompt)$('wizardPanel').querySelector('[data-gemini-support] button')?.click();
  $('creatorBatchNotes').value=pendingNotes;
+}
+async function addYouTube(url,start,end){
+ youtubeSource(url,start,end);captureWizard();if(batchBusy||photoWorking)throw Error('Wait for the current upload.');
+ if(!work.title.trim())throw Error('Enter the World Cup title before registering media.');
+ if(!work.category_id)throw Error(work.category_error);
+ let slot=work.participants.find(p=>!p.name.trim()&&!p.image_asset_id&&!p.media&&!creatorJobs.has(p.id));
+ if(!slot&&work.participants.length>=work.requested_size)throw Error('No candidate slots available.');
+ if(!slot){slot={...window.CreatorModelV3.member(''),image_asset_id:null};work.participants.push(slot);}
+ const slotId=slot.id;
+ const at=epoch,tid=work.tournament_id;youtubeBusy=true;renderWizard();try{await saveWork({quiet:true,force:true});
+ const result=await api.youtube(tid,url,start,end);
+ if(at!==epoch||work?.tournament_id!==tid||!authorized)return;
+ await finishUploadedPhoto(tid,result,slotId,true,'',{});
+ if(at!==epoch||work?.tournament_id!==tid||!authorized)return;
+ const candidate=prepareYouTubeCandidate(result.media,result.title,name=>({...window.CreatorModelV3.member(name),name}));
+ slot=work.participants.find(p=>p.id===slotId);
+ if(!slot&&work.participants.length>=work.requested_size)throw Error('No candidate slots available.');
+ if(slot){candidate.id=slot.id;candidate.entity_id=slot.entity_id;}
+ Object.assign(candidate,{image_asset_id:result.asset_id,media:result.media});
+ if(slot)work.participants[work.participants.indexOf(slot)]=candidate;else work.participants.push(candidate);
+ dirty=true;renderWizard();await saveWork({quiet:true,force:true});
+ }finally{youtubeBusy=false;if(at===epoch&&work)renderWizard();}
 }
 function scheduleCreatorUpload(){
  clearTimeout(creatorAutoTimer);creatorAutoTimer=setTimeout(()=>{creatorAutoTimer=null;
@@ -375,7 +405,7 @@ async function saveWork({quiet=false,force=false}={}){
  const result=await dashboard.save(work,t);if(!result?.revision_id)throw Error('Draft save was not confirmed.');work.base_revision_id=result.revision_id;dirty=false;
  await refreshAdmin(false,{quiet});editing=tournaments.find(t=>t.id===work.tournament_id)||null;
  // Reload payload from the actual revision so photo references cannot become stale.
- const saved=editing?.revision;if(saved?.id!==result.revision_id){dirty=true;throw Error('The saved revision changed. Your inputs are preserved; refresh before retrying.');}work=workFromRevision(editing,saved);
+ const saved=editing?.revision;if(saved?.id!==result.revision_id){dirty=true;throw Error('The saved revision changed. Your inputs are preserved; refresh before retrying.');}work=workFromRevision(editing,await api.revision(result.revision_id));
  if(quiet)return;renderWizard();setPage('create');say('Draft saved. The current publication and existing photos are preserved.','success');
 }
 async function savePrivateWork(){const t=tournaments.find(t=>t.id===work?.tournament_id);return saveWork({force:!!t&&t.revision?.state!=='draft'});}

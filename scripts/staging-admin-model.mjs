@@ -46,7 +46,7 @@ export function draftPayload(work,{allowIncomplete=false}={}) {
     category_ids: work.category_ids?.length?[...work.category_ids]:[work.category_id], cover_participant_id: null,
     participants: work.participants.map(p => ({id: p.id, entity_id: p.entity_id, kind: 'other', name: p.name.trim(),
       description: p.description || '', emoji: p.emoji || '', active: p.active !== false,
-      image_asset_id: p.image_asset_id || null, pending_url: p.pending_url || '', presentations: p.presentations || {}}))};
+      media:p.media?structuredClone(p.media):null, image_asset_id: p.image_asset_id || null, pending_url: p.pending_url || '', presentations: p.presentations || {}}))};
 }
 export function canEditMetadata(t, uid) {
   return !!t && t.creator_id === uid && ['private','public'].includes(t.visibility)
@@ -70,7 +70,7 @@ export function createDashboardApi(client, media, uuid = () => crypto.randomUUID
       // Existing save_draft is owner-only. Never pretend admin membership bypasses it.
       const cached=client.auth.getSession?(await client.auth.getSession()).data.session?.user:null;
       if (t && !canEditMetadata(t, (cached||(await client.auth.getUser()).data.user)?.id)) throw Error('Only the creator can save these candidate and text changes. Photo management remains available to administrators.');
-      return media.rpc('admin_media_save_draft', {req: uuid(), tid: work.tournament_id, rid: 'rev_' + uuid(),
+      return media.rpc(work.participants.some(p=>p.media)?'admin_mixed_media_save_draft':'admin_media_save_draft', {req: uuid(), tid: work.tournament_id, rid: 'rev_' + uuid(),
         expected: t?.edit_version || 0, payload: draftPayload(work,{allowIncomplete:true})});
     },
     async preview(aid) {

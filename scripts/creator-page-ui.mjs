@@ -1,6 +1,6 @@
 import {createGeminiSupport} from './creator-gemini-support.mjs';
 // Stateless page renderer. Persistence and role checks are supplied by its caller.
-export function createCreatorPage({work,categories,capture,onChange,onResize,onFiles,onRetry,onAdd,onRemove,onMove,onSave,onPublish,photos,jobs,busy,notice,getLanguage,onError=()=>{}}){
+export function createCreatorPage({work,categories,capture,onChange,onResize,onFiles,onYouTube,onRetry,onAdd,onRemove,onMove,onSave,onPublish,photos,jobs,busy,notice,getLanguage,onError=()=>{}}){
  const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const action=(text,fn)=>{const b=el('button',text,'btn small');b.type='button';b.onclick=()=>{try{fn();}catch(e){onError(e.message);}};b.disabled=busy;return b;};
  const root=el('div',undefined,'creator-single-page');
@@ -12,11 +12,20 @@ export function createCreatorPage({work,categories,capture,onChange,onResize,onF
  for(const n of [8,16,32]){const o=el('option',String(n));o.value=String(n);size.lastChild.append(o);}size.lastChild.value=String(work.requested_size);
  size.lastChild.onchange=()=>onResize(Number(size.lastChild.value));grid.append(size);basic.append(grid);
  if(!work.category_id)basic.append(el('p',work.category_error||'The internal category is unavailable. Saving and uploads are unavailable; contact the administrator.','notice'));
- const candidates=section('Candidates'),drop=el('div',undefined,'creator-drop-zone'),pick=el('input');pick.type='file';pick.multiple=true;pick.accept='.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp';pick.id='creatorFiles';pick.disabled=false;pick.setAttribute('aria-label','Add candidate photos');
- drop.append(el('p','Choose or drop JPG, PNG or WebP photos. File names become candidate names.'),pick);pick.onchange=()=>{const files=[...pick.files];pick.value='';void onFiles(files);};
+ const candidates=section('Candidates'),drop=el('div',undefined,'creator-drop-zone'),pick=el('input');pick.type='file';pick.multiple=true;pick.accept='.jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif';pick.id='creatorFiles';pick.disabled=false;pick.setAttribute('aria-label','Add candidate photos');
+ drop.append(el('p','Choose or drop JPG, PNG, WebP or GIF. Static photos: 15 MiB; animations: 10 MiB. File names become candidate names.'),pick);pick.onchange=()=>{const files=[...pick.files];pick.value='';void onFiles(files);};
  drop.ondragover=e=>e.preventDefault();drop.ondrop=e=>{e.preventDefault();void onFiles([...e.dataTransfer.files]);};candidates.append(drop);if(notice)candidates.append(el('p',notice,'notice'));
+ const video=el('div',undefined,'creator-youtube');
+ const videoInput=(label,type)=>{const box=el('label',label),input=el('input');input.type=type;input.disabled=busy;if(type==='number'){input.min='0';input.step='1';}box.append(input);video.append(box);return input;};
+ const url=videoInput('YouTube URL','url'),start=videoInput('Start (seconds, optional)','number'),end=videoInput('End (seconds, optional)','number');
+ url.id='creatorYouTubeUrl';start.id='creatorYouTubeStart';end.id='creatorYouTubeEnd';
+ const register=action('Add YouTube',async()=>{register.disabled=true;try{await onYouTube?.(url.value,start.value,end.value);}catch(error){onError(error.message);}finally{register.disabled=busy;}});video.append(register);candidates.append(video);
  const notes=el('textarea');notes.id='creatorBatchNotes';notes.maxLength=4000;notes.placeholder='Source / notes (optional)';notes.setAttribute('aria-label','Batch source / notes');notes.disabled=busy;candidates.append(notes);
  for(const p of work.participants){const row=el('div',undefined,'creator-candidate-input');row.dataset.candidateId=p.id;const input=el('input');input.value=p.name;input.maxLength=300;input.dataset.candidateName=p.id;input.dataset.i18nSkip='';input.setAttribute('aria-label','Candidate name');input.disabled=busy;input.oninput=()=>{p.name=input.value;onChange();};
+  if(p.media?.type==='youtube'){
+   const info=el('div',undefined,'creator-video-info'),thumb=el('img');thumb.alt='Video thumbnail';thumb.src=p.image_asset_id?'/media?asset='+encodeURIComponent(p.image_asset_id):p.media.thumbnailUrl;thumb.onerror=()=>thumb.remove();
+   info.append(thumb,el('span',p.media.url),el('span','Start: '+p.media.startSeconds+' / '+(p.media.endSeconds===null?'End of video':'End: '+p.media.endSeconds)));row.append(info);
+  }
   const state=jobs.get(p.id);row.append(input,action('Move up',()=>onMove(p.id,-1)),action('Move down',()=>onMove(p.id,1)),action('Remove candidate',()=>onRemove(p.id)));
   if(state){const status=el('span',state.state==='complete'?'Upload complete':state.error||state.state,'creator-upload-state');status.setAttribute('role','status');row.append(status);if(state.state==='failed')row.append(action('Retry photo',()=>onRetry(p.id,notes.value)));}
   const card=[...photos.querySelectorAll('[data-photo-slot]')].find(card=>card.dataset.photoSlot===p.id);if(card)card.prepend(row);else candidates.append(row);

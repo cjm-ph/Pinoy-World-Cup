@@ -66,7 +66,7 @@ export function supabaseAdapters({ url, publishableKey, serviceKey, fetchImpl = 
         const chunks=[];let n=0;
         for await (const chunk of r.body) {
           n+=chunk.length;
-          if (n>1048576) throw Error('stored object too large');
+          if (n>1572864) throw Error('stored object too large');
           chunks.push(Buffer.from(chunk));
         }
         return Buffer.concat(chunks,n);
