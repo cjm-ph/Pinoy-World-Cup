@@ -1,5 +1,9 @@
 // Server payload adapter for the existing five-step creator and revision RPC.
 export const STEPS = ['Basic info', 'Candidates', 'Photos', 'Preview', 'Save or publish'];
+export function othersCategoryId(categories) {
+  const matches=categories.filter(c=>c.legacy_filter==='others'&&(c.id==='others'||c.slug==='others'));
+  return matches.length===1?matches[0].id:'';
+}
 export function statusOf(t, r = t.revision) {
   if (t.visibility === 'quarantined') return 'Blocked';
   if (t.visibility === 'archived') return 'Archived';
@@ -16,8 +20,8 @@ export function filterTournaments(rows, {search = '', category = '', status = ''
 }
 export function workFromRevision(t, r) {
   return {tournament_id: t.id, base_revision_id: r.id, title: r.title, description: r.description || '',
-    category_id: r.category_ids?.[0] || '', requested_size: r.requested_size || t.requested_size || 8,
-    cover_participant_id: (r.participants || []).find(p => r.cover_asset_id && p.image_asset_id === r.cover_asset_id)?.id || null, cover_asset_id: r.cover_asset_id,
+    category_id: r.category_ids?.[0] || '', category_ids:[...(r.category_ids||[])], requested_size: r.requested_size || t.requested_size || 8,
+    cover_participant_id: null, cover_asset_id: r.cover_asset_id,
     cover_settings: (r.presentations||[]).find(m=>!m.participant_id&&m.context==='start')?.settings||{},
     participants: (r.participants || []).map(p => ({...p, image_asset_id: p.image_asset_id || null,
       pending_url: p.pending_url || '', presentations: Object.fromEntries((r.presentations || [])
@@ -32,7 +36,7 @@ export function draftPayload(work,{allowIncomplete=false}={}) {
     throw Error('Every candidate needs a plain-text name of up to 300 characters.');
   }
   return {title: work.title.trim(), description: work.description, requested_size: Number(work.requested_size),
-    category_ids: [work.category_id], cover_participant_id: work.cover_participant_id,
+    category_ids: work.category_ids?.length?[...work.category_ids]:[work.category_id], cover_participant_id: null,
     participants: work.participants.map(p => ({id: p.id, entity_id: p.entity_id, kind: 'other', name: p.name.trim(),
       description: p.description || '', emoji: p.emoji || '', active: p.active !== false,
       image_asset_id: p.image_asset_id || null, pending_url: p.pending_url || '', presentations: p.presentations || {}}))};

@@ -30,6 +30,14 @@ export function createStatisticsHttp({rpc,secret,auth,memberBadges=false,enabled
   try{
    if(req.method==='GET'){
     if(url.pathname==='/play-statistics/session'){send(200,{enabled:true});return;}
+    if(url.pathname==='/play-statistics/homepage'){
+     const sort_mode=url.searchParams.get('sort')??'popular',period=url.searchParams.get('period')??'month';
+     const limit=url.searchParams.get('limit')??'24',offset=url.searchParams.get('offset')??'0';
+     if([...url.searchParams.keys()].some(k=>!['sort','period','limit','offset'].includes(k)||url.searchParams.getAll(k).length!==1)
+      ||!['popular','latest'].includes(sort_mode)||!['today','week','month'].includes(period)
+      ||!/^\d{1,5}$/.test(limit)||!/^\d{1,5}$/.test(offset)||Number(limit)<1||Number(limit)>50||Number(offset)>10000)throw Error('Invalid homepage parameters');
+     send(200,await rpc('homepage_read',{sort_mode,period,page_size:Number(limit),page_offset:Number(offset)},true));return;
+    }
     const tid=url.searchParams.get('tid');if(!tid||tid.length>160)throw Error('Invalid tournament');
     send(200,await rpc('play_statistics_public',{tid},true));return;
    }

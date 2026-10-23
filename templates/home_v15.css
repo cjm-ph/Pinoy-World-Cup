@@ -11,6 +11,14 @@ body{font-family:Inter,'Segoe UI',Arial,sans-serif}.layout{display:block!importa
 @media(max-width:549px){.home-header{height:68px;margin-bottom:26px}.home-edition{display:none}.home-tools select{width:100%}.home-card-body{padding:17px}.home-title{font-size:18px}}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121923;--card:#1b2532;--ink:#e9edf3;--blue:#95b2ff}.home-card,.home-header{border-color:#344154}.home-tools input,.home-tools select,.home-details{border-color:#3a475b}.home-card-bottom{color:#a4b0c2}}
 @media(prefers-reduced-motion:reduce){.home-photo img{transition:none}}
+/* Homepage pair only: retain the outer card geometry and existing action overlays. */
+.home-photo:has(>.home-photo-half){display:flex}
+.home-photo>.home-photo-half{display:block;position:relative;flex:0 0 50%;width:50%;height:100%;min-width:0;overflow:hidden;background:linear-gradient(145deg,#233b55,#36465d 45%,#172230)}
+.home-photo-half>.home-pair-fallback{position:absolute;inset:0;display:grid;place-items:center;padding:8px;color:#bbc6d6;font-size:11px;text-align:center}
+.home-photo-half>.home-pair-fallback[hidden]{display:none}
+.home-periods{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+.home-periods[hidden]{display:none}
+.home-read-status{margin:12px 0;color:var(--ink);font-size:13px}
 
 /* D.png left-page composition only. Game/VS selectors remain unchanged. */
 body:has(#start:not(.hide)){background:#fff}.home-header{height:74px;margin:0;border-bottom:0;gap:24px}.home-brand{font-size:24px;letter-spacing:-.7px}.home-brand span{color:inherit}.home-edition{display:none}.home-nav{display:flex;align-items:center;gap:28px;font-size:14px}.home-nav a{color:var(--ink);text-decoration:none}.home-nav .current{color:#1267ff;font-weight:700}

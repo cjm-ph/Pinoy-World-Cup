@@ -34,6 +34,7 @@ async function initialize(){
   staging.installTextRenderBoundary(root);
   await script('scripts/vs_round_selection_test.js');await script('scripts/home_card_ordering.js');
   await script('scripts/adapter_home_ordering_v2.js');await script('scripts/home_quality.js');
+  (await import('./homepage-ui.mjs')).installHomepage(root);
   root.WorldCupVSPhotoSettings={byName:{}};
   try{const stats=await import('./staging-play-statistics.mjs');stats.installPlayCollection(root);}catch{console.warn('Play statistics unavailable.');}
   await script('scripts/vs_immersive_test.js');

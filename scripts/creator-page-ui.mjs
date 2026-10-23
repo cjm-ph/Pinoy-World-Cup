@@ -8,11 +8,10 @@ export function createCreatorPage({work,categories,capture,onChange,onResize,onF
  const basic=section('Basic Information');
  const field=(label,id,value,type='input')=>{const box=el('label',label,'field'),input=el(type);input.id=id;input.value=value;input.disabled=busy;box.append(input);input.oninput=()=>onChange();return box;};
  basic.append(field('Title','workTitle',work.title),field('Description','workDescription',work.description,'textarea'));
- const grid=el('div',undefined,'grid2'),category=field('Category','workCategory','','select'),size=field('Candidate count','workSize','','select');
- for(const c of categories){const o=el('option',c.name);o.value=c.id;o.dataset.i18nSkip='';category.lastChild.append(o);}category.lastChild.value=work.category_id;
+ const grid=el('div',undefined,'grid2'),size=field('Candidate count','workSize','','select');
  for(const n of [8,16,32]){const o=el('option',String(n));o.value=String(n);size.lastChild.append(o);}size.lastChild.value=String(work.requested_size);
- size.lastChild.onchange=()=>onResize(Number(size.lastChild.value));grid.append(category,size);basic.append(grid);
- if(!categories.length)basic.append(el('p','No category is available. Saving is unavailable.','notice'));
+ size.lastChild.onchange=()=>onResize(Number(size.lastChild.value));grid.append(size);basic.append(grid);
+ if(!work.category_id)basic.append(el('p','The internal category is unavailable. Saving and uploads are unavailable; contact the administrator.','notice'));
  const candidates=section('Candidates'),drop=el('div',undefined,'creator-drop-zone'),pick=el('input');pick.type='file';pick.multiple=true;pick.accept='.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp';pick.id='creatorFiles';pick.disabled=false;pick.setAttribute('aria-label','Add candidate photos');
  drop.append(el('p','Choose or drop JPG, PNG or WebP photos. File names become candidate names.'),pick);pick.onchange=()=>{const files=[...pick.files];pick.value='';void onFiles(files);};
  drop.ondragover=e=>e.preventDefault();drop.ondrop=e=>{e.preventDefault();void onFiles([...e.dataTransfer.files]);};candidates.append(drop);if(notice)candidates.append(el('p',notice,'notice'));

@@ -7,7 +7,7 @@ import {installAdminStatistics} from './staging-play-statistics.mjs';
 import {installAdminComments} from './staging-comments.mjs';
 import {installAdminLanguage,translate} from './staging-admin-i18n.mjs';
 import {createMediaApi, STAGING_URL} from './staging-media-api.mjs';
-import { statusOf, filterTournaments, workFromRevision, canEditMetadata, createDashboardApi, draftPayload} from './staging-admin-model.mjs';
+import { statusOf, filterTournaments, workFromRevision, canEditMetadata, createDashboardApi, draftPayload, othersCategoryId} from './staging-admin-model.mjs';
 const $ = id => document.getElementById(id);
 const all = selector => [...document.querySelectorAll(selector)];
 const make = (tag, text, className) => { const node=document.createElement(tag); if(text!==undefined)node.textContent=text; if(className)node.className=className; return node; };
@@ -212,7 +212,7 @@ function paintSelected(t,r){
  $('stagingReadiness').textContent=`${count} active candidates | Requested: ${r.requested_size||t.requested_size||'not returned by current RPC'} | Publication: ${t.published_revision_id?'existing published version':'not published'}`;
  const owner=canEditMetadata(t,user?.id);
  $('metadataHelp').textContent=owner?'You own this tournament. Text and candidate edits create a new draft.':'Only the creator can edit text and candidates. Administrators can manage photos and review revisions.';
- options('stagingSlot',[['cover','Cover'],...r.participants.map(p=>[p.id,p.name])]);
+ options('stagingSlot',r.participants.map(p=>[p.id,p.name]));
  options('stagingRollback',(t.approved_revisions||[]).map(r=>[r.id,`Version ${r.version} (${r.id})`]));
  renderPhotos();updateControls();
 }
@@ -220,8 +220,7 @@ async function openTournament(id) { await loadSelected(id);setPage('editor');say
 function photoSlots(inWizard=false){
  const r=inWizard?work:revision;
  const participants=r?.participants||[];
- return [{id:'cover',name:'Cover',asset:r?.cover_asset_id,settings:inWizard?work?.cover_settings:(revision?.presentations||[]).find(p=>!p.participant_id&&p.context==='start')?.settings},
- ...participants.map(p=>({id:p.id,name:p.name,asset:p.image_asset_id,settings:inWizard?p.presentations?.vs:(revision.presentations||[]).find(m=>m.participant_id===p.id&&m.context==='vs')?.settings}))];
+ return participants.map(p=>({id:p.id,name:p.name,asset:p.image_asset_id,settings:inWizard?p.presentations?.vs:(revision.presentations||[]).find(m=>m.participant_id===p.id&&m.context==='vs')?.settings}));
 }
 async function photoOperation(action){if(photoWorking||batchBusy)throw Error('A photo operation is already running.');photoWorking=true;try{return await action();}finally{photoWorking=false;if(page==='create'&&work)renderWizard();}}
 function cards(inWizard=false){
@@ -307,8 +306,8 @@ async function changeRevision(op) {
  if(!note)return;
  await guard();if(op==='reject')await dashboard.reject(selected,revision,note);else if(op==='approve')await api.reviewPublish(selected,revision.id);else await api.transition(op,selected,op==='rollback'?$('stagingRollback').value:revision.id);await refreshAdmin(true);say(`${op} completed. Server data refreshed.`,'success');
 }
-function newWork(){$('wizardPanel').replaceChildren();creatorJobs.clear();creatorDeferredFiles=[];creatorNotice='';work={tournament_id:window.CreatorModelV3.id('tournament'),base_revision_id:null,title:'',description:'',category_id:categories[0]?.id||'',requested_size:8,cover_participant_id:null,participants:[]};ensureCandidates();editing=null;dirty=false;renderWizard();}
-function captureWizard(){if(!work||!$('workTitle'))return;work.title=$('workTitle').value;work.description=$('workDescription').value;work.category_id=$('workCategory').value;for(const input of all('[data-candidate-name]')){const p=work.participants.find(p=>p.id===input.dataset.candidateName);if(p)p.name=input.value;}}
+function newWork(){$('wizardPanel').replaceChildren();creatorJobs.clear();creatorDeferredFiles=[];creatorNotice='';work={tournament_id:window.CreatorModelV3.id('tournament'),base_revision_id:null,title:'',description:'',category_id:othersCategoryId(categories),requested_size:8,cover_participant_id:null,participants:[]};ensureCandidates();editing=null;dirty=false;renderWizard();}
+function captureWizard(){if(!work||!$('workTitle'))return;work.title=$('workTitle').value;work.description=$('workDescription').value;for(const input of all('[data-candidate-name]')){const p=work.participants.find(p=>p.id===input.dataset.candidateName);if(p)p.name=input.value;}}
 function ensureCandidates(){while(work.participants.length<Number(work.requested_size))work.participants.push({...window.CreatorModelV3.member(''),image_asset_id:null});}
 function creatorChanged(repaint=false){if(!repaint)captureWizard();dirty=true;$('draftStatus').textContent='Unsaved changes';if(repaint)renderWizard();for(const support of all('[data-gemini-support]'))support.refreshPrompt();scheduleCreatorUpload();}
 function renderWizard(){
@@ -331,7 +330,8 @@ function scheduleCreatorUpload(){
   if(!work||!authorized||page!=='create')return;
   if(working||batchBusy||photoWorking||creatorFileBusy){scheduleCreatorUpload();return;}
   captureWizard();if(![...creatorJobs.values()].some(j=>j.state==='pending'))return;
-  const missing=[];if(!work.title.trim())missing.push('title');if(!work.category_id)missing.push('category');
+  if(!work.category_id){say('The internal category is unavailable. Contact the administrator.','error');return;}
+  const missing=[];if(!work.title.trim())missing.push('title');
   if(missing.length){say('Photos are kept locally. Enter '+missing.join(' and ')+' to upload automatically.');return;}
   void run(()=>uploadCreatorJobs(null,$('creatorBatchNotes')?.value||''));
  },250);
