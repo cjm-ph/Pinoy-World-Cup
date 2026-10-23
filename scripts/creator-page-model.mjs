@@ -2,7 +2,7 @@
 export const IMAGE_TYPES={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp'};
 export async function validateCreatorFile(file){
  const extension=/\.([^.]+)$/.exec(file.name)?.[1].toLowerCase();
- if(!IMAGE_TYPES[extension]||file.type!==IMAGE_TYPES[extension]||file.size<12||file.size>8*1024*1024)throw Error('Choose JPG, PNG or WebP files up to 8 MB. GIF is not supported yet.');
+ if(!IMAGE_TYPES[extension]||file.type!==IMAGE_TYPES[extension]||file.size<12||file.size>15*1024*1024)throw Error('Choose JPG, PNG or WebP files up to 15 MiB. GIF is not supported yet.');
  const b=new Uint8Array(await file.slice(0,12).arrayBuffer());
  const format=b[0]===255&&b[1]===216&&b[2]===255?'image/jpeg':b.slice(0,8).join(',')==='137,80,78,71,13,10,26,10'?'image/png':String.fromCharCode(...b.slice(0,4))==='RIFF'&&String.fromCharCode(...b.slice(8,12))==='WEBP'?'image/webp':null;
  if(format!==file.type)throw Error('File contents do not match the image extension and MIME type.');

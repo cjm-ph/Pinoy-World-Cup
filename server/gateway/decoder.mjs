@@ -1,7 +1,7 @@
 import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { descriptor, limits } from './gateway.mjs';
-export function createDecoder({ worker = new URL('./image-child.mjs',import.meta.url), timeoutMs = 10000, maxActive = 4 } = {}) {
+export function createDecoder({ worker = new URL('./image-child.mjs',import.meta.url), timeoutMs = 10000, maxActive = 2 } = {}) {
   let active=0;
   return { decode(bytes,onProgress=()=>{}) {
     if (!Buffer.isBuffer(bytes) || bytes.length>limits.input) return Promise.reject(Error('invalid decoder input'));

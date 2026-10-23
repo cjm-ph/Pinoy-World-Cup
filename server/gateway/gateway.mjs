@@ -1,7 +1,7 @@
 import {atStage, diagnostics} from './media-errors.mjs';
 import { createHash } from 'node:crypto';
 
-export const limits = Object.freeze({ input: 8 * 1024 * 1024, output: 430080, dimension: 1600 });
+export const limits = Object.freeze({ input: 15 * 1024 * 1024, output: 1572864, dimension: 1920 });
 export function fail(message) { throw new Error(message); }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -46,7 +46,7 @@ export function descriptor(out) {
   if (!out || !Buffer.isBuffer(out.bytes) || magic(out.bytes) !== 'webp' ||
       out.bytes.length < 12 || out.bytes.length > limits.output ||
       !Number.isInteger(out.width) || !Number.isInteger(out.height) ||
-      out.width < 1 || out.height < 1 || out.width > 1600 || out.height > 1600) fail('invalid optimized output');
+      out.width < 1 || out.height < 1 || out.width > limits.dimension || out.height > limits.dimension) fail('invalid optimized output');
   return { sha: digest(out.bytes), bytes: out.bytes.length, w: out.width, h: out.height };
 }
 // All adapters are server-owned; none are browser inputs. No external calls at import time.
@@ -60,7 +60,7 @@ export function createGateway({ auth, db, storage, decoder, admission }) {
   return {
     async upload({ token, tid, requestId, assetId, body,onProgress=()=>{},trace }) {
       if (!uuid.test(requestId) || !/^asset_/.test(assetId) || !uuid.test(assetId.slice(6))) fail('invalid ids');
-      if(activeUploads>=4)await atStage('ADMISSION',()=>fail('media admission limited'));
+      if(activeUploads>=2)await atStage('ADMISSION',()=>fail('media admission limited'));
       activeUploads++;
       try {
       const started=performance.now(),timings={};
