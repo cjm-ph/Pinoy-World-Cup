@@ -19,13 +19,13 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
    // Never splice an API revision into an older in-memory game roster.
    if(!tournament||tournament._statistics_revision_id!==row.revision_id||!tournament.title.toLowerCase().includes(query))continue;
    const card=el('article',undefined,'home-card');card.dataset.tournamentId=tournament.id;
-   const media=el('button',undefined,'home-photo');media.type='button';media.setAttribute('aria-label','Choose a round for '+tournament.title);media.onclick=()=>root.start(tournament);
+   const media=el('button',undefined,'home-photo');media.type='button';media.dataset.coverMode='automatic-pair';media.setAttribute('aria-label','Choose a round for '+tournament.title);media.onclick=()=>root.start(tournament);
    const pair=pick(row);
    for(let index=0;index<2;index++){
     const candidate=pair[index],half=el('span',undefined,'home-photo-half');half.dataset.participantId=candidate?.participant_id||'';
     const fallback=el('span','Image unavailable','home-pair-fallback');half.append(fallback);
     const src=publicImageUrl(candidate?.image_asset_id);
-    if(src){const image=el('img');image.alt='Candidate '+(index+1)+' in '+tournament.title;image.loading='lazy';image.onload=()=>{fallback.hidden=true;};image.onerror=()=>{image.remove();fallback.hidden=false;};image.src=src;half.append(image);}
+    if(src){const image=el('img');image.alt='Candidate '+(index+1)+' in '+tournament.title;image.loading='lazy';image.onload=()=>{fallback.hidden=true;};image.onerror=()=>{if(!half.isConnected)return;pick.failed(row,candidate.participant_id);render();};image.src=src;half.append(image);}
     media.append(half);
    }
    const badge=el('span',String(tournament.category||'others').toUpperCase(),'home-badge');media.append(badge);card.append(media);
