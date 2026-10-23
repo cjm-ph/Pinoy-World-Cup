@@ -1,9 +1,15 @@
 // Server payload adapter for the existing five-step creator and revision RPC.
 export const STEPS = ['Basic info', 'Candidates', 'Photos', 'Preview', 'Save or publish'];
-export function othersCategoryId(categories) {
-  const matches=categories.filter(c=>c.legacy_filter==='others'&&(c.id==='others'||c.slug==='others'));
-  return matches.length===1?matches[0].id:'';
+export function resolveOthersCategory(categories) {
+  // The read API projects id/name/legacy_filter, not slug. Match the actual DB mapping.
+  const matches=(Array.isArray(categories)?categories:[]).filter(c=>c?.legacy_filter==='others');
+  if(!matches.length)return {id:'',error:'No internal category with legacy_filter=others is available. Saving and uploads are blocked; contact the administrator.'};
+  if(matches.length!==1)return {id:'',error:'Multiple internal categories have legacy_filter=others. Saving and uploads are blocked; contact the administrator.'};
+  const id=matches[0].id;
+  if(typeof id!=='string'||!id.trim())return {id:'',error:'The internal category has no valid ID. Saving and uploads are blocked; contact the administrator.'};
+  return {id,error:''};
 }
+export function othersCategoryId(categories) {return resolveOthersCategory(categories).id;}
 export function statusOf(t, r = t.revision) {
   if (t.visibility === 'quarantined') return 'Blocked';
   if (t.visibility === 'archived') return 'Archived';
@@ -28,6 +34,7 @@ export function workFromRevision(t, r) {
         .filter(m => m.participant_id === p.id).map(m => [m.context, m.settings]))}))};
 }
 export function draftPayload(work,{allowIncomplete=false}={}) {
+  if(!work.category_id&&work.category_error)throw Error(work.category_error);
   const plain = s => typeof s === 'string' && !/[<>\u0000-\u0008]/.test(s);
   if (!plain(work.title) || !work.title.trim() || !plain(work.description) || !work.category_id
     || ![8,16,32].includes(Number(work.requested_size))) throw Error('Enter a title, description, category and supported candidate count.');
