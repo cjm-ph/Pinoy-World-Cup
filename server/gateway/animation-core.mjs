@@ -22,10 +22,11 @@ function singleGifContainer(bytes){
   else throw codedError('DECODE_REJECTED');
  }throw codedError('DECODE_REJECTED');
 }
-export async function normalizeAnimation(input,{allowSingleGif=false}={}){
+export async function normalizeAnimation(input,{allowSingleGif=false,onPhase=()=>{}}={}){
  try{
  const bytes=Buffer.from(input);if(bytes.length<20||bytes.length>animationLimits.input)throw codedError('INPUT_LIMIT','Animation must be at most 10 MiB');
  const opts={animated:true,failOn:'warning',limitInputPixels:24000000,sequentialRead:true};
+ onPhase('METADATA');
  const original=await sharp(bytes,opts).metadata();
  if(original.orientation&&original.orientation!==1)throw codedError('DECODE_REJECTED','Animated orientation must be normalized before upload');
  if(allowSingleGif&&original.format==='gif'&&(original.pages||1)===1){
@@ -33,20 +34,24 @@ export async function normalizeAnimation(input,{allowSingleGif=false}={}){
   const width=original.width,height=original.pageHeight||original.height;
   if(!width||!height||width>12000||height>12000||width*height>24000000)throw codedError('PIXEL_LIMIT');
   // One full GIF decode. The unchanged static gateway then validates/optimizes this PNG.
+  onPhase('POSTER');
   let poster;try{poster=await sharp(bytes,{...opts,page:0,pages:1}).png().toBuffer();}catch{throw codedError('POSTER_REJECTED');}
   if(poster.length>15728640)throw codedError('OUTPUT_LIMIT');
   return {kind:'static',sourceFormat:'gif',frames:1,width,height,poster};
  }
  const before=describe(original);
  // Re-encode all pages, stripping nonvisual metadata. Never truncate frames to fit.
+ onPhase('ENCODE');
  const output=await sharp(bytes,opts).webp({lossless:true,effort:2,loop:before.loop,delay:before.delay}).toBuffer();
  if(output.length>animationLimits.output)throw codedError('OUTPUT_LIMIT','Lossless animation exceeds 10 MiB output limit');
+ onPhase('VERIFY');
  const metadata=await sharp(output,opts).metadata(),after=describe(metadata);
  if(metadata.exif||metadata.xmp||metadata.icc||JSON.stringify(before)!==JSON.stringify(after))throw codedError('PRESERVATION_FAILED','Animation preservation verification failed');
  // Full output decode remains mandatory. Reuse its first frame rather than decoding
  // the original GIF again solely for the poster (lossless output preserves pixels).
  const decoded=await sharp(output,opts).raw().toBuffer({resolveWithObject:true});
  const firstFrame=decoded.data.subarray(0,after.width*after.height*decoded.info.channels);
+ onPhase('POSTER');
  let poster;try{poster=await sharp(firstFrame,{raw:{width:after.width,height:after.height,channels:decoded.info.channels}}).png().toBuffer();}catch{throw codedError('POSTER_REJECTED');}
  return {bytes:output,poster,...after};
  }catch(error){if(animationCodes.has(error?.diagnosticCode))throw error;throw codedError('DECODE_REJECTED');}

@@ -1,7 +1,7 @@
 import {stages as posterStages} from './media-errors.mjs';
 export const mixedStages=new Set(['HTTP_VALIDATE','AUTH_VERIFY','ADMIN_OWNER','MIXED_CAPABILITY','ADMISSION','READ_ANIMATION','ANIMATION_DECODE','POSTER_GENERATE','RELEASE_ADMISSION','POSTER_UPLOAD','OWNER_RECHECK','MIXED_RESERVE','ANIMATION_STORAGE_CREATE','ANIMATION_STORAGE_VERIFY','MIXED_FINISH','YOUTUBE_METADATA','YOUTUBE_POSTER','PUBLIC_AUTHORITY']);
 export const animationCodes=new Set(['INPUT_LIMIT','FRAME_LIMIT','PIXEL_LIMIT','TIMING_LIMIT','OUTPUT_LIMIT','DECODE_REJECTED','PRESERVATION_FAILED','POSTER_REJECTED','TIMEOUT','WORKER_EXIT','WORKER_UNAVAILABLE','CAPACITY']);
-const reasons=new Set([...animationCodes,'REQUEST_REJECTED','SESSION_INVALID','ACCESS_DENIED','RATE_LIMITED','UPSTREAM_REJECTED','CONTRACT_UNAVAILABLE','INTEGRITY_MISMATCH','ADMIN_REQUIRED','RUNTIME_DISABLED','TOURNAMENT_UNAVAILABLE','QUOTA_EXCEEDED','DAILY_COUNT_LIMIT','DAILY_BYTE_QUOTA','ACTOR_STORAGE_QUOTA','TOURNAMENT_STORAGE_QUOTA','PROJECT_STORAGE_QUOTA','STALE_VERSION','ASSET_NOT_READY','INVALID_IMAGE','INPUT_TOO_LARGE','BODY_TIMEOUT','BODY_INTERRUPTED','DECODE_TIMEOUT','DECODER_UNAVAILABLE','OPTIMIZED_IMAGE_INVALID','STORAGE_MISMATCH','STORAGE_MISSING','SERVER_ACCESS_DENIED','RPC_UNAVAILABLE','DATABASE_AMBIGUOUS','REQUEST_REJECTED']);
+const reasons=new Set([...animationCodes,'REQUEST_REJECTED','SESSION_INVALID','ACCESS_DENIED','RATE_LIMITED','UPSTREAM_REJECTED','CONTRACT_UNAVAILABLE','INTEGRITY_MISMATCH','ADMIN_REQUIRED','RUNTIME_DISABLED','TOURNAMENT_UNAVAILABLE','QUOTA_EXCEEDED','DAILY_COUNT_LIMIT','DAILY_BYTE_QUOTA','ACTOR_STORAGE_QUOTA','TOURNAMENT_STORAGE_QUOTA','PROJECT_STORAGE_QUOTA','STALE_VERSION','ASSET_NOT_READY','INVALID_IMAGE','INPUT_TOO_LARGE','BODY_TIMEOUT','BODY_INTERRUPTED','REQUEST_ABORTED','DECODE_TIMEOUT','DECODER_UNAVAILABLE','OPTIMIZED_IMAGE_INVALID','STORAGE_MISMATCH','STORAGE_MISSING','SERVER_ACCESS_DENIED','RPC_UNAVAILABLE','DATABASE_AMBIGUOUS','REQUEST_REJECTED']);
 const rpcs=new Set(['admin_media_assert_owner','admin_mixed_media_capability','admin_media_acquire','admin_media_release','admin_media_begin','admin_media_finish','admin_media_abandon','mixed_media_reserve','mixed_media_finish','public_animation_target','public_media_target']);
 const upstreamCodes=new Set(['42501','P0001','23505','23503','23514','22003','22P02','42702','42883','57014','55P03','40001','40P01','PGRST202','PGRST301','PGRST303','PT401','PT403','PT423','AccessDenied','Unauthorized','Duplicate','403','409']);
 export const publicMessages=new Set(['YouTube metadata is not configured. Contact the operator.','Mixed-media processing busy. Retry later.','Animation must be at most 10 MiB']);
@@ -13,3 +13,12 @@ class MixedFailure extends Error{
 export async function mixedStep(stage,fn){try{return await fn();}catch(e){throw e instanceof MixedFailure?e:new MixedFailure(stage,e);}}
 export function failureRecord(error,reference,elapsed){const e=error instanceof MixedFailure?error:new MixedFailure('HTTP_VALIDATE',error);return {event:'mixed_media_request_failed',reference,stage:e.stage,code:e.reason,...(e.rpc?{rpc:e.rpc}:{}),...(e.upstreamStatus?{upstream_status:e.upstreamStatus}:{}),...(e.upstreamCode?{upstream_code:e.upstreamCode}:{}),...(e.posterStage?{poster_stage:e.posterStage}:{}),elapsed_ms:Math.max(0,Math.round(elapsed))};}
 export function publicFailure(error){return publicMessages.has(error?.publicMessage)?error.publicMessage:publicMessages.has(error?.message)?error.message:'Mixed media unavailable. Check permissions, media limits and the installed mixed-media contract.';}
+
+// Only fixed phase names and bounded numeric durations may cross into request logs.
+export function safeWorkerDiagnostics(value){
+ const phases=['WORKER_START','METADATA','ENCODE','VERIFY','POSTER','RESULT_IPC','COMPLETE'];
+ if(!phases.includes(value?.worker_phase))return {};
+ const safe=n=>Number.isFinite(n)&&n>=0&&n<=3600000;
+ const timings={};for(const phase of phases)if(safe(value.worker_timings_ms?.[phase]))timings[phase]=Math.round(value.worker_timings_ms[phase]);
+ return {worker_phase:value.worker_phase,...(safe(value.worker_elapsed_ms)?{worker_elapsed_ms:Math.round(value.worker_elapsed_ms)}:{}),worker_timings_ms:timings};
+}
