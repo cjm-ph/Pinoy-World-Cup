@@ -1,4 +1,7 @@
-import {prepareYouTubeCandidate,youtubeSource,isAnimationInput} from './candidate-media-policy.mjs';
+import {prepareGiphyCandidate} from './giphy-policy.mjs';
+import {createGiphyEmbed} from './giphy-embed.mjs';
+import {classifyMediaUrl} from './media-url-policy.mjs';
+import {prepareYouTubeCandidate} from './candidate-media-policy.mjs';
 import {createCreatorPage} from './creator-page-ui.mjs';
 import {validateCreatorFile,assignCreatorFiles} from './creator-page-model.mjs';
 import {createTournamentManagement,managementActions} from './staging-tournament-management.mjs';
@@ -234,7 +237,7 @@ function cards(inWizard=false){
   if(inWizard&&(!work.base_revision_id||dirty||tournaments.find(t=>t.id===work.tournament_id)?.revision?.state==='submitted'))await saveWork({quiet:true,force:true});
   const t=inWizard?tournaments.find(t=>t.id===work.tournament_id):selected;
   if(!t)throw Error('Save the tournament draft first.');await guardSession();
-  if(!inWizard&&await isAnimationInput(file))throw Error('Open Edit World Cup to replace animated media.');
+  await validateCreatorFile(file);
   const out=await api.upload(t.id,file,rights?.onProgress);
   if(out.technical_state!=='ready'||!out.asset_id)throw Error('Upload is not finalized. Refresh before retrying.');
   return finishUploadedPhoto(t.id,out,slot,inWizard,note,settings,rights?.onProgress);
@@ -325,7 +328,7 @@ function renderWizard(){
  const pendingNotes=$('creatorBatchNotes')?.value||'';
  $('wizardPanel').replaceChildren(createCreatorPage({work,categories,notice:creatorNotice,onError:message=>say(message,'error'),capture:captureWizard,onChange:creatorChanged,getLanguage:()=>adminLanguage.language,photos:cards(true),jobs:creatorJobs,busy:batchBusy||photoWorking||youtubeBusy,
  onResize:size=>{captureWizard();if(work.participants.length>size){say('Remove candidates before reducing the candidate count.','error');renderWizard();return;}work.requested_size=size;ensureCandidates();dirty=true;renderWizard();},
- onYouTube:(url,start,end)=>run(()=>addYouTube(url,start,end)),onFiles:files=>void acceptCreatorFiles(files),onRetry:(id,notes)=>void run(()=>uploadCreatorJobs(id,notes)),
+ onYouTube:(url,start,end,id)=>run(()=>addYouTube(url,start,end,id)),onFiles:files=>void acceptCreatorFiles(files),onRetry:(id,notes)=>void run(()=>uploadCreatorJobs(id,notes)),
  onAdd:()=>{captureWizard();if(work.participants.length>=work.requested_size)return;work.participants.push({...window.CreatorModelV3.member(''),image_asset_id:null});dirty=true;renderWizard();},
  onRemove:id=>{captureWizard();work.participants=work.participants.filter(p=>p.id!==id);if(work.cover_participant_id===id)work.cover_participant_id=null;creatorJobs.delete(id);dirty=true;renderWizard();},
  onMove:(id,offset)=>{captureWizard();const i=work.participants.findIndex(p=>p.id===id),j=i+offset;if(j<0||j>=work.participants.length)return;[work.participants[i],work.participants[j]]=[work.participants[j],work.participants[i]];dirty=true;renderWizard();},
@@ -333,14 +336,17 @@ function renderWizard(){
  $('bulkNames').value=bulkValue;$('bulkNames').parentElement.open=bulkOpen;if(hadPrompt)$('wizardPanel').querySelector('[data-gemini-support] button')?.click();
  $('creatorBatchNotes').value=pendingNotes;
 }
-async function addYouTube(url,start,end){
- youtubeSource(url,start,end);captureWizard();if(batchBusy||photoWorking)throw Error('Wait for the current upload.');
+async function addYouTube(url,start,end,candidateId=null){
+ const classified=classifyMediaUrl(url,start,end);if(classified.provider==='imgur')throw Error('Imgur registration is not enabled. Existing candidates are unchanged.');
+ captureWizard();if(batchBusy||photoWorking)throw Error('Wait for the current upload.');
  if(!work.title.trim())throw Error('Enter the World Cup title before registering media.');
  if(!work.category_id)throw Error(work.category_error);
- let slot=work.participants.find(p=>!p.name.trim()&&!p.image_asset_id&&!p.media&&!creatorJobs.has(p.id));
+ if(candidateId&&!work.participants.some(p=>p.id===candidateId))throw Error('Candidate changed. Reopen its media URL.');
+ let slot=candidateId?work.participants.find(p=>p.id===candidateId):work.participants.find(p=>!p.name.trim()&&!p.image_asset_id&&!p.media&&!creatorJobs.has(p.id));
  if(!slot&&work.participants.length>=work.requested_size)throw Error('No candidate slots available.');
  if(!slot){slot={...window.CreatorModelV3.member(''),image_asset_id:null};work.participants.push(slot);}
  const slotId=slot.id;
+ if(classified.provider==='giphy'){const candidate=prepareGiphyCandidate(classified.source,slot,name=>({...window.CreatorModelV3.member(name),name}));if(slot)Object.assign(slot,candidate);else work.participants.push(candidate);work.giphy_contract=true;dirty=true;renderWizard();say('GIPHY URL added locally. Save the draft to persist it; availability and rights are unverified.');return;}
  const at=epoch,tid=work.tournament_id;youtubeBusy=true;renderWizard();try{await saveWork({quiet:true,force:true});
  const result=await api.youtube(tid,url,start,end);
  if(at!==epoch||work?.tournament_id!==tid||!authorized)return;
@@ -426,9 +432,11 @@ function startPreview(source){
  try{const active=source.participants.filter(p=>p.active!==false).map(p=>({...p,person_id:p.entity_id}));const size=[32,16,8,4].find(n=>n<=active.length);if(!size)throw Error('At least four active candidates are required for a playable preview.');
  game={round:window.WorldCupSelection.select(active,size,null),next:[],index:0};if(source.title)$('previewTitle').dataset.i18nSkip='';else delete $('previewTitle').dataset.i18nSkip;$('previewTitle').textContent=source.title||'World Cup preview';$('previewDialog').showModal();renderGame();}catch(error){say(error.message,'error');}
 }
-function renderGame(){const box=$('previewGame');box.style.setProperty('--game-photo-ratio',globalThis.PWCPhotoDisplay.gameRatio(innerWidth,innerHeight));box.replaceChildren();if(!game)return;if(game.round.length===1){box.append(make('h2',`Your champion: ${game.round[0].name}`));const f=make('div',undefined,'preview-frame');f.style.aspectRatio=String(globalThis.PWCPhotoDisplay.resultRatio(innerWidth,innerHeight));box.append(f);void showPhoto(f,game.round[0].image_asset_id,game.round[0].name).then(()=>{const image=f.querySelector('img');if(image)globalThis.PWCPhotoDisplay.apply(image,game.round[0].presentations?.vs||{});});box.append(make('p','Preview complete. No official statistics were recorded.','help'));return;}
- box.append(make('p',`Round of ${game.round.length} · Match ${game.index/2+1} of ${game.round.length/2}`,'help'));const match=make('div',undefined,'match');for(const offset of [0,1]){const p=game.round[game.index+offset],b=make('button'),f=make('div',undefined,'photo-frame');b.append(f,dataText('strong',p.name));void showPhoto(f,p.image_asset_id,p.name).then(()=>{const image=f.querySelector('img');if(image)globalThis.PWCPhotoDisplay.apply(image,p.presentations?.vs||{});});b.onclick=()=>{game.next.push(p);game.index+=2;if(game.index>=game.round.length){game.round=game.next;game.next=[];game.index=0;}renderGame();};match.append(b);}box.append(match);
+const giphyPreviewHandles=new Set();function clearGiphyPreviews(){for(const h of giphyPreviewHandles)h.dispose();giphyPreviewHandles.clear();}
+function renderGame(){clearGiphyPreviews();const box=$('previewGame');box.style.setProperty('--game-photo-ratio',globalThis.PWCPhotoDisplay.gameRatio(innerWidth,innerHeight));box.replaceChildren();if(!game)return;if(game.round.length===1){box.append(make('h2',`Your champion: ${game.round[0].name}`));const f=make('div',undefined,'preview-frame');f.style.aspectRatio=String(globalThis.PWCPhotoDisplay.resultRatio(innerWidth,innerHeight));box.append(f);void showPhoto(f,game.round[0].image_asset_id,game.round[0].name).then(()=>{const image=f.querySelector('img');if(image)globalThis.PWCPhotoDisplay.apply(image,game.round[0].presentations?.vs||{});});box.append(make('p','Preview complete. No official statistics were recorded.','help'));return;}
+ box.append(make('p',`Round of ${game.round.length} · Match ${game.index/2+1} of ${game.round.length/2}`,'help'));const match=make('div',undefined,'match');for(const offset of [0,1]){const p=game.round[game.index+offset],b=make('button'),f=make('div',undefined,'photo-frame');b.append(f,dataText('strong',p.name));if(p.media?.type==='giphy'){const embed=createGiphyEmbed(p.media,{name:p.name});giphyPreviewHandles.add(embed);const shell=make('section',undefined,'giphy-shell');b.classList.add('giphy-select');f.hidden=true;b.querySelector('strong').textContent='Select '+p.name;shell.append(embed.element,b);match.append(shell);}else void showPhoto(f,p.image_asset_id,p.name).then(()=>{const image=f.querySelector('img');if(image)globalThis.PWCPhotoDisplay.apply(image,p.presentations?.vs||{});});b.onclick=()=>{game.next.push(p);game.index+=2;if(game.index>=game.round.length){game.round=game.next;game.next=[];game.index=0;}renderGame();};if(p.media?.type!=='giphy')match.append(b);}box.append(match);
 }
+$('previewDialog')?.addEventListener('close',clearGiphyPreviews);
 async function signOut(){await run(async()=>{lock();const {error}=await client.auth.signOut();if(error)throw Error('Sign-out failed. Please retry.');$('loginSignOut').hidden=true;say('Signed out.');});}
 try {
  const config=window.PWC_STAGING;if(config?.supabaseUrl!==STAGING_URL||!/^sb_publishable_/.test(config.publishableKey||''))throw Error('Staging configuration unavailable.');
@@ -437,7 +445,7 @@ try {
  adminComments=installAdminComments({client,getLanguage:()=>adminLanguage.language});
  managementApi=createTournamentManagement(client);
  purgeApi=createTournamentPurge(client);
- api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin});dashboard=createDashboardApi(client,api);
+ const giphyContractsEnabled=window.PWC_STAGING?.giphyContractsEnabled===true;api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin,giphyContractsEnabled});dashboard=createDashboardApi(client,api,undefined,{giphyContractsEnabled});
  $('adminLoginForm').onsubmit=e=>{e.preventDefault();void run(async()=>{const credentials={email:$('stagingEmail').value.trim(),password:$('stagingPassword').value};lock();say('Signing in with Supabase...');const authStart=performance.now();const {error}=await client.auth.signInWithPassword(credentials);globalThis.PWCAdminPerformance??={};globalThis.PWCAdminPerformance.lastPasswordSignInMs=+(performance.now()-authStart).toFixed(2);$('stagingPassword').value='';if(error)throw Error('Sign-in failed. Check your Staging account.');await refreshAdmin();});};
  $('stagingSignOut').onclick=signOut;$('loginSignOut').onclick=signOut;$('loginRetry').onclick=()=>run(()=>refreshAdmin());
  $('stagingRefresh').onclick=()=>run(()=>refreshAdmin(true));
@@ -448,7 +456,7 @@ try {
  for(const id of ['reviewSearch','reviewFilter'])$(id).addEventListener('input',renderReviews);
  $('stagingTournament').onchange=()=>run(()=>loadSelected());$('stagingSlot').onchange=renderSlot;
  $('stagingFile').onchange=()=>{if(newPhotoUrl)URL.revokeObjectURL(newPhotoUrl);newPhotoUrl=null;asset=null;rightsRecorded=false;$('stagingRightsAck').checked=false;$('stagingEvidence').value='';$('uploadStatus').textContent='';const f=$('stagingFile').files[0];$('newPhoto').hidden=!f;if(f){newPhotoUrl=URL.createObjectURL(f);const img=make('img');img.src=newPhotoUrl;img.alt='Selected new photo';$('newPhoto').replaceChildren(img);}updateControls();};
- $('stagingUpload').onclick=()=>run(async()=>{await guard();const file=$('stagingFile').files[0];if(!file||!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>15*1024*1024)throw Error('Choose a JPG, PNG or WebP photo up to 15 MiB.');asset=null;rightsRecorded=false;$('uploadStatus').textContent='Uploading and verifying photo...';try{const result=await api.upload(selected.id,file);if(result.technical_state!=='ready'||!result.asset_id)throw Error('Upload is not finalized. Refresh before retrying.');asset=result.asset_id;$('uploadStatus').textContent='Upload complete. Record usage rights before creating a replacement.';say('Photo uploaded and technically verified.','success');}catch(error){$('uploadStatus').textContent='Upload failed. Your current photo is unchanged.';throw error;}});
+ $('stagingUpload').onclick=()=>run(async()=>{await guard();const file=$('stagingFile').files[0];if(!file)throw Error('Choose a photo.');await validateCreatorFile(file);asset=null;rightsRecorded=false;$('uploadStatus').textContent='Uploading and verifying photo...';try{const result=await api.upload(selected.id,file);if(result.technical_state!=='ready'||!result.asset_id)throw Error('Upload is not finalized. Refresh before retrying.');asset=result.asset_id;$('uploadStatus').textContent='Upload complete. Record usage rights before creating a replacement.';say('Photo uploaded and technically verified.','success');}catch(error){$('uploadStatus').textContent='Upload failed. Your current photo is unchanged.';throw error;}});
  $('stagingRights').onclick=()=>run(async()=>{await guard();if(!asset||!$('stagingRightsAck').checked||!$('stagingEvidence').value.trim())throw Error('Confirm usage rights and provide evidence first.');await api.rights(asset,$('stagingEvidence').value.trim());rightsRecorded=true;say('Usage rights recorded. Ready to create a replacement draft.','success');});
  $('stagingReplace').onclick=()=>run(async()=>{await guard();if(!asset||!rightsRecorded)throw Error('Upload and record usage rights first.');const slot=$('stagingSlot').value;const previous=selected.published_revision_id;const result=await api.replace(selected,asset,slot);await refreshAdmin(true);$('stagingSlot').value=slot;renderSlot();$('stagingHistory').textContent=`Previous publication: ${previous||'none'}`;if(work?.tournament_id===selected.id){work=workFromRevision(selected,revision);dirty=false;}say(`Replacement draft created: ${result.revision_id}. Stored photo previews refreshed.`,'success');});
  $('stagingSubmit').onclick=()=>run(async()=>{await guard();if(!revision||!$('stagingSubmitAck').checked)throw Error('Confirm this draft is ready for independent review.');await api.submit(selected,revision.id);await refreshAdmin(true);say('Submitted. A different authorized reviewer must approve it.','success');});

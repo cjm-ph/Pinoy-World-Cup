@@ -77,7 +77,7 @@ export async function prepareStagingView(original) {
     const config=window.PWC_STAGING;
     if(config?.supabaseUrl!==STAGING_URL || !/^sb_publishable_/.test(config.publishableKey || '')) throw Error('Staging configuration unavailable.');
     const client=getMemberClient();
-    const api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin});
+    const api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin,giphyContractsEnabled:config.giphyContractsEnabled===true});
     const result=await mergePublishedView(original,api);
     status.textContent=result.count ? '' : 'No published World Cups yet. Enjoy our practice World Cups.';
     status.hidden=!!result.count;

@@ -1,4 +1,6 @@
 import {youtubeSource} from './candidate-media-policy.mjs';
+import {mountLocalMp4} from './local-mp4-presentation.mjs';
+import {createGiphyEmbed} from './giphy-embed.mjs';
 let playerLibrary;
 function youtubeLibrary(root){
  if(root.YT?.Player)return Promise.resolve(root.YT);
@@ -10,7 +12,7 @@ function youtubeLibrary(root){
  });return playerLibrary;
 }
 // Presentation adapter only. No choice, bracket or statistics mutation.
-export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root)}={}){
+export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),videoSource=null}={}){
  const fill=root.fill,show=root.show,live=new Map();
  const dispose=slot=>{const entry=live.get(slot);if(entry){entry.cancelled=true;try{entry.player?.destroy();}catch{}if(entry.shell?.isConnected)entry.shell.replaceWith(slot);live.delete(slot);}};
  const stop=()=>{for(const slot of [...live.keys()])dispose(slot);};
@@ -18,6 +20,21 @@ export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root)}
   dispose(slot);fill.call(this,slot,participant);
   slot.classList.remove('mixed-video-candidate');slot.onclick=()=>root.pick(slot.id==='b'?1:0);
   const source=participant.media;if(!source)return;
+  if(source.type==='giphy'){
+   const shell=document.createElement('section');shell.className='giphy-shell';
+   const embed=createGiphyEmbed(source,{name:participant.n});
+   slot.before(shell);shell.append(embed.element,slot);slot.classList.add('giphy-select');
+   const art=slot.querySelector('.art');if(art)art.hidden=true;
+   slot.querySelector('.name').textContent='Select '+participant.n;
+   const entry={cancelled:false,shell,player:{destroy(){embed.dispose();slot.classList.remove('giphy-select');}}};live.set(slot,entry);return;
+  }
+  if(source.type==='mp4'){
+   const image=slot.querySelector('.vs-photo');
+   if(!image||typeof videoSource!=='function'||!/^video_[a-f0-9-]{36}$/.test(source.video_id||''))return;
+   const entry={cancelled:false,player:null};live.set(slot,entry);
+   Promise.resolve().then(()=>videoSource(source)).then(data=>{if(entry.cancelled){data.release?.();return;}try{const handle=mountLocalMp4(image,data);entry.player={destroy:()=>{handle.dispose();data.release?.();}};}catch(e){data.release?.();throw e;}}).catch(()=>{});
+   return;
+  }
   if(source.type==='animation'){
    if(!/^source_[0-9a-f-]{36}$/.test(source.source_id||''))return;
    const image=slot.querySelector('.vs-photo');if(image)image.src='/animated-media?source='+encodeURIComponent(source.source_id);return;

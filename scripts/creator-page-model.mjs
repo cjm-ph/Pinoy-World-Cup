@@ -1,11 +1,12 @@
-// Shared input policy only. No Auth, administrator RPC or database dependencies.
-export const IMAGE_TYPES={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',gif:'image/gif'};
+import {assertStaticUpload,UNSUPPORTED_FILE} from './direct-upload-policy.mjs';
+export const IMAGE_TYPES={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp'};
 export async function validateCreatorFile(file){
  const extension=/\.([^.]+)$/.exec(file.name)?.[1].toLowerCase();
- if(!IMAGE_TYPES[extension]||file.type!==IMAGE_TYPES[extension]||file.size<12||file.size>(extension==='gif'?10:15)*1024*1024)throw Error('Choose JPG, PNG or WebP up to 15 MiB; animations up to 10 MiB.');
- const b=new Uint8Array(await file.slice(0,12).arrayBuffer());
- const format=String.fromCharCode(...b.slice(0,6)).match(/^GIF8[79]a$/)?'image/gif':b[0]===255&&b[1]===216&&b[2]===255?'image/jpeg':b.slice(0,8).join(',')==='137,80,78,71,13,10,26,10'?'image/png':String.fromCharCode(...b.slice(0,4))==='RIFF'&&String.fromCharCode(...b.slice(8,12))==='WEBP'?'image/webp':null;
- if(format!==file.type)throw Error('File contents do not match the image extension and MIME type.');
+ if(!IMAGE_TYPES[extension]||file.type!==IMAGE_TYPES[extension])throw Error(UNSUPPORTED_FILE);
+ if(file.size<12||file.size>15*1024*1024)throw Error('Choose JPG, PNG or static WebP up to 15 MiB.');
+ const b=new Uint8Array(await file.arrayBuffer());assertStaticUpload(b);
+ const mime=b[0]===255?'image/jpeg':b[0]===137?'image/png':'image/webp';
+ if(mime!==file.type)throw Error('File contents do not match the image extension and MIME type.');
 }
 export function candidateFileName(fileName,names=[]){
  const base=fileName.replace(/\.[^.]+$/,'').normalize('NFC').replace(/[<>\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,280)||'Candidate';

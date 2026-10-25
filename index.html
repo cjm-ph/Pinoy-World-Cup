@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Pinoy World Cup</title>
+<title>STAGING ? Pinoy World Cup</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@600;800&display=swap">
 <style>
 :root{--bg:#fff7e0;--ink:#13234a;--blue:#0038a8;--red:#ce1126;--sun:#fcd116;--card:#ffffff;
@@ -59,8 +59,7 @@ button{font:inherit;cursor:pointer}
 .pick:active{transform:scale(.97)}
 .art{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:clamp(4rem,22vw,8rem)}
 .art img{width:100%;height:100%;object-fit:cover}
-.name{padding:10px 6px 4px;font-size:1.25rem;font-weight:800}
-.food-desc{padding:0 10px 12px;font-size:.82rem;line-height:1.3;font-weight:600;opacity:.82;min-height:2.8em}
+.name{padding:10px 6px 14px;font-size:1.25rem;font-weight:800}
 .vs{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);background:var(--sun);color:#13234a;border:3px solid var(--ink);border-radius:50%;width:48px;height:48px;display:grid;place-items:center;font-family:'Baloo 2',sans-serif;font-weight:800;pointer-events:none}
 .winner .art{font-size:9rem;border-radius:24px}
 .win-card{background:var(--card);border:3px solid var(--ink);border-radius:24px;padding:16px;text-align:center}
@@ -89,26 +88,41 @@ button{font:inherit;cursor:pointer}
 #foodAdmin img{max-width:140px;max-height:140px;object-fit:cover;border-radius:10px;display:block;margin:8px 0}
 
 </style>
-</head>
+<link rel="stylesheet" href="templates/home_v15.css">
+<link rel="stylesheet" href="templates/home_mobile.css">
+<link rel="stylesheet" href="templates/home_mobile_compact.css">
+<link rel="stylesheet" href="templates/vs_immersive_test.css">
+<link rel="stylesheet" href="templates/vs_round_selection_test.css">
+<link rel="stylesheet" href="templates/home_carousel_test.css">
+<link rel="stylesheet" href="templates/result_immersive_test.css">
+<link rel="stylesheet" href="templates/staging-privacy.css">
+<link rel="stylesheet" href="templates/mixed-media.css"></head>
 <body>
-<div class="layout">
-<aside class="ad l" aria-hidden="true">Ad<br>160×600<br>(left)</aside>
+<p id="adapterStatus" role="status">Loading World Cups…</p><button id="adapterRetry" type="button" hidden>Try again</button>
+<div class="layout" inert style="display:none!important">
+
 <main>
-  <h1>Pinoy World Cup</h1>
-  <div class="stripe"></div>
+<header class="home-header"><a id="homeBrand" class="home-brand" href="#start">Pinoy <span>World Cup</span></a><nav class="home-nav" aria-label="Main navigation"><a class="current" href="#start">Home</a><a href="#homeCatalogue">World Cups</a></nav></header>
+<section aria-label="Member account"><button id="memberGoogle" type="button">Continue with Google</button><button id="memberLogout" type="button" hidden>Sign out</button><a class="privacy-policy-link" href="privacy.html">Privacy Policy</a><p id="memberStatus" role="status" aria-live="polite">Play as a guest, or sign in with Google.</p></section>
 
   <section id="start">
-    <p>Pick a tournament and crown your champion.</p>
+<div class="home-hero"><img class="hero-image" src="image/selected/ulam/sinigang--row-0131--dc9dd27beb.webp" alt="Filipino sinigang"><div class="hero-content"><h1 class="hero-title">Pinoy<br>World Cup</h1><p>Choose your favorite and crown the champion.</p><button id="heroStart" type="button">Start Playing →</button></div></div>
+<div id="homeCatalogue" class="home-tools"><div id="homeTabs" role="group" aria-label="World Cup categories"></div><input id="homeSearch" type="search" placeholder="Search World Cups" aria-label="Search World Cups"></div><p id="homeEmpty" hidden>No World Cups match your search.</p>
     <div id="grid" class="grid"></div>
   </section>
 
   <section id="play" class="hide">
-    <div class="bar"><button class="alt" id="quit" style="padding:4px 14px">Back</button><span class="round" id="round"></span><span id="count"></span></div>
+    <div class="bar"><button class="alt" id="quit" type="button" aria-label="Back to all tournaments"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m14 5-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="round" id="round"></span><span id="count"></span></div>
+    <div class="vs-stage">
+      <aside class="vs-ad vs-ad-left" data-vs-ad="left" data-ready="false" aria-label="Advertisement"></aside>
     <div class="arena">
       <button class="pick" id="a"></button>
       <button class="pick" id="b"></button>
       <div class="vs">VS</div>
     </div>
+      <aside class="vs-ad vs-ad-right" data-vs-ad="right" data-ready="false" aria-label="Advertisement"></aside>
+    </div>
+    <aside class="vs-ad vs-ad-mobile" data-vs-ad="mobile" data-ready="false" aria-label="Advertisement"></aside>
   </section>
 
   <section id="end" class="hide">
@@ -142,471 +156,57 @@ button{font:inherit;cursor:pointer}
   </section>
 
 
-  <button id="adminToggle" class="admin-entry" type="button">🔐 Admin / Edit Foods</button>
-  <section id="foodAdmin" class="hide" aria-label="Food administrator">
-    <h3>Food Content Manager</h3>
-    <p class="admin-note">Sign in with your Supabase admin account to edit food names, descriptions and photos.</p>
-    <div id="adminLogin">
-      <label for="adminEmail">Admin email</label>
-      <input id="adminEmail" type="email" autocomplete="username" placeholder="Your Supabase login email">
-      <label for="adminPassword">Password</label>
-      <input id="adminPassword" type="password" autocomplete="current-password" placeholder="Password">
-      <button id="adminSignIn" type="button">Sign in</button>
-    </div>
-    <div id="adminEditor" class="hide">
-      <p id="adminWho" class="admin-note"></p>
-      <label for="adminTournament">Tournament</label>
-      <select id="adminTournament"></select>
-      <label for="adminFood">Food item</label>
-      <select id="adminFood"></select>
-      <label for="adminName">Food name</label>
-      <input id="adminName" maxlength="100" placeholder="Food name">
-      <div style="display:none"><label for="adminDescription">Description</label>
-      <textarea id="adminDescription" rows="3" maxlength="500" placeholder="Short description"></textarea></div>
-      <label for="adminImage">Upload or replace photo</label>
-      <input id="adminImage" type="file" accept="image/jpeg,image/png,image/webp">
-      <img id="adminPreview" class="hide" alt="Current food photo preview">
-      <button id="adminSave" type="button">Save changes</button>
-      <button id="adminSignOut" type="button" class="secondary">Sign out</button>
-    </div>
-    <p id="adminStatus" class="admin-note" role="status"></p>
-  </section>
 
-  <div class="slot" aria-hidden="true">Ad space (mobile)</div>
+
+
+<p id="stagingPublicStatus" role="status" aria-live="polite">Loading tournaments?</p>
 </main>
-<aside class="ad r" aria-hidden="true">Ad<br>160×600<br>(right)</aside>
+
 </div>
 
-<script>
-// To use photos later: set img to a data URL or an image path.
-function food(n,e,d,img){
-  // Use a dish-specific photo search for every item without a curated image.
-  // If the photo service cannot find/load one, the card falls back to its emoji.
-  var photo=img||("https://loremflickr.com/720/540/"+encodeURIComponent(n+", Filipino food"));
-  return {n:n,e:e,description:"",img:photo}
-}
-function commons(file){return "https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(file)+"?width=720"}
-var FOODS=[
-food("Balut","🥚","필리핀의 대표적인 길거리 음식으로, 부화 직전 오리알을 삶아 먹습니다.",commons("Balut (Still Lives).jpg")),
-food("Isaw","🍢","닭이나 돼지 내장을 손질해 꼬치에 끼워 구운 길거리 음식."),
-food("Kikiam","🍡","고기와 향신료를 넣어 만든 필리핀식 튀김 간식."),
-food("Banana Cue","🍌","바나나를 흑설탕과 함께 튀겨 꼬치에 꽂은 달콤한 간식."),
-food("Halo-Halo","🍧","얼음, 우베, 젤리, 콩, 과일과 우유를 섞어 먹는 빙수 디저트.",commons("Halo-Halo.jpg")),
-food("Siopao","🥟","고기소를 넣어 폭신하게 쪄낸 필리핀식 찐빵."),
-food("Fishball","🍥","생선살로 만든 동그란 어묵을 튀겨 소스에 찍어 먹습니다."),
-food("Kwek-Kwek","🍳","삶은 메추리알에 주황색 반죽을 입혀 튀긴 간식."),
-food("Taho","🥛","부드러운 두부 푸딩에 시럽과 사고 펄을 올린 아침 간식."),
-food("Turon","🌯","바나나와 잭프루트를 얇은 피에 싸서 바삭하게 튀긴 간식."),
-food("Proben","🍗","닭의 모래주머니 주변 부위를 튀겨 소스와 먹는 길거리 음식."),
-food("Betamax","🟫","굳힌 돼지 또는 닭 피를 네모나게 잘라 꼬치에 구운 음식."),
-food("Chicharon","🥓","돼지 껍질 등을 바삭하게 튀겨 만든 짭짤한 간식."),
-food("Mais","🌽","달콤한 옥수수 알갱이를 컵에 담아 먹는 간식."),
-food("Dirty Ice Cream","🍦","거리 카트에서 파는 필리핀식 수제 아이스크림."),
-food("Lugaw","🍲","생강과 마늘을 넣고 부드럽게 끓인 쌀죽."),
-food("Dynamite","🌶️","치즈를 채운 풋고추를 튀긴 매콤한 간식."),
-food("Puto Bumbong","🍠","보라색 찹쌀을 대나무 틀에 쪄 코코넛과 설탕을 곁들인 디저트."),
-food("Bibingka","🥮","쌀가루 반죽을 구워 달걀과 치즈 등을 곁들이는 전통 케이크.",commons("Bibingka.jpg")),
-food("Pancit Canton","🍜","채소와 고기 또는 해산물을 넣어 볶은 면 요리.",commons("Pancit Filipino Food at Night.jpg")),
-food("Lumpia","🥟","고기와 채소를 얇은 피에 말아 튀긴 필리핀식 스프링롤.",commons("Lumpiang togue.jpg"))
-];
-var TOURNAMENTS=[
-{id:"food",title:"Street Food",sub:"Filipino street-food favorites",c:"#fcd116",items:FOODS},
-{id:"ulam",title:"Ulam Showdown",sub:"Classic Filipino mains and comfort food",c:"#ce1126",items:[
-food("Adobo","🍖","간장, 식초, 마늘로 졸인 필리핀 대표 요리.",commons("Chicken adobo (Philippines).jpg")),
-food("Sinigang","🍲","타마린드 등으로 새콤하게 끓인 고기 또는 해산물 수프.",commons("1466Cuisine of Bulacan Sinigang 75.jpg")),
-food("Kare-Kare","🥘","땅콩 소스에 고기와 채소를 넣어 끓이고 바궁을 곁들이는 요리.",commons("Kare kare.jpg")),
-food("Lechon","🐖","통돼지를 천천히 구워 껍질을 바삭하게 만든 잔치 음식.",commons("Lechon belly.jpg")),
-food("Sisig","🍳","잘게 썬 돼지고기를 양파와 함께 뜨겁게 볶아 내는 요리.",commons("Spicy Sisig.jpg")),
-food("Tinola","🥣","닭고기, 생강, 파파야 또는 차요테를 넣은 맑은 국물 요리."),
-food("Pancit","🍜","축하 자리에서 자주 먹는 필리핀식 볶음면.",commons("Pancit Filipino Food at Night.jpg")),
-food("Lumpia","🥟","바삭한 피 안에 고기와 채소를 넣은 롤.",commons("Lumpiang togue.jpg")),
-food("Bicol Express","🌶️","돼지고기를 코코넛 밀크와 고추로 매콤하게 조린 요리.",commons("Bicol Express 2.jpg")),
-food("Dinuguan","🍛","돼지 내장과 피를 식초, 마늘, 고추로 조린 진한 요리."),
-food("Pinakbet","🥬","가지, 여주, 호박 등 채소를 바궁과 함께 익힌 요리.",commons("Bet na Bet Ang Pinakbet.jpg")),
-food("Tapsilog","🍚","소고기 타파, 마늘 볶음밥, 달걀을 함께 먹는 아침 식사.",commons("Beef Tapa with Egg.jpg")),
-food("Longganisa","🌭","지역별 양념이 다른 필리핀식 소시지."),
-food("Bulalo","🍵","소고기 사골과 옥수수, 채소를 오래 끓인 국물 요리."),
-food("Crispy Pata","🍗","돼지 족발을 삶은 뒤 튀겨 겉은 바삭하고 속은 부드럽게 만든 요리."),
-food("Laing","🥥","토란잎을 코코넛 밀크와 고추로 푹 익힌 비콜 지역 요리."),
-food("Chicken Inasal","🍗","칼라만시와 향신료 양념에 재워 구운 바콜로드식 닭고기.",commons("Bacolod Inasal.jpg")),
-food("Pork Menudo","🍲","돼지고기와 간, 감자, 당근을 토마토 소스에 조린 요리.",commons("Menudo Filipino Food.jpg")),
-food("Bistek Tagalog","🥩","간장과 칼라만시로 양념한 소고기에 양파를 올린 요리."),
-food("Paksiw na Bangus","🐟","밀크피시를 식초와 향신료로 조린 새콤한 요리."),
-food("Batchoy","🍜","돼지고기와 내장, 면을 넣은 일로일로식 국수.",commons("Batchoy.jpg")),
-food("Beef Pares","🍲","달콤짭짤한 소고기 조림을 밥과 맑은 국물에 곁들인 메뉴.",commons("Beef Pares.jpg"))]},
-{id:"sweets",title:"Pinoy Desserts",sub:"Sweet treats and merienda favorites",c:"#0038a8",items:[
-food("Halo-Halo","🍧","얼음과 우베, 젤리, 콩, 과일, 우유를 층층이 올린 디저트.",commons("Halo-Halo.jpg")),
-food("Leche Flan","🍮","달걀노른자와 연유로 만든 부드러운 캐러멜 커스터드.",commons("Leche flan.jpg")),
-food("Bibingka","🥮","쌀가루로 만들어 바나나 잎 위에서 구운 전통 케이크.",commons("Bibingka.jpg")),
-food("Puto","🧁","쌀가루를 쪄서 만든 폭신한 작은 케이크."),
-food("Buko Pie","🥧","어린 코코넛 과육을 넣어 구운 파이."),
-food("Ube Halaya","🍠","보라색 참마를 으깨 우유와 설탕으로 졸인 디저트."),
-food("Sapin-Sapin","🍰","색색의 찹쌀층을 겹쳐 코코넛을 곁들인 디저트."),
-food("Mais con Yelo","🌽","옥수수와 빙수 얼음, 우유를 섞은 시원한 디저트."),
-food("Biko","🍘","찹쌀과 코코넛 밀크, 흑설탕으로 만든 쫀득한 떡."),
-food("Maja Blanca","🥥","코코넛 밀크와 옥수수로 만든 부드러운 푸딩."),
-food("Polvoron","🍪","볶은 밀가루와 분유, 설탕을 섞어 만든 부서지기 쉬운 과자."),
-food("Cassava Cake","🎂","카사바와 코코넛 밀크로 구운 촉촉한 케이크."),
-food("Ube Pandesal","🥐","보라색 참마를 넣어 색과 향을 낸 부드러운 빵."),
-food("Taho","🥛","두부 푸딩과 시럽, 사고 펄을 곁들인 간식."),
-food("Turon","🌯","바나나와 잭프루트를 튀긴 달콤한 롤."),
-food("Banana Cue","🍌","흑설탕 코팅 바나나 꼬치."),
-food("Puto Bumbong","🍠","보라색 찹쌀을 쪄 코코넛과 설탕을 얹은 크리스마스 간식."),
-food("Pichi-Pichi","🟡","카사바로 만든 쫀득한 한입 디저트에 코코넛을 묻힌 음식."),
-food("Kutsinta","🟤","쫀득한 갈색 쌀떡에 강판 코코넛을 곁들인 간식."),
-food("Buko Pandan","🥥","어린 코코넛과 판단 젤리, 크림을 섞어 차게 먹는 디저트."),
-food("Mango Float","🥭","망고, 크림, 비스킷을 층층이 쌓아 차게 굳힌 디저트."),
-food("Ensaymada","🥐","버터와 치즈, 설탕을 얹은 부드러운 필리핀식 빵."),
-food("Pandesal","🍞","겉에 빵가루를 묻혀 구운 필리핀의 대표적인 아침 빵."),
-food("Suman","🍃","바나나 잎에 싸서 찐 찹쌀떡."),
-food("Suman sa Lihiya","🍃","바나나 잎에 싸서 찐 찹쌀떡으로 코코넛과 설탕을 곁들여 먹습니다.",commons("Suman sa lihiya.jpg"))]} 
-];
-var $=function(i){return document.getElementById(i)};
-var cur,next,i,champ,mine,db,tour,busy=false,log=[],plays=[],cms=[],allPlays=[],allCms=[];
-function shuffle(a){a=a.slice();for(var k=a.length-1;k>0;k--){var j=Math.floor(Math.random()*(k+1));var t=a[k];a[k]=a[j];a[j]=t}return a}
-function label(n){return n==2?"Final":n==4?"Semifinal":n==8?"Quarterfinal":"Round of "+n}
-function art(f){return f.img?'<img src="'+f.img+'" alt="'+f.n+'">':f.e}
-function fill(el,f){el.textContent="";var a=document.createElement("div");a.className="art";if(f.img){var im=document.createElement("img");im.alt=f.n;im.loading="lazy";im.decoding="async";im.fetchPriority="low";var settled=false;var fallback=setTimeout(function(){if(!settled){settled=true;im.remove();a.textContent=f.e||"🍽️"}},5000);im.onload=function(){settled=true;clearTimeout(fallback)};im.onerror=function(){settled=true;clearTimeout(fallback);im.remove();a.textContent=f.e||"🍽️"};im.src=f.img;a.appendChild(im)}else a.textContent=f.e||"🍽️";var n=document.createElement("div");n.className="name";n.textContent=f.n;el.appendChild(a);el.appendChild(n);el.setAttribute("aria-label","Pick "+f.n)}
-function show(id){["start","play","end"].forEach(function(s){$(s).classList.toggle("hide",s!==id)})}
-function start(t){tour=t||tour;cur=shuffle(tour.items);next=[];i=0;busy=false;log=[];show("play");render()}
-function render(){
-  var ar=document.querySelector(".arena");ar.classList.add("nt");
-  ["a","b"].forEach(function(k){$(k).classList.remove("win","lose")});
-  void ar.offsetWidth;ar.classList.remove("nt");
-  $("round").textContent=label(cur.length);
-  $("count").textContent="Match "+(i/2+1)+" of "+cur.length/2;
-  fill($("a"),cur[i]);fill($("b"),cur[i+1]);
-}
-function pick(w){
-  if(busy)return;busy=true;
-  var rm=matchMedia("(prefers-reduced-motion:reduce)").matches;
-  $(w?"b":"a").classList.add("win");$(w?"a":"b").classList.add("lose");
-  setTimeout(function(){busy=false;choose(w)},rm?0:650);
-}
-function choose(w){
-  log.push(cur[i+w].n+"|"+cur[i+1-w].n);
-  next.push(cur[i+w]);i+=2;
-  if(i>=cur.length){
-    if(next.length===1){champ=next[0];finish();return}
-    cur=next;next=[];i=0;
-  }
-  render();
-}
-function finish(){
-  mine=champ.n;record();renderRank();renderComments();
-  show("end");$("winArt").innerHTML=art(champ);$("winName").textContent=champ.n;$("msg").textContent="";
-}
-function share(){
-  var text="My #1 in "+tour.title+": "+champ.n+"! What's yours? "+location.href;
-  var done=function(m){$("msg").textContent=m};
-  try{
-    if(navigator.share){navigator.share({text:text}).catch(function(){});return}
-    navigator.clipboard.writeText(text).then(function(){done("Copied! Paste it on Facebook.")},function(){done(text)});
-  }catch(e){done(text)}
-}
-function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
-function pct(a,b){return b?(Math.round(a/b*1000)/10)+"%":"-"}
-function S(t,a){var e=document.createElementNS("http://www.w3.org/2000/svg",t);for(var k in a)e.setAttribute(k,a[k]);return e}
-function tbl(head,rows){var t=el("table","tb"),h=el("tr");head.forEach(function(x){h.appendChild(el("th",null,x))});t.appendChild(h);rows.forEach(function(r){var tr=el("tr",r[0]===mine?"me":"");r.forEach(function(c){tr.appendChild(el("td",null,c))});t.appendChild(tr)});var w=el("div");w.style.overflowX="auto";w.appendChild(t);return w}
-function renderDetail(){
-  var box=$("detail");box.textContent="";
-  if(!db){box.textContent="Stats are not available in this view.";return}
-  var P=allPlays.filter(function(x){return tour&&(x.tid||"food")===tour.id}).sort(function(a,b){return a.ts-b.ts});
-  if(!P.length){box.textContent="No data yet.";return}
-  var names=tour.items.map(function(f){return f.n}),win={},pl={},pw={},mp=0;
-  names.forEach(function(n){win[n]=0;pl[n]=0;pw[n]=0});
-  P.forEach(function(p){
-    if(win[p.champ]!=null)win[p.champ]++;
-    if(p.m){mp++;p.m.forEach(function(s){var a=s.split("|");if(pl[a[0]]!=null){pl[a[0]]++;pw[a[0]]++}if(pl[a[1]]!=null)pl[a[1]]++})}
-  });
-  var byWin=names.slice().sort(function(a,b){return win[b]-win[a]});
-  box.appendChild(el("h4",null,"Champion rate ("+P.length+" plays)"));
-  box.appendChild(tbl(["Item","Titles","Rate"],byWin.map(function(n){return[n,String(win[n]),pct(win[n],P.length)]})));
-  box.appendChild(el("h4",null,"1:1 pick rate"));
-  if(!mp){box.appendChild(el("p","note","Match data appears after the next plays."))}else{
-    var rate=function(n){return pl[n]?pw[n]/pl[n]:-1};
-    box.appendChild(tbl(["Item","Picked","Rate"],names.slice().sort(function(a,b){return rate(b)-rate(a)}).filter(function(n){return pl[n]}).map(function(n){return[n,pw[n]+" of "+pl[n],pct(pw[n],pl[n])]})));
-  }
-  box.appendChild(el("h4",null,"Rank trend (top 5)"));
-  if(P.length<2){box.appendChild(el("p","note","The chart appears after 2 plays."));return}
-  var top=byWin.slice(0,5),K=Math.min(P.length,12),marks=[],cnt={},rk={},cp=[],N=names.length;
-  for(var j=1;j<=K;j++)marks.push(Math.ceil(j*P.length/K));
-  names.forEach(function(n){cnt[n]=0});top.forEach(function(n){rk[n]=[]});
-  P.forEach(function(p,idx){
-    if(cnt[p.champ]!=null)cnt[p.champ]++;
-    if(marks.indexOf(idx+1)>-1){var ord=names.slice().sort(function(a,b){return cnt[b]-cnt[a]});top.forEach(function(n){rk[n].push(ord.indexOf(n)+1)});cp.push(idx+1)}
-  });
-  var W=340,H=210,px=30,py=16,cols=["#0038a8","#ce1126","#e08a00","#1b9e5a","#8a3ffc"];
-  var svg=S("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Rank trend chart"});
-  var X=function(q){return px+(W-2*px)*q/(cp.length-1)},Y=function(r){return py+(H-2*py-14)*(r-1)/(N-1)};
-  [1,Math.ceil(N/2),N].forEach(function(r){var t=S("text",{x:4,y:Y(r)+4,fill:"currentColor","font-size":10});t.textContent="#"+r;svg.appendChild(t);svg.appendChild(S("line",{x1:px-4,x2:W-px+4,y1:Y(r),y2:Y(r),stroke:"currentColor","stroke-opacity":.15}))});
-  top.forEach(function(n,k){
-    svg.appendChild(S("polyline",{points:rk[n].map(function(r,q){return X(q)+","+Y(r)}).join(" "),fill:"none",stroke:cols[k],"stroke-width":3,"stroke-linejoin":"round"}));
-    rk[n].forEach(function(r,q){svg.appendChild(S("circle",{cx:X(q),cy:Y(r),r:3.5,fill:cols[k]}))});
-  });
-  [[px,"start",cp[0]],[W-px,"end",cp[cp.length-1]]].forEach(function(a){var t=S("text",{x:a[0],y:H-2,fill:"currentColor","font-size":10,"text-anchor":a[1]});t.textContent="after "+a[2]+" plays";svg.appendChild(t)});
-  box.appendChild(svg);
-  var lg=el("div","note");top.forEach(function(n,k){var s=el("span",null,"\u25cf "+n+"  ");s.style.color=cols[k];s.style.fontWeight="800";lg.appendChild(s)});
-  box.appendChild(lg);
-}
-function renderRank(){renderDetail();renderRank0()}
-function renderRank0(){
-  plays=allPlays.filter(function(x){return tour&&(x.tid||"food")===tour.id}).map(function(x){return x.champ});
-  var box=$("rank");box.textContent="";
-  if(!db){box.textContent="Stats are not available in this view.";return}
-  if(!plays.length){box.textContent="No results yet. You are the first!";return}
-  var t={};plays.forEach(function(n){t[n]=(t[n]||0)+1});
-  var arr=Object.keys(t).map(function(k){return[k,t[k]]}).sort(function(a,b){return b[1]-a[1]}).slice(0,10);
-  var max=arr[0][1];
-  arr.forEach(function(r,idx){
-    var row=el("div","rk"+(r[0]===mine?" me":""));
-    row.appendChild(el("span",null,(idx+1)+". "+r[0]));
-    var tr=el("span","t"),b=el("i");b.style.width=Math.round(r[1]/max*100)+"%";tr.appendChild(b);row.appendChild(tr);
-    row.appendChild(el("span",null,Math.round(r[1]/plays.length*100)+"%"));
-    box.appendChild(row);
-  });
-  box.appendChild(el("p","note","Based on "+plays.length+" plays. Your pick is in red."));
-}
-function renderComments(){
-  cms=allCms.filter(function(c){return tour&&(c.tid||"food")===tour.id});
-  var box=$("list");box.textContent="";
-  if(!cms.length){box.appendChild(el("p","note","No comments yet."));return}
-  cms.forEach(function(c){var d=el("div","cm");d.appendChild(el("b",null,(c.name||"Anonymous")+(c.champ?" · picked #1: "+c.champ:"")));d.appendChild(el("span",null,c.text));if(c.ts)d.appendChild(el("div","note",new Date(c.ts).toLocaleString([],{year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})));box.appendChild(d)});
-}
-function record(){
-  if(!db)return;
-  db.collection("plays").add({champ:champ.n,tid:tour.id,m:log,ts:Date.now()}).catch(function(){});
-}
-function postComment(){
-  var text=$("txt").value.trim(),name=$("nick").value.trim();
-  if(!text||!db){$("cmsg").textContent=db?"Write something first.":"Comments are not available in this view.";return}
-  $("send").disabled=true;
-  db.collection("comments").add({name:name.slice(0,20),text:text.slice(0,200),champ:mine||"",tid:tour?tour.id:"food",ts:Date.now()}).then(function(){$("txt").value="";$("cmsg").textContent="Posted!"},function(){$("cmsg").textContent="Could not post. You may need contributor access."}).then(function(){$("send").disabled=false});
-}
-(async function(){
-  try{
-    if(!window.claude)return;
-    db=await claude.use("db");
-    if(!db){renderRank();return}
-    db.collection("plays").orderBy("ts","desc").limit(1000).onSnapshot(function(s){allPlays=s.docs.map(function(d){return d.data()});renderRank();buildGrid()},function(){});
-    db.collection("comments").orderBy("ts","desc").limit(200).onSnapshot(function(s){allCms=s.docs.map(function(d){return d.data()});renderComments()},function(){});
-  }catch(e){db=null}
-})();
-$("send").onclick=postComment;
-function goHome(){busy=false;show("start");buildGrid()}
-function buildGrid(){
-  var g=$("grid");g.textContent="";
-  TOURNAMENTS.forEach(function(t){
-    var b=el("button","tc"),mo=el("div","mo");mo.style.background=t.c;
-    t.items.slice(0,4).forEach(function(f){mo.appendChild(el("span",null,f.e))});
-    b.appendChild(mo);b.appendChild(el("div","tt",t.title));b.appendChild(el("div","ss",t.sub));
-    var n=allPlays.filter(function(x){return (x.tid||"food")===t.id}).length;
-    if(n)b.appendChild(el("div","ss",n+" plays"));
-    b.onclick=function(){start(t)};
-    g.appendChild(b);
-  });
-  var s=el("div","tc soon");s.appendChild(el("div","tt","More coming soon"));s.appendChild(el("div","ss","New tournaments are added regularly."));g.appendChild(s);
-}
-buildGrid();
-$("again").onclick=function(){start(tour)};$("home").onclick=goHome;$("quit").onclick=goHome;$("shareBtn").onclick=share;
-$("a").onclick=function(){pick(0)};$("b").onclick=function(){pick(1)};
-</script>
 
+
+
+
+
+
+
+
+
+
+
+<p id="expansionStatus" role="status">Practice mode ? Global rankings are not connected.</p>
+<dialog id="roundSelection" aria-labelledby="roundTitle">
+ <div id="roundHero">
+  <div class="round-topbar">
+   <button id="cancelRound" type="button" aria-label="Back to all tournaments"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m14 5-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+   <h2 id="roundTitle"></h2>
+  </div>
+  <div class="round-photo-frame"></div>
+ </div>
+ <div class="round-body">
+  <div id="roundOptions" role="group" aria-label="Starting round"></div>
+  <p id="roundEmpty" hidden>This World Cup is coming soon.</p>
+  <p id="roundError" role="alert" hidden></p>
+ </div>
+</dialog>
+
+<dialog id="homeDetailsDialog" aria-labelledby="homeDetailsTitle"><h2 id="homeDetailsTitle"></h2><p>Details are coming soon. You can play from the World Cup card.</p><button id="homeDetailsClose" type="button">Close</button></dialog>
+
+
+
+
+
+
+
+
+<script src="scripts/content_model_v1.js"></script>
+<script src="scripts/static_content_repository_v2.js"></script>
+<script src="scripts/content_view_adapter_v2.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-(function(){
-  "use strict";
-  const SUPABASE_URL = "https://wdaosijlgcdgpfaoyfcv.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ydqIM7CvEL7YkFqWud39kg_ZrbAJfuo";
-  const ADMIN_UID = "55075fb6-6201-448c-a339-b23ecef38d70";
-  const BUCKET = "food-images";
-  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-  const $id = id => document.getElementById(id);
-  const panel = $id("foodAdmin");
-  const status = $id("adminStatus");
-  let storedRows = [];
-  let currentUser = null;
-
-  function say(message, isError) {
-    status.textContent = message;
-    status.style.color = isError ? "#ce1126" : "";
-  }
-  function slug(s) {
-    return String(s || "").toLowerCase().trim()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  }
-  function allTournaments() {
-    return Array.isArray(window.TOURNAMENTS) ? window.TOURNAMENTS : [];
-  }
-  function renderTournamentOptions() {
-    const sel = $id("adminTournament");
-    sel.textContent = "";
-    allTournaments().forEach(t => {
-      const op = document.createElement("option");
-      op.value = t.id; op.textContent = t.title; sel.appendChild(op);
-    });
-    renderFoodOptions();
-  }
-  function renderFoodOptions() {
-    const t = allTournaments().find(x => x.id === $id("adminTournament").value) || allTournaments()[0];
-    const sel = $id("adminFood");
-    sel.textContent = "";
-    if (!t) return;
-    t.items.forEach((food, index) => {
-      const op = document.createElement("option");
-      op.value = String(index);
-      op.textContent = food.n;
-      sel.appendChild(op);
-    });
-    loadSelectedFood();
-  }
-  function loadSelectedFood() {
-    const t = allTournaments().find(x => x.id === $id("adminTournament").value);
-    const food = t && t.items[Number($id("adminFood").value)];
-    if (!food) return;
-    if (!food._key) food._key = slug(food.n);
-    const key = food._key;
-    const row = storedRows.find(r => r.tournament_id === t.id && r.item_key === key);
-    $id("adminName").value = row ? row.name : food.n;
-    $id("adminDescription").value = row ? row.description : (food.description || "");
-    $id("adminImage").value = "";
-    const preview = $id("adminPreview");
-    const image = row && row.image_url ? row.image_url : food.img;
-    if (image) { preview.src = image; preview.classList.remove("hide"); }
-    else { preview.removeAttribute("src"); preview.classList.add("hide"); }
-  }
-  function applyRows(rows) {
-    storedRows = rows || [];
-    allTournaments().forEach(t => t.items.forEach(food => {
-      if (!food._key) food._key = slug(food.n);
-      const row = storedRows.find(r => r.tournament_id === t.id && r.item_key === food._key);
-      if (row) {
-        food.n = row.name || food.n;
-        food.description = row.description || "";
-        food.img = row.image_url || food.img || "";
-      }
-    }));
-    // Rebuild tournament cards after loading edited content.
-    if (typeof window.buildGrid === "function") window.buildGrid();
-    renderFoodOptions();
-  }
-  async function loadRows() {
-    const { data, error } = await client.from("pinoy_food_items").select("*");
-    if (error) throw error;
-    applyRows(data || []);
-  }
-  function updateAdminView(user) {
-    currentUser = user || null;
-    const isAdmin = !!user && user.id === ADMIN_UID;
-    $id("adminLogin").classList.toggle("hide", isAdmin);
-    $id("adminEditor").classList.toggle("hide", !isAdmin);
-    if (isAdmin) {
-      $id("adminWho").textContent = "Signed in: " + (user.email || "admin");
-      renderTournamentOptions();
-    }
-  }
-  async function restoreSession() {
-    const { data } = await client.auth.getSession();
-    const user = data && data.session ? data.session.user : null;
-    if (user && user.id === ADMIN_UID) {
-      updateAdminView(user);
-      try { await loadRows(); say("Food data loaded."); }
-      catch (e) { say("Could not load food data: " + e.message, true); }
-    } else {
-      updateAdminView(null);
-    }
-  }
-
-  $id("adminToggle").addEventListener("click", () => {
-    panel.classList.toggle("hide");
-    if (!panel.classList.contains("hide")) panel.scrollIntoView({behavior:"smooth", block:"start"});
-  });
-  $id("adminSignIn").addEventListener("click", async () => {
-    const email = $id("adminEmail").value.trim();
-    const password = $id("adminPassword").value;
-    if (!email || !password) { say("Enter your email and password.", true); return; }
-    say("Signing in...");
-    const { data, error } = await client.auth.signInWithPassword({email, password});
-    if (error) { say("Login failed: " + error.message, true); return; }
-    if (!data.user || data.user.id !== ADMIN_UID) {
-      await client.auth.signOut();
-      updateAdminView(null);
-      say("This account is not the authorized admin account.", true);
-      return;
-    }
-    updateAdminView(data.user);
-    try { await loadRows(); say("Signed in. Food data loaded."); }
-    catch (e) { say("Signed in, but data could not load: " + e.message, true); }
-  });
-  $id("adminSignOut").addEventListener("click", async () => {
-    await client.auth.signOut();
-    updateAdminView(null);
-    say("Signed out.");
-  });
-  $id("adminTournament").addEventListener("change", renderFoodOptions);
-  $id("adminFood").addEventListener("change", loadSelectedFood);
-
-  $id("adminSave").addEventListener("click", async () => {
-    if (!currentUser || currentUser.id !== ADMIN_UID) { say("Please sign in as admin.", true); return; }
-    const t = allTournaments().find(x => x.id === $id("adminTournament").value);
-    const food = t && t.items[Number($id("adminFood").value)];
-    if (!t || !food) { say("Choose a food item first.", true); return; }
-    if (!food._key) food._key = slug(food.n);
-    const originalKey = food._key;
-    const newName = $id("adminName").value.trim();
-    const description = $id("adminDescription").value.trim();
-    const file = $id("adminImage").files[0];
-    if (!newName) { say("Food name cannot be empty.", true); return; }
-    if (file && !["image/jpeg","image/png","image/webp"].includes(file.type)) {
-      say("Use JPG, PNG, or WebP images.", true); return;
-    }
-    if (file && file.size > 5 * 1024 * 1024) {
-      say("Image must be 5 MB or smaller.", true); return;
-    }
-    say("Saving...");
-    try {
-      let imageUrl = food.img || "";
-      if (file) {
-        const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-        const path = t.id + "/" + originalKey + "." + ext;
-        const { error: uploadError } = await client.storage.from(BUCKET).upload(path, file, {
-          upsert: true, contentType: file.type, cacheControl: "3600"
-        });
-        if (uploadError) throw uploadError;
-        const { data: publicData } = client.storage.from(BUCKET).getPublicUrl(path);
-        imageUrl = publicData.publicUrl + "?v=" + Date.now();
-      }
-      const row = {
-        id: t.id + ":" + originalKey,
-        tournament_id: t.id,
-        item_key: originalKey,
-        name: newName,
-        emoji: food.e || "",
-        description,
-        image_url: imageUrl,
-        updated_at: new Date().toISOString()
-      };
-      const { error: saveError } = await client.from("pinoy_food_items").upsert(row, {
-        onConflict: "tournament_id,item_key"
-      });
-      if (saveError) throw saveError;
-      // Apply edits to the live in-memory tournament as well.
-      food.n = newName;
-      food.description = description;
-      if (imageUrl) food.img = imageUrl;
-      await loadRows();
-      say("Saved successfully.");
-    } catch (e) {
-      say("Save failed: " + e.message, true);
-    }
-  });
-
-  // Apply saved content for all visitors; only the admin can write.
-  loadRows().catch(e => console.warn("Food overrides not loaded:", e.message));
-  restoreSession();
-})();
-</script>
+<script src="scripts/staging-media-config.js"></script>
+<script type="module" src="scripts/staging-member-auth.mjs"></script>
+<script src="scripts/staging-adapter-bootstrap.js"></script>
 
 </body>
 </html>

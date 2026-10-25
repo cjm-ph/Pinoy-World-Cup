@@ -1,3 +1,4 @@
+import {checkedGiphy} from './giphy-policy.mjs';
 // Server payload adapter for the existing five-step creator and revision RPC.
 export const STEPS = ['Basic info', 'Candidates', 'Photos', 'Preview', 'Save or publish'];
 export function resolveOthersCategory(categories) {
@@ -25,7 +26,7 @@ export function filterTournaments(rows, {search = '', category = '', status = ''
     && (!status || statusOf(t) === status));
 }
 export function workFromRevision(t, r) {
-  return {tournament_id: t.id, base_revision_id: r.id, title: r.title, description: r.description || '',
+  return {giphy_contract:r.giphy_contract===true||(r.participants||[]).some(p=>p.media?.type==='giphy'),mp4_contract:(r.participants||[]).some(p=>p.media?.type==='mp4'),tournament_id: t.id, base_revision_id: r.id, title: r.title, description: r.description || '',
     category_id: r.category_ids?.[0] || '', category_ids:[...(r.category_ids||[])], requested_size: r.requested_size || t.requested_size || 8,
     cover_participant_id: null, cover_asset_id: r.cover_asset_id,
     cover_settings: (r.presentations||[]).find(m=>!m.participant_id&&m.context==='start')?.settings||{},
@@ -46,14 +47,14 @@ export function draftPayload(work,{allowIncomplete=false}={}) {
     category_ids: work.category_ids?.length?[...work.category_ids]:[work.category_id], cover_participant_id: null,
     participants: work.participants.map(p => ({id: p.id, entity_id: p.entity_id, kind: 'other', name: p.name.trim(),
       description: p.description || '', emoji: p.emoji || '', active: p.active !== false,
-      media:p.media?structuredClone(p.media):null, image_asset_id: p.image_asset_id || null, pending_url: p.pending_url || '', presentations: p.presentations || {}}))};
+      media:p.media?.type==='giphy'?{...checkedGiphy(p.media)}:p.media?structuredClone(p.media):null, image_asset_id: p.image_asset_id || null, pending_url: p.pending_url || '', presentations: p.presentations || {}}))};
 }
 export function canEditMetadata(t, uid) {
   return !!t && t.creator_id === uid && ['private','public'].includes(t.visibility)
     && ['draft','submitted','rejected','approved'].includes(t.revision?.state);
 }
 
-export function createDashboardApi(client, media, uuid = () => crypto.randomUUID()) {
+export function createDashboardApi(client, media, uuid = () => crypto.randomUUID(),{mp4ContractsEnabled=false,giphyContractsEnabled=false}={}) {
   return {
     async context() {
       let timer,response;try{response=await Promise.race([client.schema('pwc41_api').rpc('admin_dashboard_context', {}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Supabase administrator lookup timed out. Retry the permission check.')),20000);})]);}finally{clearTimeout(timer);}
@@ -70,10 +71,17 @@ export function createDashboardApi(client, media, uuid = () => crypto.randomUUID
       // Existing save_draft is owner-only. Never pretend admin membership bypasses it.
       const cached=client.auth.getSession?(await client.auth.getSession()).data.session?.user:null;
       if (t && !canEditMetadata(t, (cached||(await client.auth.getUser()).data.user)?.id)) throw Error('Only the creator can save these candidate and text changes. Photo management remains available to administrators.');
-      return media.rpc(work.participants.some(p=>p.media)?'admin_mixed_media_save_draft':'admin_media_save_draft', {req: uuid(), tid: work.tournament_id, rid: 'rev_' + uuid(),
+      const giphy=work.giphy_contract||work.participants.some(p=>p.media?.type==='giphy');
+      if(giphy&&!giphyContractsEnabled)throw Error('GIPHY save contracts are not enabled. Your URL remains local.');
+      const video=work.mp4_contract||work.participants.some(p=>p.media?.type==='mp4');
+      if(video&&giphy)throw Error('Mixed GIPHY/MP4 contracts are not enabled.');
+      if(video&&!mp4ContractsEnabled)throw Error('MP4 registration contracts are not enabled.');
+      return media.rpc(giphy?'giphy_save_draft_v1':video?'admin_mp4_save_draft_v1':work.participants.some(p=>p.media)?'admin_mixed_media_save_draft':'admin_media_save_draft', {req: uuid(), tid: work.tournament_id, rid: 'rev_' + uuid(),
         expected: t?.edit_version || 0, payload: draftPayload(work,{allowIncomplete:true})});
     },
     async preview(aid) {
+      // Optional provider-aware authenticated transport; absent keeps the existing path.
+      if (typeof media.previewResource === 'function') return media.previewResource(aid);
       const target = await media.rpc('admin_media_preview_target', {aid});
       if (target?.bucket !== 'pwc41-optimized' || !/^[0-9a-f-]{36}\/asset_[0-9a-f-]{36}\.webp$/.test(target.object_key || '')) throw Error('Private preview unavailable.');
       const {data, error} = await client.storage.from(target.bucket).download(target.object_key);

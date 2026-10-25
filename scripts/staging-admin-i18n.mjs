@@ -1,6 +1,18 @@
 // Administrator-only presentation layer. Never translates form values or server content.
 export const LANGUAGE_KEY = 'pwc-staging-admin-language';
 export const KO = {
+ "YouTube / GIPHY / Imgur URL":"YouTube / GIPHY / Imgur URL",
+ "External GIPHY URL; availability and rights unverified.":"외부 GIPHY URL: 재생 가능 여부와 권리는 미확인입니다.",
+ "GIPHY save contracts are not enabled. Your URL remains local.":"GIPHY 저장 계약이 비활성 상태입니다. URL은 로컬에 남습니다.",
+ "Choose or drop JPG, PNG or static WebP up to 15 MiB. Use the URL field for YouTube or GIPHY; Imgur is not enabled.":"JPG, PNG, 정적 WebP (15 MiB). YouTube / GIPHY는 URL로 입력하세요. Imgur는 비활성 상태입니다.",
+
+ "YouTube / Imgur URL":"YouTube / Imgur URL",
+ "Add media URL":"미디어 URL 추가",
+ "Choose or drop JPG, PNG or static WebP up to 15 MiB. Use the URL field for YouTube or Imgur. File names become candidate names.":"JPG, PNG, 정적 WebP (최대 15 MiB). YouTube / Imgur는 URL로 입력하세요. 파일명을 후보 이름으로 사용합니다.",
+ "Unsupported file type. Use the media URL field for YouTube or GIPHY; Imgur is not enabled.":"Unsupported file type. YouTube / Imgur는 미디어 URL로 입력하세요.",
+ "Unsupported media URL":"Unsupported media URL",
+ "Imgur registration is not enabled. Existing candidates are unchanged.":"Imgur 등록은 아직 비활성 상태입니다. 기존 후보는 변경되지 않습니다.",
+
  'Comments: Reviewed':'검토 완료',
  'Comments: Pending':'대기',
  'Comments: Dismissed':'기각됨',

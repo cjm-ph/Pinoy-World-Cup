@@ -1,7 +1,8 @@
-import {youtubeSource,isAnimationInput} from './candidate-media-policy.mjs';
+import {classifyMediaUrl} from './media-url-policy.mjs';
+import {validateCreatorFile} from './creator-page-model.mjs';
 export const STAGING_URL = 'https://cmnomqsurdwhdbjgnsvw.supabase.co';
 const stageNames={IMAGE_RESIZE:'Image orientation and resize',IMAGE_ENCODE:'Image compression',IMAGE_VALIDATE:'Image integrity validation',AUTH_VERIFY:'Session verification',ADMIN_CHECK:'Administrator permission check',ADMISSION:'Upload session admission',READ_BODY:'Image request body',IMAGE_DECODE:'Image decoding',OPTIMIZED_VALIDATION:'Optimized image validation',RESERVE_ASSET:'Upload reservation (admin_media_begin)',STORAGE_CREATE:'Storage creation',STORAGE_VERIFY:'Stored image verification',FINALIZE_ASSET:'Upload finalization (admin_media_finish)',REPLACE_DRAFT:'Draft replacement (admin_media_replace)',SUBMIT_REVIEW:'Review submission (admin_media_submit)',REQUEST:'Request validation'};
-const reasonNames={INVALID_BODY:'The upload body must contain raw image bytes.',BODY_INTERRUPTED:'The image request body was interrupted before it could be read.',BODY_STREAM_FAILED:'The server could not read the image request stream.',SERVER_ACCESS_DENIED:'The server credential or service permissions were rejected.',SESSION_INVALID:'Sign in again.',ADMIN_REQUIRED:'Administrator access is required.',RUNTIME_DISABLED:'Photo management is disabled.',TOURNAMENT_UNAVAILABLE:'This tournament is not editable.',RATE_LIMITED:'Too many upload attempts. Wait and try again.',QUOTA_EXCEEDED:'The legacy upload attempt or storage limit has been reached. Check storage diagnostics.',DAILY_COUNT_LIMIT:'The daily upload attempt limit has been reached.',DAILY_BYTE_QUOTA:'The daily optimized upload byte limit has been reached.',ACTOR_STORAGE_QUOTA:'Your actual stored photos and pending reservations have reached the administrator storage limit.',TOURNAMENT_STORAGE_QUOTA:'This tournament has reached its storage limit.',PROJECT_STORAGE_QUOTA:'The Staging optimized photo bucket has reached its storage limit.',RESERVATION_RELEASED:'This failed reservation was released. Select the photo again.',STALE_VERSION:'The draft changed. Refresh before replacing the photo.',REVISION_NOT_EDITABLE:'This revision cannot be edited.',SLOT_UNAVAILABLE:'The selected candidate is unavailable.',ASSET_NOT_READY:'The uploaded photo is not ready.',INPUT_TOO_LARGE:'The input exceeds 15 MiB.',INVALID_IMAGE:'The image is invalid or unsupported.',DECODE_TIMEOUT:'Image decoding timed out.',DECODER_UNAVAILABLE:'The server image decoder is unavailable.',OPTIMIZED_IMAGE_INVALID:'The optimized image exceeds the allowed output constraints.',BODY_TIMEOUT:'The upload request timed out.',STORAGE_MISMATCH:'The stored image did not match the verified bytes.',STORAGE_MISSING:'The uploaded Storage object is missing.',DATABASE_AMBIGUOUS:'The database function has an ambiguous column reference.',RPC_UNAVAILABLE:'The required database function is unavailable.',ACCESS_DENIED:'The upstream service denied access.',REQUEST_REJECTED:'The server rejected this operation.'};
+const reasonNames={UNSUPPORTED_FILE_TYPE:'Unsupported file type. Use the media URL field for YouTube or GIPHY; Imgur is not enabled.',INVALID_BODY:'The upload body must contain raw image bytes.',BODY_INTERRUPTED:'The image request body was interrupted before it could be read.',BODY_STREAM_FAILED:'The server could not read the image request stream.',SERVER_ACCESS_DENIED:'The server credential or service permissions were rejected.',SESSION_INVALID:'Sign in again.',ADMIN_REQUIRED:'Administrator access is required.',RUNTIME_DISABLED:'Photo management is disabled.',TOURNAMENT_UNAVAILABLE:'This tournament is not editable.',RATE_LIMITED:'Too many upload attempts. Wait and try again.',QUOTA_EXCEEDED:'The legacy upload attempt or storage limit has been reached. Check storage diagnostics.',DAILY_COUNT_LIMIT:'The daily upload attempt limit has been reached.',DAILY_BYTE_QUOTA:'The daily optimized upload byte limit has been reached.',ACTOR_STORAGE_QUOTA:'Your actual stored photos and pending reservations have reached the administrator storage limit.',TOURNAMENT_STORAGE_QUOTA:'This tournament has reached its storage limit.',PROJECT_STORAGE_QUOTA:'The Staging optimized photo bucket has reached its storage limit.',RESERVATION_RELEASED:'This failed reservation was released. Select the photo again.',STALE_VERSION:'The draft changed. Refresh before replacing the photo.',REVISION_NOT_EDITABLE:'This revision cannot be edited.',SLOT_UNAVAILABLE:'The selected candidate is unavailable.',ASSET_NOT_READY:'The uploaded photo is not ready.',INPUT_TOO_LARGE:'The input exceeds 15 MiB.',INVALID_IMAGE:'The image is invalid or unsupported.',DECODE_TIMEOUT:'Image decoding timed out.',DECODER_UNAVAILABLE:'The server image decoder is unavailable.',OPTIMIZED_IMAGE_INVALID:'The optimized image exceeds the allowed output constraints.',BODY_TIMEOUT:'The upload request timed out.',STORAGE_MISMATCH:'The stored image did not match the verified bytes.',STORAGE_MISSING:'The uploaded Storage object is missing.',DATABASE_AMBIGUOUS:'The database function has an ambiguous column reference.',RPC_UNAVAILABLE:'The required database function is unavailable.',ACCESS_DENIED:'The upstream service denied access.',REQUEST_REJECTED:'The server rejected this operation.'};
 export function mediaFailureMessage(response,diagnostic) {
   if(diagnostic?.code==='MEDIA_REQUEST_FAILED'&&stageNames[diagnostic.stage]&&reasonNames[diagnostic.reason]) {
     const reference=/^[0-9a-f-]{36}$/.test(diagnostic.reference||'')?diagnostic.reference:'unavailable';
@@ -18,7 +19,7 @@ export function adminReadError(error) {
     : 'Administrator data is unavailable. Contact the site operator.';
   return Error(message);
 }
-export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = fetch, uuid = () => crypto.randomUUID() }) {
+export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = fetch, uuid = () => crypto.randomUUID(),mp4ContractsEnabled=false,giphyContractsEnabled=false }) {
   if (gatewayOrigin !== pageOrigin || !/^https?:\/\//.test(pageOrigin)) throw Error('Use the same-origin Staging media gateway.');
   const rpc = async (name, args) => {
     const started=performance.now();const { data, error } = await client.schema('pwc41_api').rpc(name, args);
@@ -85,21 +86,31 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
     authorize: tid => rpc('admin_media_assert_owner', { tid }),
     published: () => rpc('list_published', {}),
     revision: async rid => {
+      if(giphyContractsEnabled){const next=await client.schema('pwc41_api').rpc('get_revision_giphy_v1',{rid});if(next.error)throw Error('GIPHY contracts unavailable. Keep the current draft.');if(!Array.isArray(next.data?.participants))throw Error('Invalid GIPHY revision');return next.data;}
+
+      if(mp4ContractsEnabled){const next=await client.schema('pwc41_api').rpc('get_revision_media_mp4_v1',{rid});
+        if(!next.error){if(!Array.isArray(next.data?.participants))throw Error('Invalid MP4 revision response');return next.data;}
+        if(['PGRST202','42883'].includes(next.error.code))throw Error('MP4 contracts are unavailable. Keep the current draft.');
+        throw adminReadError(next.error);
+      }
       const response=await client.schema('pwc41_api').rpc('get_revision_media',{rid});
       if(response.error&&['PGRST202','42883'].includes(response.error.code))return rpc('get_revision',{rid});
       if(response.error||!Array.isArray(response.data?.participants))throw Error('Mixed revision lookup failed. Refresh or contact the operator.');
       return response.data;
     },
-    youtube:async(tid,url,start='',end='')=>{const source=youtubeSource(url,start,end);return mutation('/admin/media/youtube',{tid},JSON.stringify(source));},
+    youtube:async(tid,url,start='',end='')=>{const classified=classifyMediaUrl(url,start,end);if(classified.provider==='giphy')throw Error('Use the GIPHY draft URL workflow.');if(classified.provider!=='youtube')throw Error('Imgur registration is not enabled.');const source=classified.source;return mutation('/admin/media/youtube',{tid},JSON.stringify(source));},
     upload: async(tid,file,onProgress)=>{
-      const animated=await isAnimationInput(file);
-      if(animated){if(file.size>10485760)throw Error('Animation must be at most 10 MiB');onProgress?.('Validating animation and poster...');return mutation('/admin/media/animation',{tid},file);}
+      await validateCreatorFile(file);
       return mutation('/admin/media/upload',{tid,request:uuid(),asset:'asset_'+uuid()},file,onProgress);
     },
     replace: (t, asset, slot) => mutation('/admin/media/replace', { tid:t.id, asset, slot,
       request:uuid(), revision:'rev_'+uuid(), expected:t.edit_version }),
     submit: (t, rid) => mutation('/admin/media/submit', { tid:t.id, request:uuid(), revision:rid, expected:t.edit_version, ack:true }),
     rights: (aid, evidence) => rpc('review_media', { req:uuid(), aid, status:'verified', evidence }),
+    videoRights: (vid,verdict,note) => {
+      if(!mp4ContractsEnabled||!/^video_[a-f0-9-]{36}$/.test(vid||'')||!['verified','rejected'].includes(verdict))throw Error('MP4 contracts are not enabled.');
+      return rpc('mp4_review_v1',{req:uuid(),vid,verdict,note});
+    },
     transition: (name, t, rid) => {
       if (!['approve','publish','rollback','unpublish'].includes(name)) throw Error('Unsupported action.');
       return rpc(name, { req:uuid(), tid:t.id, rid, expected:t.edit_version });
@@ -107,6 +118,10 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
     mediaUrl: aid => {
       if (!/^asset_[0-9a-f-]{36}$/.test(aid)) throw Error('Invalid image reference.');
       return gatewayOrigin+'/media?asset='+encodeURIComponent(aid);
+    },
+    videoUrl: (id,{preview=false}={}) => {
+      if(!mp4ContractsEnabled||!/^video_[a-f0-9-]{36}$/.test(id||''))throw Error('MP4 contracts are not enabled.');
+      return gatewayOrigin+(preview?'/video-media/preview':'/video-media')+'?video='+encodeURIComponent(id);
     }
   };
 }

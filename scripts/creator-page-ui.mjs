@@ -13,16 +13,17 @@ export function createCreatorPage({work,categories,capture,onChange,onResize,onF
  for(const n of [8,16,32]){const o=el('option',String(n));o.value=String(n);size.lastChild.append(o);}size.lastChild.value=String(work.requested_size);
  size.lastChild.onchange=()=>onResize(Number(size.lastChild.value));grid.append(size);basic.append(grid);
  if(!work.category_id)basic.append(el('p',work.category_error||'The internal category is unavailable. Saving and uploads are unavailable; contact the administrator.','notice'));
- const candidates=section('Candidates'),drop=el('div',undefined,'creator-drop-zone'),pick=el('input');pick.type='file';pick.multiple=true;pick.accept='.jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif';pick.id='creatorFiles';pick.disabled=false;pick.setAttribute('aria-label','Add candidate photos');
- drop.append(el('p','Choose or drop JPG, PNG, WebP or GIF. Static photos: 15 MiB; animations: 10 MiB. File names become candidate names.'),pick);pick.onchange=()=>{const files=[...pick.files];pick.value='';void onFiles(files);};
+ const candidates=section('Candidates'),drop=el('div',undefined,'creator-drop-zone'),pick=el('input');pick.type='file';pick.multiple=true;pick.accept='.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp';pick.id='creatorFiles';pick.disabled=false;pick.setAttribute('aria-label','Add candidate photos');
+ drop.append(el('p','Choose or drop JPG, PNG or static WebP up to 15 MiB. Use the URL field for YouTube or GIPHY; Imgur is not enabled. File names become candidate names.'),pick);pick.onchange=()=>{const files=[...pick.files];pick.value='';void onFiles(files);};
  drop.ondragover=e=>e.preventDefault();drop.ondrop=e=>{e.preventDefault();void onFiles([...e.dataTransfer.files]);};candidates.append(drop);if(notice)candidates.append(el('p',notice,'notice'));
  const video=el('div',undefined,'creator-youtube');
  const videoInput=(label,type)=>{const box=el('label',label),input=el('input');input.type=type;input.disabled=busy;if(type==='number'){input.min='0';input.step='1';}box.append(input);video.append(box);return input;};
- const url=videoInput('YouTube URL','url'),start=videoInput('Start (seconds, optional)','number'),end=videoInput('End (seconds, optional)','number');
+ const url=videoInput('YouTube / GIPHY / Imgur URL','url'),start=videoInput('Start (seconds, optional)','number'),end=videoInput('End (seconds, optional)','number');
  url.id='creatorYouTubeUrl';start.id='creatorYouTubeStart';end.id='creatorYouTubeEnd';
- const register=action('Add YouTube',async()=>{register.disabled=true;try{await onYouTube?.(url.value,start.value,end.value);}catch(error){onError(error.message);}finally{register.disabled=busy;}});video.append(register);candidates.append(video);
+ const register=action('Add media URL',async()=>{register.disabled=true;try{await onYouTube?.(url.value,start.value,end.value,url.dataset.candidateId||null);}catch(error){onError(error.message);}finally{register.disabled=busy;}});video.append(register);candidates.append(video);
  const notes=el('textarea');notes.id='creatorBatchNotes';notes.maxLength=4000;notes.placeholder='Source / notes (optional)';notes.setAttribute('aria-label','Batch source / notes');notes.disabled=busy;candidates.append(notes);
  for(const p of work.participants){const row=el('div',undefined,'creator-candidate-input');row.dataset.candidateId=p.id;const input=el('input');input.value=p.name;input.maxLength=300;input.dataset.candidateName=p.id;input.dataset.i18nSkip='';input.setAttribute('aria-label','Candidate name');input.disabled=busy;input.oninput=()=>{p.name=input.value;onChange();};
+  if(p.media?.type==='giphy'){const info=el('div',undefined,'creator-video-info'),edit=action(p.media.url,()=>{url.value=p.media.url;url.dataset.candidateId=p.id;url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit,el('span','External GIPHY URL; availability and rights unverified.'));row.append(info);}
   if(p.media?.type==='youtube'){
    const info=el('div',undefined,'creator-video-info');
    info.append(el('span',p.media.url),el('span','Start: '+clipTime(p.media.startSeconds)+' / '+(p.media.endSeconds==null?'End of video':'End: '+clipTime(p.media.endSeconds))));row.append(info);

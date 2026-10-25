@@ -1,4 +1,9 @@
 export const publicFiles = [
+  "scripts/giphy-policy.mjs",
+  "scripts/giphy-embed.mjs",
+  "scripts/media-url-policy.mjs",
+  "scripts/direct-upload-policy.mjs",
+  "scripts/local-mp4-presentation.mjs",
   "scripts/candidate-media-policy.mjs",
   "scripts/mixed-media-game.mjs",
   "templates/mixed-media.css",
