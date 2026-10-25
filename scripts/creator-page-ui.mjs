@@ -26,7 +26,7 @@ export function createCreatorPage({work,categories,capture,onChange,onResize,onF
   if(p.media?.type==='giphy'){const info=el('div',undefined,'creator-video-info'),edit=action(p.media.url,()=>{url.value=p.media.url;url.dataset.candidateId=p.id;url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit,el('span','External GIPHY URL; availability and rights unverified.'));row.append(info);}
   if(p.media?.type==='youtube'){
    const info=el('div',undefined,'creator-video-info');
-   info.append(el('span',p.media.url),el('span','Start: '+clipTime(p.media.startSeconds)+' / '+(p.media.endSeconds==null?'End of video':'End: '+clipTime(p.media.endSeconds))));row.append(info);
+   const edit=action(p.media.url,()=>{url.value=p.media.url;url.dataset.candidateId=p.id;start.value=p.media.startSeconds??0;end.value=p.media.endSeconds??'';url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit,el('span','Start: '+clipTime(p.media.startSeconds)+' / '+(p.media.endSeconds==null?'End of video':'End: '+clipTime(p.media.endSeconds))));row.append(info);
   }
   const state=jobs.get(p.id);row.append(input,action('Move up',()=>onMove(p.id,-1)),action('Move down',()=>onMove(p.id,1)),action('Remove candidate',()=>onRemove(p.id)));
   if(state){const status=el('span',state.state==='complete'?'Upload complete':state.error||state.state,'creator-upload-state');status.setAttribute('role','status');row.append(status);if(state.state==='failed')row.append(action('Retry photo',()=>onRetry(p.id,notes.value)));}
