@@ -63,7 +63,7 @@
  root.finish=function(){
   originalFinish();stats.hidden=true;statsButton.setAttribute('aria-expanded','false');msg.textContent='';
   // The completed engine's actual champion remains the only result data source.
-  var p=root.champ,source=p._localPhoto||p.img;art.textContent='';photo.querySelectorAll('.result-backdrop').forEach(function(n){n.remove();});
+  var p=root.champ,source=['youtube','giphy'].includes(p.media?.type)?null:(p._localPhoto||p.img);art.textContent='';photo.querySelectorAll('.result-backdrop').forEach(function(n){n.remove();});
   var fallback=el('span','result-fallback',p.e||'\u2605');art.appendChild(fallback);
   if(source){var bg=el('img','result-backdrop');bg.alt='';bg.src=source;photo.prepend(bg);
    var image=el('img','result-image');image.alt=p.n;image.onload=function(){fallback.hidden=true;fit();};image.onerror=function(){image.hidden=true;bg.hidden=true;fallback.hidden=false;};image.src=source;art.appendChild(image);

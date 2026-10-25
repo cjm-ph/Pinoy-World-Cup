@@ -118,14 +118,15 @@ function finishChoice(session,advance){
  if(advance&&valid)engineChoose(session.side);
 }
 function winnerScene(session,winner){
- var arenaRect=arena.getBoundingClientRect(),rect=winner.getBoundingClientRect();
+ var surface=winner.closest('.candidate-shell')||winner;
+ var arenaRect=arena.getBoundingClientRect(),rect=surface.getBoundingClientRect();
  var layer=document.createElement('div');layer.className='vs-victory';layer.setAttribute('aria-hidden','true');
  session.layer=layer;
  var frame=document.createElement('div');frame.className='pick vs-victory-frame';
  frame.style.left=(rect.left-arenaRect.left)+'px';frame.style.top=(rect.top-arenaRect.top)+'px';
  frame.style.width=rect.width+'px';frame.style.height=rect.height+'px';
- var art=winner.querySelector('.art').cloneNode(true);
- var photo=winner.querySelector('.vs-photo');
+ var art=surface.querySelector('.art').cloneNode(true);
+ var photo=surface.querySelector('.vs-photo');
  var awaitingCrop=photo&&(!photo.naturalWidth||!photo.dataset.fit);
  // Preserve the exact painted photo/crop; cloned images are not live match images.
  art.querySelectorAll('.vs-photo').forEach(function(image){
@@ -139,7 +140,7 @@ function winnerScene(session,winner){
  }
  frame.appendChild(art);layer.appendChild(frame);
  var name=document.createElement('div');name.className='name vs-victory-name';
- name.textContent=winner.querySelector('.name').textContent;layer.appendChild(name);
+ name.textContent=surface.querySelector('.candidate-title')?.textContent||winner.querySelector('.name').textContent;layer.appendChild(name);
  arena.appendChild(layer);
  var originY=rect.height*.35,scale=arenaRect.width<768?1.65:1.28,dy=0;
  if(photo&&photo.naturalWidth&&photo.dataset.head){
@@ -175,6 +176,8 @@ function winnerScene(session,winner){
 root.pick=function(side){
  if(root.busy||activeChoice||play.classList.contains('hide'))return;
  side=side?1:0;
+ // Video selection has no animation delay or confirmation; the existing engine advances once.
+ if(root.cur.slice(root.i,root.i+2).some(function(p){return ['youtube','giphy'].includes(p.media?.type);})){engineChoose(side);return;}
  var session={side:side,cur:root.cur,index:root.i,log:root.log,logLength:root.log.length,animations:[],done:false};
  root.busy=true;activeChoice=session;
  // The deadline never depends on animationend/finished, including cancellation.
