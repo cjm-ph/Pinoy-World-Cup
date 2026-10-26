@@ -1,4 +1,5 @@
 export const publicFiles = [
+  "scripts/member-creator-api.mjs",
   "scripts/member-creator-model.mjs",
   "scripts/member-creator-ui.mjs",
   "templates/member-creator.css",

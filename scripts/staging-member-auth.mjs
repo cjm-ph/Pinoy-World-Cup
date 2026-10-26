@@ -18,7 +18,9 @@ export function safeProfileDiagnostic(response={}) {
  const status=Number.isInteger(response.status)&&response.status>=100&&response.status<=599?response.status:0;
  const raw=response.error?.code;
  const code=typeof raw==='string'&&/^(?:[0-9A-Z]{5}|PGRST[0-9]{3})$/.test(raw)?raw:'UNKNOWN';
- return {status,code};
+ const message=response.error?.message;
+ const points={'Confirmed Google member session required':'GOOGLE_IDENTITY_GUARD','permission denied for schema pwc41_api':'API_SCHEMA_USAGE','permission denied for function ensure_google_member_profile':'PROFILE_RPC_EXECUTE','permission denied for table profiles':'PROFILE_TABLE_ACCESS','permission denied for table users':'AUTH_USERS_ACCESS','permission denied for table identities':'AUTH_IDENTITIES_ACCESS'};
+ return {status,code,...(Object.hasOwn(points,message)?{point:points[message]}:{})};
 }
 
 export async function initializeMemberAuth() {
@@ -32,13 +34,13 @@ export async function initializeMemberAuth() {
     async function render(session) {
       const current = ++revision;
       login.hidden = !!session; logout.hidden = !session;login.disabled=false;
-      delete status.dataset.profileHttp;delete status.dataset.profileCode;creator.setIdentity(null);
+      delete status.dataset.profileHttp;delete status.dataset.profileCode;delete status.dataset.profilePoint;creator.setIdentity(null);
       if (!session) { status.textContent = 'Play as a guest, or sign in with Google.'; return; }
       status.textContent = 'Preparing your member profile…';
       let response;try{response=await authClient.rpc('ensure_google_member_profile');}catch{response={status:0,error:{code:'UNKNOWN'}};}
       const {error}=response;
       if (current !== revision) return;
-      if(error){const diagnostic=safeProfileDiagnostic(response);status.dataset.profileHttp=String(diagnostic.status);status.dataset.profileCode=diagnostic.code;}
+      if(error){const diagnostic=safeProfileDiagnostic(response);status.dataset.profileHttp=String(diagnostic.status);status.dataset.profileCode=diagnostic.code;if(diagnostic.point)status.dataset.profilePoint=diagnostic.point;}
       else creator.setIdentity(session.user);
       status.textContent = error
         ? 'Member profile unavailable. Please sign out and try again. Guest play is still available.'

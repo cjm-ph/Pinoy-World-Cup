@@ -4,7 +4,7 @@ import {createGiphyEmbed} from './giphy-embed.mjs';
 import {classifyMediaUrl} from './media-url-policy.mjs';
 import {prepareYouTubeCandidate} from './candidate-media-policy.mjs';
 import {createCreatorPage} from './creator-page-ui.mjs';
-import {validateCreatorFile,assignCreatorFiles} from './creator-page-model.mjs';
+import {validateCreatorFile,assignCreatorFiles,autofillPhotoCandidate} from './creator-page-model.mjs';
 import {createTournamentManagement,managementActions} from './staging-tournament-management.mjs';
 import {createTournamentPurge} from './staging-tournament-purge.mjs';
 import {createPhotoCards} from './photo-card-editor.mjs';
@@ -241,7 +241,9 @@ function cards(inWizard=false){
   await validateCreatorFile(file);
   const out=await api.upload(t.id,file,rights?.onProgress);
   if(out.technical_state!=='ready'||!out.asset_id)throw Error('Upload is not finalized. Refresh before retrying.');
-  return finishUploadedPhoto(t.id,out,slot,inWizard,note,settings,rights?.onProgress);
+  const completed=await finishUploadedPhoto(t.id,out,slot,inWizard,note,settings,rights?.onProgress);
+  if(inWizard)await autofillPhotoCandidate(work,slot,file,async()=>{dirty=true;await saveWork({quiet:true,force:true});});
+  return completed;
 
  }),saveDisplay:async(slot,settings)=>photoOperation(async()=>{
   if(context?.photo_workflow_version!=='045'||!context?.photo_fit_modes)throw Error('Photo workflow update is not installed. Apply the approved Staging 045 and 046 SQL first.');

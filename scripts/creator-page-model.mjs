@@ -22,3 +22,11 @@ export function assignCreatorFiles(work,files,makeCandidate,jobs){
   jobs.set(p.id,{file,state:'pending',error:'',resume:null});accepted++;
  }return {accepted,excess:files.length-accepted};
 }
+
+// Name is committed only after successful lower-card upload/application; existing input wins.
+export async function autofillPhotoCandidate(work,slot,file,commit){
+ const p=slot==='cover'?null:work?.participants.find(p=>p.id===slot);
+ if(!p||p.name.trim())return false;
+ const previous=p.name,name=candidateFileName(file.name,work.participants.filter(x=>x!==p).map(x=>x.name));p.name=name;
+ try{await commit();return true;}catch(error){if(p.name===name)p.name=previous;throw error;}
+}
