@@ -28,5 +28,15 @@ export async function autofillPhotoCandidate(work,slot,file,commit){
  const p=slot==='cover'?null:work?.participants.find(p=>p.id===slot);
  if(!p||p.name.trim())return false;
  const previous=p.name,name=candidateFileName(file.name,work.participants.filter(x=>x!==p).map(x=>x.name));p.name=name;
- try{await commit();return true;}catch(error){if(p.name===name)p.name=previous;throw error;}
+ try{await commit(p);return true;}catch(error){if(p.name===name)p.name=previous;throw error;}
+}
+
+// Synchronize the actual Creator input before saveWork() captures the DOM again.
+export async function commitPhotoFilename(work,slot,file,{findInput,save}){
+ const p=work?.participants.find(p=>p.id===slot),input=findInput(slot);
+ if(p&&input?.value?.trim()){const changed=p.name!==input.value;p.name=input.value;if(changed)await save();return false;}
+ return autofillPhotoCandidate(work,slot,file,async candidate=>{
+  const previous=input?.value;if(input)input.value=candidate.name;
+  try{await save();}catch(error){if(input&&input.value===candidate.name)input.value=previous;throw error;}
+ });
 }

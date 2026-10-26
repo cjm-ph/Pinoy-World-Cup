@@ -4,7 +4,7 @@ import {createGiphyEmbed} from './giphy-embed.mjs';
 import {classifyMediaUrl} from './media-url-policy.mjs';
 import {prepareYouTubeCandidate} from './candidate-media-policy.mjs';
 import {createCreatorPage} from './creator-page-ui.mjs';
-import {validateCreatorFile,assignCreatorFiles,autofillPhotoCandidate} from './creator-page-model.mjs';
+import {validateCreatorFile,assignCreatorFiles,commitPhotoFilename} from './creator-page-model.mjs';
 import {createTournamentManagement,managementActions} from './staging-tournament-management.mjs';
 import {createTournamentPurge} from './staging-tournament-purge.mjs';
 import {createPhotoCards} from './photo-card-editor.mjs';
@@ -241,9 +241,7 @@ function cards(inWizard=false){
   await validateCreatorFile(file);
   const out=await api.upload(t.id,file,rights?.onProgress);
   if(out.technical_state!=='ready'||!out.asset_id)throw Error('Upload is not finalized. Refresh before retrying.');
-  const completed=await finishUploadedPhoto(t.id,out,slot,inWizard,note,settings,rights?.onProgress);
-  if(inWizard)await autofillPhotoCandidate(work,slot,file,async()=>{dirty=true;await saveWork({quiet:true,force:true});});
-  return completed;
+  return finishUploadedPhoto(t.id,out,slot,inWizard,note,settings,rights?.onProgress,file);
 
  }),saveDisplay:async(slot,settings)=>photoOperation(async()=>{
   if(context?.photo_workflow_version!=='045'||!context?.photo_fit_modes)throw Error('Photo workflow update is not installed. Apply the approved Staging 045 and 046 SQL first.');
@@ -253,7 +251,7 @@ function cards(inWizard=false){
   const aid=photoSlots(inWizard).find(p=>p.id===slot)?.asset;if(!aid)throw Error('No photo uploaded');
   const result=await api.photoDraft(t,aid,slot,settings);await reloadPhotoState(t.id,inWizard,result);
  })});}
-async function finishUploadedPhoto(tid,out,slot,inWizard,note,settings,onProgress){
+async function finishUploadedPhoto(tid,out,slot,inWizard,note,settings,onProgress,filenameFile=null){
  try{
   await guardSession();const t=tournaments.find(t=>t.id===tid);onProgress?.('Saving photo settings...');
   const result=await api.applyPhoto(t,out.asset_id,slot,settings,note);
@@ -266,8 +264,9 @@ async function finishUploadedPhoto(tid,out,slot,inWizard,note,settings,onProgres
    const candidate=work.participants.find(p=>p.id===slot);candidate.media=out.media;dirty=true;
    await saveWork({quiet:true,force:true});
   }
+  if(inWizard&&filenameFile)await commitPhotoFilename(work,slot,filenameFile,{findInput:id=>all('[data-candidate-name]').find(input=>input.dataset.candidateName===id),save:async()=>{dirty=true;await saveWork({quiet:true,force:true});}});
   return out;
- }catch(error){error.resume=(nextSettings=settings,nextNotes)=>photoOperation(()=>finishUploadedPhoto(tid,out,slot,inWizard,nextNotes?.notes??note,nextSettings,onProgress));throw error;}
+ }catch(error){error.resume=(nextSettings=settings,nextNotes)=>photoOperation(()=>finishUploadedPhoto(tid,out,slot,inWizard,nextNotes?.notes??note,nextSettings,onProgress,filenameFile));throw error;}
 }
 async function reloadPhotoState(tid,inWizard,result){
  selected=tournaments.find(t=>t.id===tid);

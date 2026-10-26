@@ -23,6 +23,14 @@ export function safeProfileDiagnostic(response={}) {
  return {status,code,...(Object.hasOwn(points,message)?{point:points[message]}:{})};
 }
 
+// Explicit operator diagnostic only; never called automatically or used to bypass auth.
+export async function readProfileConditionDiagnostics(){
+ const response=await getMemberClient().rpc('profile_google_conditions_v1');
+ if(response.error)return safeProfileDiagnostic(response);
+ const keys=['uid_present','auth_user_exists','google_identity_exists','email_confirmed','not_anonymous','jwt_provider_google','profile_exists'];
+ return Object.fromEntries(keys.map(k=>[k,typeof response.data?.[k]==='boolean'?response.data[k]:'UNKNOWN']));
+}
+
 export async function initializeMemberAuth() {
   const login = document.getElementById('memberGoogle');
   const logout = document.getElementById('memberLogout');
