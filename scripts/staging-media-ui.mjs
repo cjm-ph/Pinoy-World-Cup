@@ -1,3 +1,4 @@
+import {installMemberDirectory} from './staging-member-directory.mjs';
 import {mountCandidateMedia} from './mixed-media-game.mjs';
 import {prepareGiphyCandidate} from './giphy-policy.mjs';
 import {createGiphyEmbed} from './giphy-embed.mjs';
@@ -20,6 +21,7 @@ const adminLanguage=installAdminLanguage();
 const dataText=(tag,text,className)=>{const node=make(tag,text,className);node.dataset.i18nSkip='';return node;};
 const dateText=(tag,date,dateOnly=false)=>{const node=make(tag);node.dataset.i18nDate=date;if(dateOnly)node.dataset.i18nDateOnly='true';return node;};
 let client, api, dashboard, user, tournaments=[], categories=[], context=null, selected=null, revision=null,adminStatistics,adminComments;
+let adminMemberDirectory;
 let managementApi,management={available:false,trash:[]};
 let purgeApi,purgeState={enabled:false,jobs:[]};
 let photoWorking=false, batchBusy=false, youtubeBusy=false;
@@ -35,6 +37,7 @@ function lock() {
  creatorJobs.clear();creatorDeferredFiles=[];creatorNotice='';clearTimeout(creatorAutoTimer);creatorAutoTimer=null;
  adminStatistics?.reset();
  adminComments?.reset();
+ adminMemberDirectory?.reset();
  management={available:false,trash:[]};$('trashRows').replaceChildren();
  purgeState={enabled:false,jobs:[]};
  epoch++; authorized=false;selected=revision=asset=work=editing=game=null;user=null;dirty=false;tournaments=[];categories=[];context=null;clearPhotos();
@@ -67,6 +70,7 @@ async function navigate(next) {
  if(next==='create') {if(!work)newWork();else renderWizard();}
  setPage(next);
  if(next==='comments'&&authorized)adminComments?.enter();
+ if(next==='members'&&authorized)void adminMemberDirectory?.enter();
 }
 function toggleMenu(open) { $('adminSidebar').classList.toggle('open',open);$('menuScrim').classList.toggle('open',open);$('mobileMenu').setAttribute('aria-expanded',String(open)); }
 async function guardSession(){const {data,error}=await client.auth.getSession();if(error||!data.session||!authorized){lock();throw Error('Sign in with an authorized Staging administrator account.');}}
@@ -445,6 +449,7 @@ try {
  client=window.supabase.createClient(STAGING_URL,config.publishableKey,{auth:{storageKey:'pwc-staging-auth'}});
  adminStatistics=installAdminStatistics({client,getTournaments:()=>tournaments,getSelected:()=>selected,getLanguage:()=>adminLanguage.language,loadPhoto:photo,navigate});
  adminComments=installAdminComments({client,getLanguage:()=>adminLanguage.language});
+ adminMemberDirectory=installMemberDirectory({client,container:$('memberDirectory')});
  managementApi=createTournamentManagement(client);
  purgeApi=createTournamentPurge(client);
  const giphyContractsEnabled=window.PWC_STAGING?.giphyContractsEnabled===true;api=createMediaApi({client,gatewayOrigin:location.origin,pageOrigin:location.origin,giphyContractsEnabled});dashboard=createDashboardApi(client,api,undefined,{giphyContractsEnabled});

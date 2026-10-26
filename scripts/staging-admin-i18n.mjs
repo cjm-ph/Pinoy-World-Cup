@@ -1,6 +1,14 @@
 // Administrator-only presentation layer. Never translates form values or server content.
 export const LANGUAGE_KEY = 'pwc-staging-admin-language';
 export const KO = {
+ 'Read-only site profile directory. Account restrictions are not connected.':'읽기 전용 사이트 프로필 목록입니다. 계정 제한 기능은 연결되지 않았습니다.',
+ 'Open Members to load site profiles.':'회원 메뉴에서 사이트 프로필을 불러옵니다.',
+ 'Loading member profiles...':'회원 프로필을 불러오는 중...',
+ 'Site profiles only. Auth accounts without a site profile are not included.':'사이트 프로필만 표시합니다. 프로필이 없는 인증 계정은 포함되지 않습니다.',
+ 'No site profiles on this page.':'이 페이지에 사이트 프로필이 없습니다.',
+ 'Member directory unavailable. No member data was changed.':'회원 목록을 불러올 수 없습니다. 회원 데이터는 변경되지 않았습니다.',
+ 'Administrator profile':'관리자 프로필',
+ 'Member profile':'회원 프로필',
  "YouTube / GIPHY / Imgur URL":"YouTube / GIPHY / Imgur URL",
  "External GIPHY URL; availability and rights unverified.":"외부 GIPHY URL: 재생 가능 여부와 권리는 미확인입니다.",
  "GIPHY save contracts are not enabled. Your URL remains local.":"GIPHY 저장 계약이 비활성 상태입니다. URL은 로컬에 남습니다.",
