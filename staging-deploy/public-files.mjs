@@ -1,4 +1,7 @@
 export const publicFiles = [
+  "scripts/member-creator-model.mjs",
+  "scripts/member-creator-ui.mjs",
+  "templates/member-creator.css",
   "scripts/giphy-policy.mjs",
   "scripts/giphy-embed.mjs",
   "scripts/media-url-policy.mjs",

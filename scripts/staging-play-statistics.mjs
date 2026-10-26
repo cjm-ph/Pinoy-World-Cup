@@ -11,7 +11,7 @@ export function installPlayCollection(root=window){
  try{auth=getMemberClient().auth;auth.onAuthStateChange((_event,session)=>{identityEpoch++;setIdentity(session);});
   const at=identityEpoch;authReady=auth.getSession().then(({data,error})=>{if(!error&&at===identityEpoch)setIdentity(data.session);}).catch(()=>{});
  }catch{/* Auth readiness never blocks a game. Unknown identity stays Guest. */}
- collector=createPlayCollector({onStatus:text=>note.textContent=text,getIdentity:()=>identity,
+ collector=createPlayCollector({onStatus:text=>note.textContent=text==='Statistics connected.'?'':text,getIdentity:()=>identity,
   getToken:async owner=>{await authReady;if(!auth||identity!==owner)return null;const {data,error}=await auth.getSession();return !error&&identity===owner&&data.session?.user?.id===owner?data.session.access_token:null;}});collector.resume();
  const show=root.show;root.show=function(id){const result=show.apply(this,arguments);if(id==='play')try{
   const cup=root.PinoyAdapterV2?.viewModel?.tournaments.find(t=>t.id===root.tour.id);
