@@ -68,3 +68,10 @@
 .candidate-shell[data-kind=giphy]>.candidate-media{display:grid!important;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
 .candidate-shell[data-kind=giphy] .giphy-stage{width:100%;height:100%;box-sizing:border-box}
 .candidate-shell[data-kind=giphy] .giphy-frame{flex:1 1 0;min-width:0;align-self:stretch}
+
+/* Round40: SELECT-only GIPHY input and compact, non-overlay source/error footer. */
+.giphy-frame{pointer-events:none}
+.giphy-status[hidden]{display:none!important}
+.giphy-stage>a{flex:none;font-size:11px;line-height:1.2;margin:2px 8px}
+.giphy-status{flex:none;font-size:11px;line-height:1.3;margin:2px 8px}
+.giphy-preview-source,.home-giphy-source{font-size:11px;line-height:1.3;margin-right:8px}

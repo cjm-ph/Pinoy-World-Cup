@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import {createGiphyPreviewRoute} from './giphy-oembed.mjs';
 import { readFile, realpath } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -7,11 +8,12 @@ import { readStagingEnvironment, composeStaging } from '../server/gateway/stagin
 export function renderConfig(env) {
   return readStagingEnvironment({...env,PWC_STAGING_PORT:env.PORT || '10000'});
 }
-export function serveRender({ media, publicRoot }) {
+export function serveRender({ media, publicRoot,giphyPreview=createGiphyPreviewRoute() }) {
   const types={'.css':'text/css; charset=utf-8','.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.webp':'image/webp','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif'};
   return createServer(async(req,res)=>{
     try {
       const url=new URL(req.url,'http://localhost');
+      if(url.pathname==='/giphy-thumbnail'){await giphyPreview(req,res,url);return;}
       if(url.pathname==='/comments' || url.pathname==='/media' || url.pathname==='/animated-media' || url.pathname.startsWith('/admin/media/') || url.pathname==='/play-statistics' || url.pathname.startsWith('/play-statistics/')) {media.emit('request',req,res);return;}
       if(!['GET','HEAD'].includes(req.method)){res.writeHead(405);res.end();return;}
       res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');

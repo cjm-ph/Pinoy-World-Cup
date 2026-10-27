@@ -1,3 +1,4 @@
+import {giphyPreviewUrl} from './giphy-preview.mjs';
 import {classifyMediaUrl} from './media-url-policy.mjs';
 import {validateCreatorFile} from './creator-page-model.mjs';
 export const STAGING_URL = 'https://cmnomqsurdwhdbjgnsvw.supabase.co';
@@ -138,5 +139,5 @@ export function publishedItem(p, previous, mediaUrl) {
   const fallback = previous?._localPhoto || previous?.img || '';
   return { ...previous, id:p.id, person_id:p.entity_id, n:p.name, e:p.emoji || '',
     description:p.description, active:p.active, media:p.media?structuredClone(p.media):undefined, _localPhoto:undefined,
-    img:p.image_asset_id ? mediaUrl(p.image_asset_id) : fallback, _imageFallback:fallback };
+    img:giphyPreviewUrl(p.media)||(p.image_asset_id ? mediaUrl(p.image_asset_id) : fallback), _imageFallback:fallback };
 }

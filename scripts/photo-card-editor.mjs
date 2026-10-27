@@ -17,7 +17,7 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
    }catch(e){notify(e.message,'error');}finally{usage.disabled=false;}};
   }
   for(const slot of getSlots()){
-   const thumbnailOnly=slot.mediaType==='youtube';
+   const thumbnailOnly=['youtube','giphy'].includes(slot.mediaType);
    const card=node('article',null,'photo-editor-card');card.dataset.photoSlot=slot.id;
    const title=node('h3',slot.name);if(slot.id!=='cover')title.dataset.i18nSkip='';
    const pick=node('button',slot.asset?'Replace photo':'+ Add photo','btn photo-picker');pick.type='button';pick.disabled=busy||!canEdit();
@@ -26,7 +26,7 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
    const frame=node('div',null,'photo-original');frame.append(node('span','+ Add photo','help'));
    const status=node('p','', 'help');status.setAttribute('role','status');
    const edit=node('button','Edit display area','btn small photo-edit');edit.type='button';edit.disabled=!slot.asset||busy||!canEdit();
-   card.append(title,frame,pick,edit,input,status);root.append(card);
+   card.append(title,frame,pick,edit,input,status);if(slot.sourceUrl){const source=node('a','View on GIPHY','giphy-preview-source');source.href=slot.sourceUrl;source.target='_blank';source.rel='noopener noreferrer';card.append(source);}root.append(card);
    if(thumbnailOnly){pick.hidden=edit.hidden=true;frame.removeAttribute('tabindex');}
    frame.tabIndex=0;frame.setAttribute('role','button');frame.setAttribute('aria-label','Add or replace photo');
    if(thumbnailOnly){frame.removeAttribute('role');frame.removeAttribute('tabindex');frame.setAttribute('aria-label','Video thumbnail');}
@@ -43,9 +43,9 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
     pick.before(previews);
    }
    let photoUrl;
-   async function load(){if(!slot.asset)return;try{photoUrl=await loadPhoto(slot.asset);if(!photoUrl||!card.isConnected)return;
-    if(previewDevices.length){for(const {device,stage}of previewDevices){const image=node('img');image.src=photoUrl;image.alt=slot.name;image.loading='lazy';image.dataset.i18nSkip='';stage.replaceChildren(image);globalThis.PWCPhotoDisplay.apply(image,slot.settings,device);}sizeCardPreviews();return;}
-    const image=node('img');image.src=photoUrl;image.alt=slot.name;image.dataset.i18nSkip='';frame.replaceChildren(image);globalThis.PWCPhotoDisplay.apply(image,slot.settings);const r=globalThis.PWCPhotoDisplay[slot.id==='cover'?'coverRatio':'gameRatio'](innerWidth,innerHeight);frame.style.aspectRatio=String(r);frame.style.width=`min(100%, ${150*r}px)`;frame.style.height='auto';frame.style.marginInline='auto';
+   async function load(){if(!slot.asset&&!slot.previewUrl)return;try{photoUrl=await(slot.previewUrl||loadPhoto(slot.asset));if(!photoUrl||!card.isConnected)return;
+    if(previewDevices.length){for(const {device,stage}of previewDevices){const image=node('img');image.src=photoUrl;image.alt=slot.name;image.loading='lazy';image.dataset.i18nSkip='';if(slot.previewUrl)image.onerror=()=>stage.replaceChildren(node('span','Preview unavailable','help'));stage.replaceChildren(image);globalThis.PWCPhotoDisplay.apply(image,slot.settings,device);}sizeCardPreviews();return;}
+    const image=node('img');image.src=photoUrl;image.alt=slot.name;image.dataset.i18nSkip='';if(slot.previewUrl)image.onerror=()=>frame.replaceChildren(node('span','Preview unavailable','help'));frame.replaceChildren(image);globalThis.PWCPhotoDisplay.apply(image,slot.settings);const r=globalThis.PWCPhotoDisplay[slot.id==='cover'?'coverRatio':'gameRatio'](innerWidth,innerHeight);frame.style.aspectRatio=String(r);frame.style.width=`min(100%, ${150*r}px)`;frame.style.height='auto';frame.style.marginInline='auto';
    }catch(e){status.textContent=e.message;}}
    function sizeCardPreviews(){for(const {device,stage}of previewDevices){const viewport=device==='desktop'?(innerWidth>=768?[innerWidth,innerHeight]:[1440,900]):(innerWidth<768?[innerWidth,innerHeight]:[390,844]);const ratio=globalThis.PWCPhotoDisplay.gameRatio(...viewport);stage.style.aspectRatio=String(ratio);stage.style.width=`min(100%, ${150*ratio}px)`;stage.style.height='auto';stage.style.marginInline='auto';const image=stage.querySelector('img');if(image)globalThis.PWCPhotoDisplay.apply(image,slot.settings,device);}}
    sizeCardPreviews();

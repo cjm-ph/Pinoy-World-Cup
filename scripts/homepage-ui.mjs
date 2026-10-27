@@ -1,15 +1,17 @@
+import {giphyPreview} from './giphy-preview.mjs';
 import {readHomepage} from './homepage-read-api.mjs';
 import {createCoverPicker,publicImageUrl} from './homepage-cover-model.mjs';
 export function installHomepage(root,{read=readHomepage,random=Math.random}={}) {
  const $=id=>document.getElementById(id),el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const tabs=$('homeTabs'),grid=$('grid'),search=$('homeSearch'),empty=$('homeEmpty');
  let sort='popular',period='month',rows=[],offset=0,total=0,loading=false,failed=false,generation=0;
- const pick=createCoverPicker(random),registry=new Map(root.TOURNAMENTS.map(t=>[t.id,t]));
+ const registry=new Map(root.TOURNAMENTS.map(t=>[t.id,t])),pick=createCoverPicker(random,{source:p=>p?.previewSource});
+ const coverRow=row=>({...row,candidates:(row.candidates||[]).map(p=>{const preview=giphyPreview(registry.get(row.tournament_id)?.items.find(i=>i.id===p.participant_id)?.media);return {...p,previewSource:preview?.src||publicImageUrl(p.image_asset_id),giphySource:preview?.source};})});
  // Reuse this visit's cached card pair; never draw another popup candidate or mutate covers.
  root.PWCHomepageStartCover=id=>{
   const row=rows.find(r=>r.tournament_id===id),tournament=registry.get(id);
   if(!row||tournament?._statistics_revision_id!==row.revision_id)return null;
-  const sources=pick(row).map(p=>publicImageUrl(p?.image_asset_id)).filter(Boolean);
+  const sources=pick(coverRow(row)).map(p=>p?.previewSource).filter(Boolean);
   return {source:sources[0]||'',fallbackSources:sources.slice(1),fit:'contain',position:'50% 50%'};
  };
  const periods=el('div',undefined,'home-periods'),status=el('p',undefined,'home-read-status'),retry=el('button','Retry','home-tab'),more=el('button','Load more','home-tab');
@@ -27,18 +29,18 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
    if(!tournament||tournament._statistics_revision_id!==row.revision_id||!tournament.title.toLowerCase().includes(query))continue;
    const card=el('article',undefined,'home-card');card.dataset.tournamentId=tournament.id;
    const media=el('button',undefined,'home-photo');media.type='button';media.dataset.coverMode='automatic-pair';media.setAttribute('aria-label','Choose a round for '+tournament.title);media.onclick=()=>root.start(tournament);
-   const pair=pick(row);
+   const pair=pick(coverRow(row));
    for(let index=0;index<2;index++){
     const candidate=pair[index],half=el('span',undefined,'home-photo-half');half.dataset.participantId=candidate?.participant_id||'';
     const fallback=el('span','Image unavailable','home-pair-fallback');half.append(fallback);
-    const src=publicImageUrl(candidate?.image_asset_id);
+    const src=candidate?.previewSource;
     if(src){const image=el('img');image.alt='Candidate '+(index+1)+' in '+tournament.title;image.loading='lazy';image.onload=()=>{fallback.hidden=true;};image.onerror=()=>{if(!half.isConnected)return;pick.failed(row,candidate.participant_id);render();};image.src=src;half.append(image);}
     media.append(half);
    }
    const badge=el('span',String(tournament.category||'others').toUpperCase(),'home-badge');media.append(badge);card.append(media);
    const body=el('div',undefined,'home-card-body'),line=el('div',undefined,'home-title-row'),title=el('button',tournament.title,'home-title'),details=el('button','Details','home-details');title.type=details.type='button';title.onclick=()=>root.start(tournament);
    details.setAttribute('aria-label','Details for '+tournament.title+' - coming soon');details.onclick=event=>{event.stopPropagation();$('homeDetailsTitle').textContent=tournament.title;$('homeDetailsDialog').showModal();};
-   line.append(title,details);body.append(line);card.append(body);grid.append(card);
+   line.append(title,details);body.append(line);for(const [index,p] of pair.entries())if(p.giphySource){const link=el('a','View on GIPHY '+(index+1),'home-giphy-source');link.href=p.giphySource;link.target='_blank';link.rel='noopener noreferrer';body.append(link);}card.append(body);grid.append(card);
   }
   empty.hidden=loading||failed||grid.children.length>0;
   empty.textContent='No World Cups found.';more.hidden=loading||failed||offset>=total;retry.hidden=!failed;
@@ -56,7 +58,7 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
     if(!Number.isSafeInteger(result.total)||result.total<0||result.offset!==offset||result.items.some(r=>!r||typeof r.tournament_id!=='string'||typeof r.revision_id!=='string'||!Array.isArray(r.candidates)))throw Error('Invalid homepage response');
     if(result.total>10050)throw Error('Catalogue exceeds supported pagination');
     total=result.total;
-    for(const row of result.items){if(!rows.some(r=>r.tournament_id===row.tournament_id)){rows.push(row);pick(row);}}
+    for(const row of result.items){if(!rows.some(r=>r.tournament_id===row.tournament_id)){rows.push(row);pick(coverRow(row));}}
     offset+=result.items.length;
     if(!result.items.length&&offset<total)throw Error('Incomplete homepage response');
     // Search walks remaining server pages, preserving their order; no per-candidate requests.
