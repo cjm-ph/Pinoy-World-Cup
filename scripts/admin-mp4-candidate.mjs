@@ -1,8 +1,9 @@
+import {mediaTimeRange} from './candidate-media-policy.mjs';
 import {imgurProvenance,checkedMp4} from './mp4-source-contract.mjs';
 // Registration is supplied by an authoritative service or an explicit local fixture.
 // No network, persistence fallback, feature activation or ambient browser hook.
-export async function registerAdminMp4Candidate({work,candidateId,url,register,enabled=false,expectedVersion,createCandidate}) {
- const source=imgurProvenance(url);
+export async function registerAdminMp4Candidate({work,candidateId,url,register,enabled=false,expectedVersion,createCandidate,startSeconds=0,endSeconds=null}) {
+ const range=mediaTimeRange(startSeconds,endSeconds),source=imgurProvenance(url);
  if(!enabled||typeof register!=='function')throw Error('Imgur registration is not enabled. Existing candidates are unchanged.');
  if(!Number.isSafeInteger(expectedVersion)||expectedVersion<0)throw Error('Current edit version is required.');
  if(work.giphy_contract||work.participants.some(p=>p.media?.type==='giphy'))throw Error('Mixed GIPHY/MP4 save unsupported.');
@@ -17,6 +18,6 @@ export async function registerAdminMp4Candidate({work,candidateId,url,register,e
  if(result?.technical_state!=='ready'||!result.asset_id||media.poster_asset_id!==result.asset_id||JSON.stringify(media.source)!==JSON.stringify(source))throw Error('MP4 registration was not confirmed.');
  if(JSON.stringify(work)!==before)throw Error('Draft changed during registration. Retry from the current draft.');
  if(!work.participants.includes(slot))work.participants.push(slot);
- slot.media=media;slot.image_asset_id=result.asset_id;work.mp4_contract=true;
+ slot.media={...media,...range};slot.image_asset_id=result.asset_id;work.mp4_contract=true;
  return slot;
 }

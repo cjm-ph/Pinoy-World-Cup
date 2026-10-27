@@ -1,3 +1,4 @@
+import {mediaTimeRange} from './candidate-media-policy.mjs';
 import {classifyMediaUrl} from './media-url-policy.mjs';
 // Provenance only: URL acceptance never grants permission or starts collection.
 export function imgurProvenance(input) {
@@ -12,7 +13,7 @@ export function checkedImgurProvenance(value) {
 }
 export function checkedMp4(media) {
  if(media?.type!=='mp4'||!/^video_[a-f0-9-]{36}$/.test(media.video_id||''))throw Error('Invalid MP4 descriptor');
- const result={...structuredClone(media)};
+ const result={...structuredClone(media)};if(media.startSeconds!==undefined||media.endSeconds!==undefined)Object.assign(result,mediaTimeRange(media.startSeconds,media.endSeconds));
  if(media.source!==undefined){
   result.source=checkedImgurProvenance(media.source);
  }

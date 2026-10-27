@@ -19,7 +19,7 @@ export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),
  root.fill=function(slot,participant){
   dispose(slot);fill.call(this,slot,participant);
   const source=participant.media,art=slot.querySelector('.art'),name=slot.querySelector('.name');
-  const shell=document.createElement('section');shell.className='candidate-shell';shell.dataset.kind=source?.type||'photo';
+  const shell=document.createElement('section');shell.className='candidate-shell';shell.dataset.kind=source?.type||'photo';if(source?.playbackMode==='shorts')shell.dataset.playback='shorts';
   const title=document.createElement('div');title.className='candidate-title';title.textContent=participant.n;title.title=participant.n;
   const header=document.createElement('header');header.className='candidate-heading';header.append(title);
   slot.before(shell);shell.append(header,art,slot);art.classList.add('candidate-media');
@@ -36,7 +36,7 @@ export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),
    Promise.resolve().then(()=>videoSource(source)).then(data=>{
     let released=false;const release=()=>{if(!released){released=true;data?.release?.();}};
     if(entry.cancelled){release();return;}
-    try{const handle=mountLocalMp4(image,data);entry.player={destroy:()=>{handle.dispose();release();}};handle.video.addEventListener('error',()=>{clearInterval(entry.muteTimer);entry.player?.destroy();entry.player=null;unavailable();},{once:true});}
+    try{const handle=mountLocalMp4(image,{...data,startSeconds:source.startSeconds,endSeconds:source.endSeconds});entry.player={destroy:()=>{handle.dispose();release();}};handle.video.addEventListener('error',()=>{clearInterval(entry.muteTimer);entry.player?.destroy();entry.player=null;unavailable();},{once:true});}
     catch(e){release();throw e;}
    }).catch(unavailable);return;
   }
@@ -52,10 +52,10 @@ export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),
    Promise.resolve().then(loadPlayer).then(YT=>{if(entry.cancelled)return;const r=art.getBoundingClientRect();if(r.width<200||r.height-notice.getBoundingClientRect().height<200){loading=false;size();return;}
     const target=document.createElement('div');host.replaceChildren(target);entry.player=new YT.Player(target,{host:'https://www.youtube-nocookie.com',width:'100%',height:'100%',videoId:checked.videoId,
      playerVars:{autoplay:shorts?1:0,...(shorts?{mute:1,loop:1,playlist:checked.videoId}:{}),controls:1,fs:1,playsinline:1,origin:root.location.origin,start:checked.startSeconds,...(checked.endSeconds===null?{}:{end:checked.endSeconds})},
-     events:{onReady:event=>{if(entry.cancelled||entry.player!==event.target){event.target.destroy();return;}if(shorts){event.target.mute();event.target.loadVideoById({videoId:checked.videoId,startSeconds:0});event.target.playVideo();entry.muteTimer=setInterval(()=>{if(!entry.cancelled)event.target.mute();},500);manual.hidden=false;status.textContent='Muted loop. If playback stops, press Play.';size();return;}event.target.cueVideoById({videoId:checked.videoId,startSeconds:checked.startSeconds,...(checked.endSeconds===null?{}:{endSeconds:checked.endSeconds})});status.textContent='';notice.hidden=true;},
+     events:{onReady:event=>{if(entry.cancelled||entry.player!==event.target){event.target.destroy();return;}if(shorts){event.target.mute();event.target.loadVideoById({videoId:checked.videoId,startSeconds:checked.startSeconds,...(checked.endSeconds===null?{}:{endSeconds:checked.endSeconds})});event.target.playVideo();entry.muteTimer=setInterval(()=>{if(!entry.cancelled){event.target.mute();const current=event.target.getCurrentTime?.();if(event.target.getPlayerState?.()===1&&Number.isFinite(current)&&(current<checked.startSeconds||(checked.endSeconds!==null&&current>=checked.endSeconds))){event.target.seekTo(checked.startSeconds,true);event.target.playVideo();}}},200);manual.hidden=false;status.textContent='Muted loop. If playback stops, press Play.';size();return;}event.target.cueVideoById({videoId:checked.videoId,startSeconds:checked.startSeconds,...(checked.endSeconds===null?{}:{endSeconds:checked.endSeconds})});status.textContent='';notice.hidden=true;},
       onError:()=>{notice.hidden=false;status.textContent='Video unavailable. You can still select this candidate.';},
       onAutoplayBlocked:()=>{if(entry.cancelled)return;notice.hidden=false;status.textContent='Use the official player controls to play.';if(shorts)manual.hidden=false;},
-      onStateChange:event=>{if(entry.cancelled)return;if(shorts){event.target.mute();if(event.data===0){event.target.seekTo(0,true);event.target.playVideo();}if(event.data===1){manual.hidden=true;notice.hidden=true;}return;}if(event.data===1)for(const other of live.values())if(other!==entry)try{other.player?.pauseVideo();}catch{}}}});
+      onStateChange:event=>{if(entry.cancelled)return;if(shorts){event.target.mute();if(event.data===0){event.target.seekTo(checked.startSeconds,true);event.target.playVideo();}if(event.data===1){manual.hidden=true;notice.hidden=true;}return;}if(event.data===1)for(const other of live.values())if(other!==entry)try{other.player?.pauseVideo();}catch{}}}});
    }).catch(()=>{failed=true;status.textContent='Video player unavailable. You can still select this candidate.';}).finally(()=>{loading=false;});
   };
   entry.observer=new ResizeObserver(size);entry.observer.observe(art);size();

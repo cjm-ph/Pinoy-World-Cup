@@ -344,7 +344,7 @@ function renderWizard(){
  $('creatorBatchNotes').value=pendingNotes;
 }
 async function addYouTube(url,start,end,candidateId=null){
- const classified=classifyMediaUrl(url,start,end);if(classified.provider==='imgur')return registerAdminMp4Candidate({work,candidateId,url});
+ const classified=classifyMediaUrl(url,start,end);if(classified.provider==='imgur')return registerAdminMp4Candidate({work,candidateId,url,startSeconds:start,endSeconds:end});
  captureWizard();if(classified.provider==='giphy'&&(work.mp4_contract||work.participants.some(p=>p.media?.type==='mp4')))throw Error('Mixed GIPHY/MP4 save unsupported.');if(batchBusy||photoWorking)throw Error('Wait for the current upload.');
  if(!work.title.trim())throw Error('Enter the World Cup title before registering media.');
  if(!work.category_id)throw Error(work.category_error);

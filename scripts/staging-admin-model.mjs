@@ -1,4 +1,5 @@
 import {checkedGiphy} from './giphy-policy.mjs';
+import {checkedMp4} from './mp4-source-contract.mjs';
 // Server payload adapter for the existing five-step creator and revision RPC.
 export const STEPS = ['Basic info', 'Candidates', 'Photos', 'Preview', 'Save or publish'];
 export function resolveOthersCategory(categories) {
@@ -26,11 +27,11 @@ export function filterTournaments(rows, {search = '', category = '', status = ''
     && (!status || statusOf(t) === status));
 }
 export function workFromRevision(t, r) {
-  return {giphy_contract:r.giphy_contract===true||(r.participants||[]).some(p=>p.media?.type==='giphy'),mp4_contract:(r.participants||[]).some(p=>p.media?.type==='mp4'),tournament_id: t.id, base_revision_id: r.id, title: r.title, description: r.description || '',
+  return {giphy_contract:r.giphy_contract===true||(r.participants||[]).some(p=>p.media?.type==='giphy'),mp4_contract:r.mp4_contract===true||(r.participants||[]).some(p=>p.media?.type==='mp4'),tournament_id: t.id, base_revision_id: r.id, title: r.title, description: r.description || '',
     category_id: r.category_ids?.[0] || '', category_ids:[...(r.category_ids||[])], requested_size: r.requested_size || t.requested_size || 8,
     cover_participant_id: null, cover_asset_id: r.cover_asset_id,
     cover_settings: (r.presentations||[]).find(m=>!m.participant_id&&m.context==='start')?.settings||{},
-    participants: (r.participants || []).map(p => ({...p, image_asset_id: p.image_asset_id || null,
+    participants: (r.participants || []).map(p => ({...p, ...(p.media?.type==='mp4'?{media:checkedMp4(p.media)}:{}), image_asset_id: p.image_asset_id || null,
       pending_url: p.pending_url || '', presentations: Object.fromEntries((r.presentations || [])
         .filter(m => m.participant_id === p.id).map(m => [m.context, m.settings]))}))};
 }
@@ -47,7 +48,7 @@ export function draftPayload(work,{allowIncomplete=false}={}) {
     category_ids: work.category_ids?.length?[...work.category_ids]:[work.category_id], cover_participant_id: null,
     participants: work.participants.map(p => ({id: p.id, entity_id: p.entity_id, kind: 'other', name: p.name.trim(),
       description: p.description || '', emoji: p.emoji || '', active: p.active !== false,
-      media:p.media?.type==='giphy'?{...checkedGiphy(p.media)}:p.media?structuredClone(p.media):null, image_asset_id: p.image_asset_id || null, pending_url: p.pending_url || '', presentations: p.presentations || {}}))};
+      media:p.media?.type==='giphy'?{...checkedGiphy(p.media)}:p.media?.type==='mp4'?checkedMp4(p.media):p.media?structuredClone(p.media):null, image_asset_id: p.image_asset_id || null, pending_url: p.pending_url || '', presentations: p.presentations || {}}))};
 }
 export function canEditMetadata(t, uid) {
   return !!t && t.creator_id === uid && ['private','public'].includes(t.visibility)
@@ -74,6 +75,7 @@ export function createDashboardApi(client, media, uuid = () => crypto.randomUUID
       const giphy=work.giphy_contract||work.participants.some(p=>p.media?.type==='giphy');
       if(giphy&&!giphyContractsEnabled)throw Error('GIPHY save contracts are not enabled. Your URL remains local.');
       const video=work.mp4_contract||work.participants.some(p=>p.media?.type==='mp4');
+      if(video&&work.participants.some(p=>p.media?.type==='mp4'&&((p.media.startSeconds??0)!==0||p.media.endSeconds!=null)))throw Error('MP4 clip persistence is not connected. Existing media is unchanged.');
       if(video&&giphy)throw Error('Mixed GIPHY/MP4 contracts are not enabled.');
       if(video&&!mp4ContractsEnabled)throw Error('MP4 registration contracts are not enabled.');
       return media.rpc(giphy?'giphy_save_draft_v1':video?'admin_mp4_save_draft_v1':work.participants.some(p=>p.media)?'admin_mixed_media_save_draft':'admin_media_save_draft', {req: uuid(), tid: work.tournament_id, rid: 'rev_' + uuid(),

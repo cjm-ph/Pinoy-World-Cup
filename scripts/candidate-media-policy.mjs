@@ -7,6 +7,12 @@ export async function isAnimationInput(file){
  return String.fromCharCode(...header.slice(12,16))==='VP8X'&&!!(header[20]&2);
 }
 const videoIdPattern=/^[A-Za-z0-9_-]{11}$/;
+export function mediaTimeRange(start='',end='') {
+ const seconds=(value,optional)=>{if(value===''||value===null||value===undefined)return optional?null:0;if((typeof value!=='number'&&typeof value!=='string')||!/^\d+$/.test(String(value)))throw Error('Use non-negative whole seconds');const n=Number(value);if(!Number.isSafeInteger(n))throw Error('Invalid seconds');return n;};
+ const startSeconds=seconds(start,false),endSeconds=seconds(end,true);
+ if(endSeconds!==null&&endSeconds<=startSeconds)throw Error('End must be after start');
+ return {startSeconds,endSeconds};
+}
 export function youtubeSource(input,start='',end='') {
  if(typeof input!=='string'||input.length>2048||/[\u0000-\u001f\u007f]/.test(input))throw Error('Invalid YouTube URL');
  let url;try{url=new URL(input.trim());}catch{throw Error('Invalid YouTube URL');}
@@ -18,14 +24,8 @@ export function youtubeSource(input,start='',end='') {
   else if(parts.length===2&&['shorts','embed','live'].includes(parts[0]))videoId=parts[1];
  }
  if(!videoIdPattern.test(videoId||''))throw Error('Unsupported YouTube URL');
- const seconds=(value,optional)=>{
-  if(value===''||value===null||value===undefined)return optional?null:0;
-  if((typeof value!=='number'&&typeof value!=='string')||!/^\d+$/.test(String(value)))throw Error('Use non-negative whole seconds');
-  const n=Number(value);if(!Number.isSafeInteger(n))throw Error('Invalid seconds');return n;
- };
  const shorts=['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com'].includes(url.hostname)&&parts.length===2&&parts[0]==='shorts';
- const startSeconds=shorts?0:seconds(start,false),endSeconds=shorts?null:seconds(end,true);
- if(endSeconds!==null&&endSeconds<=startSeconds)throw Error('End must be after start');
+ const {startSeconds,endSeconds}=mediaTimeRange(start,end);
  return Object.freeze({...(shorts?{playbackMode:'shorts',originalUrl:'https://www.youtube.com/shorts/'+videoId}:{}),type:'youtube',videoId,url:'https://www.youtube.com/watch?v='+videoId,startSeconds,endSeconds,
   thumbnailUrl:'https://i.ytimg.com/vi/'+videoId+'/hqdefault.jpg'});
 }

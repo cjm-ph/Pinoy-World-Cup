@@ -1,4 +1,4 @@
-import {youtubeSource} from './candidate-media-policy.mjs';
+import {youtubeSource,mediaTimeRange} from './candidate-media-policy.mjs';
 import {giphySource} from './giphy-policy.mjs';
 export function classifyMediaUrl(input,start='',end=''){
  const fail=()=>{throw Error('Unsupported media URL');};
@@ -6,7 +6,7 @@ export function classifyMediaUrl(input,start='',end=''){
  input=input.trim();if(/\s/.test(input))return fail();
  let u;try{u=new URL(input);}catch{return fail();}
  if(u.protocol!=='https:'||u.username||u.password||u.port)return fail();
- if(['giphy.com','www.giphy.com'].includes(u.hostname))return {provider:'giphy',source:giphySource(input)};
+ if(['giphy.com','www.giphy.com'].includes(u.hostname)){const range=mediaTimeRange(start,end);if(range.startSeconds!==0||range.endSeconds!==null)throw Error('GIPHY official iframe does not support time ranges.');return {provider:'giphy',source:giphySource(input)};}
  if(['youtu.be','youtube.com','www.youtube.com','m.youtube.com','music.youtube.com'].includes(u.hostname)){
   try{return {provider:'youtube',source:youtubeSource(input,start,end)};}catch{return fail();}
  }

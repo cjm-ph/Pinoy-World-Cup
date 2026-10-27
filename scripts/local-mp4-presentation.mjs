@@ -1,3 +1,4 @@
+import {mediaTimeRange} from './candidate-media-policy.mjs';
 // Explicit local preparation only. No database descriptor or production route.
 import {validateCreatorFile} from './creator-page-model.mjs';
 const mounted=new WeakMap();
@@ -11,17 +12,26 @@ async function cleanThumbnail(blob){
  const header=new Uint8Array(12);header.set([82,73,70,70]);new DataView(header.buffer).setUint32(4,size,true);header.set([87,69,66,80],8);
  return new Blob([header,...parts],{type:'image/webp'});
 }
-export function mountLocalMp4(image,{blob,url:sourceUrl,poster,document:doc=document}){
+export function bindLocalVideoRange(video,start='',end='') {
+ const range=mediaTimeRange(start,end),custom=range.startSeconds!==0||range.endSeconds!==null;
+ video.loop=!custom;let disposed=false;
+ const restart=()=>{if(disposed)return;video.currentTime=range.startSeconds;video.play().catch(()=>{});};
+ const metadata=()=>{if(disposed)return;if(!Number.isFinite(video.duration)||range.startSeconds>=video.duration||(range.endSeconds!==null&&range.endSeconds>video.duration)){video.pause();video.dispatchEvent(new Event('error'));return;}if(custom)restart();};
+ const tick=()=>{if(disposed||!custom||video.seeking)return;if(video.currentTime<range.startSeconds||(range.endSeconds!==null&&video.currentTime>=range.endSeconds))restart();};
+ const ended=()=>{if(custom)restart();};video.addEventListener('loadedmetadata',metadata);video.addEventListener('timeupdate',tick);video.addEventListener('ended',ended);
+ return ()=>{disposed=true;video.removeEventListener('loadedmetadata',metadata);video.removeEventListener('timeupdate',tick);video.removeEventListener('ended',ended);};
+}
+export function mountLocalMp4(image,{blob,url:sourceUrl,poster,startSeconds=0,endSeconds=null,document:doc=document}){
  if(typeof poster!=='string'||!poster.startsWith('blob:'))throw Error('Validated thumbnail required');
  if(blob){if(!(blob instanceof Blob)||blob.type!=='video/mp4'||blob.size>10_000_000)throw Error('Validated video required');}
  else{const u=new URL(sourceUrl,doc.location.href);if(u.username||u.password||u.origin!==doc.location.origin||u.pathname!=='/video-media'||u.searchParams.size!==1||!/^video_[a-f0-9-]{36}$/.test(u.searchParams.get('video')||'')||u.hash)throw Error('Authorized same-origin video route required');sourceUrl=u.href;}
- mounted.get(image)?.dispose();
+ mediaTimeRange(startSeconds,endSeconds);mounted.get(image)?.dispose();
  const video=doc.createElement('video'),url=blob?URL.createObjectURL(blob):sourceUrl;
  video.className=image.className;video.style.cssText=image.style.cssText;
  // Reuse the image box, fit, zoom and position; never resize the candidate card.
  video.style.pointerEvents='none';video.muted=true;video.defaultMuted=true;video.autoplay=true;video.loop=true;video.controls=false;video.playsInline=true;video.poster=poster;video.src=url;
- image.replaceWith(video);video.play().catch(()=>{});
- let disposed=false;const handle={video,dispose(){if(disposed)return;disposed=true;video.pause();video.removeAttribute('src');video.load();video.replaceWith(image);if(blob)URL.revokeObjectURL(url);mounted.delete(image);}};mounted.set(image,handle);return handle;
+ const unbind=bindLocalVideoRange(video,startSeconds,endSeconds);image.replaceWith(video);video.play().catch(()=>{});
+ let disposed=false;const handle={video,dispose(){if(disposed)return;disposed=true;unbind();video.pause();video.removeAttribute('src');video.load();video.replaceWith(image);if(blob)URL.revokeObjectURL(url);mounted.delete(image);}};mounted.set(image,handle);return handle;
 }
 export async function captureLocalMp4Thumbnail(blob,{signal,timeoutMs=8000}={}){
  if(!(blob instanceof Blob)||blob.type!=='video/mp4'||blob.size>10_000_000)throw Error('Local MP4 required');

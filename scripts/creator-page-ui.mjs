@@ -20,19 +20,20 @@ export function createCreatorPage({work,categories,capture,onChange,onResize,onF
  const video=el('div',undefined,'creator-youtube');
  const videoInput=(label,type)=>{const box=el('label',label),input=el('input');input.type=type;input.disabled=busy;if(type==='number'){input.min='0';input.step='1';}box.append(input);video.append(box);return input;};
  const url=videoInput('YouTube / GIPHY / Imgur URL','url'),start=videoInput('Start (seconds, optional)','number'),end=videoInput('End (seconds, optional)','number');
+ start.value='0';const timingNote=el('span','Start defaults to 0; an empty end plays to the end.');timingNote.setAttribute('role','status');const updateTiming=()=>{let giphy=false;try{giphy=['giphy.com','www.giphy.com'].includes(new URL(url.value).hostname);}catch{}start.disabled=end.disabled=busy||giphy;timingNote.textContent=giphy?'GIPHY official iframe does not support time ranges.':'Start defaults to 0; an empty end plays to the end.';};url.addEventListener('input',updateTiming);
  url.id='creatorYouTubeUrl';start.id='creatorYouTubeStart';end.id='creatorYouTubeEnd';
- const register=action('Add media URL',async()=>{register.disabled=true;try{await onYouTube?.(url.value,start.value,end.value,url.dataset.candidateId||null);}catch(error){onError(error.message);}finally{register.disabled=busy;}});video.append(register);candidates.append(video);
+ const register=action('Add media URL',async()=>{register.disabled=true;try{await onYouTube?.(url.value,start.disabled?'':start.value,end.disabled?'':end.value,url.dataset.candidateId||null);}catch(error){onError(error.message);}finally{register.disabled=busy;}});video.append(register);candidates.append(video,timingNote);
  const notes=el('textarea');notes.id='creatorBatchNotes';notes.maxLength=4000;notes.placeholder='Source / notes (optional)';notes.setAttribute('aria-label','Batch source / notes');notes.disabled=busy;candidates.append(notes);
  for(const p of work.participants){const row=el('div',undefined,'creator-candidate-input');row.dataset.candidateId=p.id;const input=el('input');input.value=p.name;input.maxLength=300;input.dataset.candidateName=p.id;input.dataset.i18nSkip='';input.setAttribute('aria-label','Candidate name');input.disabled=busy;input.oninput=()=>{p.name=input.value;onChange();};
-  if(p.media?.type==='giphy'){const info=el('div',undefined,'creator-video-info'),edit=action(p.media.url,()=>{url.value=p.media.url;url.dataset.candidateId=p.id;start.value=end.value='';url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit,el('span','External GIPHY URL; availability and rights unverified.'));row.append(info);}
+  if(p.media?.type==='giphy'){const info=el('div',undefined,'creator-video-info'),edit=action(p.media.url,()=>{url.value=p.media.url;url.dataset.candidateId=p.id;start.value='0';end.value='';updateTiming();url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit,el('span','External GIPHY URL; availability and rights unverified.'));row.append(info);}
   if(p.media?.type==='youtube'){
    const info=el('div',undefined,'creator-video-info');
-   const edit=action(p.media.url,()=>{url.value=p.media.originalUrl||p.media.url;url.dataset.candidateId=p.id;start.value=p.media.startSeconds??0;end.value=p.media.endSeconds??'';url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit,el('span','Start: '+clipTime(p.media.startSeconds)+' / '+(p.media.endSeconds==null?'End of video':'End: '+clipTime(p.media.endSeconds))));row.append(info);
+   const edit=action(p.media.url,()=>{url.value=p.media.originalUrl||p.media.url;url.dataset.candidateId=p.id;start.value=p.media.startSeconds??0;end.value=p.media.endSeconds??'';updateTiming();url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit,el('span','Start: '+clipTime(p.media.startSeconds)+' / '+(p.media.endSeconds==null?'End of video':'End: '+clipTime(p.media.endSeconds))));row.append(info);
   }
   if(p.media?.type==='mp4'){
    const info=el('div',undefined,'creator-video-info');
    try{const source=checkedMp4(p.media).source;
-    if(source){const edit=action(source.original_url,()=>{url.value=source.original_url;url.dataset.candidateId=p.id;start.value=end.value='';url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit);}
+    if(source){const edit=action(source.original_url,()=>{url.value=source.original_url;url.dataset.candidateId=p.id;start.value=p.media.startSeconds??0;end.value=p.media.endSeconds??'';updateTiming();url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit);}
     else info.append(el('span','Original MP4 source URL unavailable. Existing media is preserved.'));
    }catch{info.append(el('span','Invalid MP4 source metadata. Saving must remain blocked.'));}
    row.append(info);
