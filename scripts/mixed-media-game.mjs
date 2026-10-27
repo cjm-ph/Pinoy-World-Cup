@@ -11,10 +11,30 @@ function youtubeLibrary(root){
   const script=document.createElement('script');script.src='https://www.youtube.com/iframe_api';script.onerror=()=>{clearTimeout(timeout);reject(Error('Video player unavailable'));};document.head.append(script);
  }).catch(error=>{playerLibrary=null;throw error;});return playerLibrary;
 }
+// A group covers one match (including separate Creator mounts). Only explicit requests
+// or a newly observed PLAYING event may take ownership; stale pause events cannot steal it.
+export function createYoutubePlaybackGroup(){
+ const entries=new Set();let active=null,automatic=null;
+ const pauseOthers=entry=>{for(const other of entries)if(other!==entry&&(other.playing||other.playRequested)){other.pausePending=!!other.player;other.playing=false;other.playRequested=false;try{other.player?.pauseVideo();}catch{}}};
+ return {
+  add(entry){entries.add(entry);},
+  claim(entry){if(automatic)return false;automatic=entry;return true;},
+  canAuto(entry){return automatic===entry&&(!active||active===entry);},
+  request(entry){if(entry.cancelled||!entries.has(entry))return false;active=entry;entry.pausePending=false;entry.playRequested=true;pauseOthers(entry);return true;},
+  state(entry,state){if(entry.cancelled||!entries.has(entry))return false;
+   if(state===2){entry.pausePending=false;entry.playing=false;entry.playRequested=false;return false;}
+   if(state===1){if(entry.pausePending){try{entry.player?.pauseVideo();}catch{}return false;}active=entry;entry.playing=true;entry.playRequested=false;pauseOthers(entry);return true;}
+   if(state===0){entry.playing=false;entry.playRequested=false;}
+   return active===entry&&!entry.pausePending;
+  },
+  owns(entry){return active===entry&&!entry.pausePending&&!entry.cancelled;},
+  release(entry){entries.delete(entry);if(active===entry)active=null;if(automatic===entry)automatic=null;}
+ };
+}
 // Presentation only: existing pick/choose and persistence contracts remain authoritative.
-export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),videoSource=null}={}){
+export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),videoSource=null,playbackGroup=createYoutubePlaybackGroup(),autoplay=true}={}){
  const fill=root.fill,show=root.show,pick=root.pick,live=new Map();let winnerHandle=null,generation=0,selectionUntil=0;
- const dispose=slot=>{const e=live.get(slot);if(!e)return;e.cancelled=true;e.observer?.disconnect();clearInterval(e.muteTimer);try{e.player?.destroy();}catch{}e.embed?.dispose();if(e.shell.isConnected){e.shell.replaceWith(slot);slot.replaceChildren(e.art,e.name);}live.delete(slot);};
+ const dispose=slot=>{const e=live.get(slot);if(!e)return;e.cancelled=true;playbackGroup.release(e);e.observer?.disconnect();clearInterval(e.muteTimer);try{e.player?.destroy();}catch{}e.embed?.dispose();if(e.shell.isConnected){e.shell.replaceWith(slot);slot.replaceChildren(e.art,e.name);}live.delete(slot);};
  const stop=()=>{generation++;winnerHandle?.dispose();winnerHandle=null;for(const slot of [...live.keys()])dispose(slot);};
  root.fill=function(slot,participant){
   dispose(slot);fill.call(this,slot,participant);
@@ -45,31 +65,31 @@ export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),
   art.replaceChildren();let checked;try{checked=checkedYoutubeSource(source);}catch{art.textContent='Video unavailable. You can still select this candidate.';return;}
   const host=document.createElement('div');host.className='mixed-player';
   const status=document.createElement('p');status.className='mixed-player-status';status.setAttribute('role','status');
-  const shorts=checked.playbackMode==='shorts',manual=document.createElement('button');manual.type='button';manual.textContent='Play';manual.hidden=true;manual.onclick=()=>{if(entry.cancelled)return;entry.player?.mute();entry.player?.playVideo();};const notice=document.createElement('div');notice.className='mixed-player-status';status.className='';status.style.margin='0';notice.append(status,manual);art.append(host,notice);let loading=false,failed=false;
+  playbackGroup.add(entry);const shorts=checked.playbackMode==='shorts',auto=shorts&&autoplay&&slot.id!=='b'&&playbackGroup.claim(entry),manual=document.createElement('button');entry.playRequested=auto;manual.type='button';manual.textContent='Play';manual.hidden=true;manual.onclick=()=>{if(entry.cancelled)return;if(playbackGroup.request(entry)){entry.player?.mute();entry.player?.playVideo();}};const notice=document.createElement('div');notice.className='mixed-player-status';status.className='';status.style.margin='0';notice.append(status,manual);art.append(host,notice);let loading=false,failed=false;
   const size=()=>{if(entry.cancelled)return;const rect=art.getBoundingClientRect();
    if(rect.width<200||rect.height-notice.getBoundingClientRect().height<200){clearInterval(entry.muteTimer);entry.player?.destroy();entry.player=null;host.replaceChildren();host.hidden=true;manual.hidden=true;status.textContent='YouTube unavailable: this card is below the required 200 x 200 minimum. Selection remains available.';shell.dataset.playerSize='blocked';return;}
    shell.dataset.playerSize='supported';host.hidden=false;if(entry.player||loading||failed)return;loading=true;status.textContent='Loading YouTube?';
    Promise.resolve().then(loadPlayer).then(YT=>{if(entry.cancelled)return;const r=art.getBoundingClientRect();if(r.width<200||r.height-notice.getBoundingClientRect().height<200){loading=false;size();return;}
     const target=document.createElement('div');host.replaceChildren(target);entry.player=new YT.Player(target,{host:'https://www.youtube-nocookie.com',width:'100%',height:'100%',videoId:checked.videoId,
-     playerVars:{autoplay:shorts?1:0,...(shorts?{mute:1,loop:1,playlist:checked.videoId}:{}),controls:1,fs:1,playsinline:1,origin:root.location.origin,start:checked.startSeconds,...(checked.endSeconds===null?{}:{end:checked.endSeconds})},
-     events:{onReady:event=>{if(entry.cancelled||entry.player!==event.target){event.target.destroy();return;}if(shorts){event.target.mute();event.target.loadVideoById({videoId:checked.videoId,startSeconds:checked.startSeconds,...(checked.endSeconds===null?{}:{endSeconds:checked.endSeconds})});event.target.playVideo();entry.muteTimer=setInterval(()=>{if(!entry.cancelled){event.target.mute();const current=event.target.getCurrentTime?.();if(event.target.getPlayerState?.()===1&&Number.isFinite(current)&&(current<checked.startSeconds||(checked.endSeconds!==null&&current>=checked.endSeconds))){event.target.seekTo(checked.startSeconds,true);event.target.playVideo();}}},200);manual.hidden=false;status.textContent='Muted loop. If playback stops, press Play.';size();return;}event.target.cueVideoById({videoId:checked.videoId,startSeconds:checked.startSeconds,...(checked.endSeconds===null?{}:{endSeconds:checked.endSeconds})});status.textContent='';notice.hidden=true;},
+     playerVars:{autoplay:auto&&playbackGroup.canAuto(entry)?1:0,...(shorts?{mute:1,loop:1,playlist:checked.videoId}:{}),controls:1,fs:1,playsinline:1,origin:root.location.origin,start:checked.startSeconds,...(checked.endSeconds===null?{}:{end:checked.endSeconds})},
+     events:{onReady:event=>{if(entry.cancelled||entry.player!==event.target){event.target.destroy();return;}if(shorts){event.target.mute();const clip={videoId:checked.videoId,startSeconds:checked.startSeconds,...(checked.endSeconds===null?{}:{endSeconds:checked.endSeconds})};if(auto&&playbackGroup.canAuto(entry)&&playbackGroup.request(entry)){event.target.loadVideoById(clip);event.target.playVideo();}else{entry.playRequested=false;event.target.cueVideoById(clip);}entry.muteTimer=setInterval(()=>{if(!entry.cancelled){event.target.mute();const current=event.target.getCurrentTime?.();if(playbackGroup.owns(entry)&&event.target.getPlayerState?.()===1&&Number.isFinite(current)&&(current<checked.startSeconds||(checked.endSeconds!==null&&current>=checked.endSeconds))){event.target.seekTo(checked.startSeconds,true);event.target.playVideo();}}},200);manual.hidden=false;status.textContent=auto?'Muted loop. If playback stops, press Play.':'Muted loop ready. Press Play to start.';size();return;}event.target.cueVideoById({videoId:checked.videoId,startSeconds:checked.startSeconds,...(checked.endSeconds===null?{}:{endSeconds:checked.endSeconds})});status.textContent='';notice.hidden=true;},
       onError:()=>{notice.hidden=false;status.textContent='Video unavailable. You can still select this candidate.';},
       onAutoplayBlocked:()=>{if(entry.cancelled)return;notice.hidden=false;status.textContent='Use the official player controls to play.';if(shorts)manual.hidden=false;},
-      onStateChange:event=>{if(entry.cancelled)return;if(shorts){event.target.mute();if(event.data===0){event.target.seekTo(checked.startSeconds,true);event.target.playVideo();}if(event.data===1){manual.hidden=true;notice.hidden=true;}return;}if(event.data===1)for(const other of live.values())if(other!==entry)try{other.player?.pauseVideo();}catch{}}}});
+      onStateChange:event=>{if(entry.cancelled)return;const owns=playbackGroup.state(entry,event.data);if(shorts){event.target.mute();if(event.data===0&&owns){event.target.seekTo(checked.startSeconds,true);event.target.playVideo();}if(event.data===1&&owns){manual.hidden=true;notice.hidden=true;}return;}}}});
    }).catch(()=>{failed=true;status.textContent='Video player unavailable. You can still select this candidate.';}).finally(()=>{loading=false;});
   };
   entry.observer=new ResizeObserver(size);entry.observer.observe(art);size();
  };
- root.pick=function(side){if(root.busy||performance.now()<selectionUntil)return;selectionUntil=performance.now()+300;for(const e of live.values()){e.cancelled=true;e.observer?.disconnect();clearInterval(e.muteTimer);try{e.player?.destroy();}catch{}e.embed?.dispose();}return pick?.call(this,side);};
+ root.pick=function(side){if(root.busy||performance.now()<selectionUntil)return;selectionUntil=performance.now()+300;for(const e of live.values()){e.cancelled=true;playbackGroup.release(e);e.observer?.disconnect();clearInterval(e.muteTimer);try{e.player?.destroy();}catch{}e.embed?.dispose();}return pick?.call(this,side);};
  root.show=function(id){if(id!=='play')stop();const result=show.apply(this,arguments);
   if(id==='end'&&['youtube','giphy','mp4'].includes(root.champ?.media?.type)){const at=generation,candidate=root.champ;queueMicrotask(()=>{const art=document.getElementById('winArt');if(at!==generation||!art||document.getElementById('end')?.classList.contains('hide'))return;winnerHandle=mountCandidateMedia(art,candidate,{showSelect:false,loadPlayer,videoSource});});}return result;};
  root.addEventListener('pagehide',stop);return {dispose:stop};
 }
 
 // Creator and champion surfaces use the same lifecycle, without persistence or statistics calls.
-export function mountCandidateMedia(container,participant,{onSelect,showSelect=true,loadPlayer=()=>youtubeLibrary(globalThis),videoSource=null}={}){
+export function mountCandidateMedia(container,participant,{onSelect,showSelect=true,loadPlayer=()=>youtubeLibrary(globalThis),videoSource=null,playbackGroup,autoplay=true}={}){
  const slot=document.createElement('button');slot.type='button';slot.className='pick';slot.id='media-choice';let chosen=false;
  const virtual={location:globalThis.location,addEventListener(){},show(){},pick(){if(chosen||!onSelect)return;chosen=true;onSelect();},fill(button,p){button.replaceChildren();const art=document.createElement('div');art.className='art';if(p.media?.type==='mp4'){const image=document.createElement('img');image.className='vs-photo';image.alt=p.n;art.append(image);}const name=document.createElement('span');name.className='name';name.textContent=p.n;button.append(art,name);}};
- container.replaceChildren(slot);const handle=installMixedMediaGame(virtual,{loadPlayer,videoSource});virtual.fill(slot,{...participant,n:participant.n||participant.name||'Candidate'});
+ container.replaceChildren(slot);const handle=installMixedMediaGame(virtual,{loadPlayer,videoSource,playbackGroup,autoplay});virtual.fill(slot,{...participant,n:participant.n||participant.name||'Candidate'});
  if(!showSelect){slot.hidden=true;container.firstElementChild.classList.add('candidate-champion');}return {element:container,dispose(){handle.dispose();container.replaceChildren();}};
 }
