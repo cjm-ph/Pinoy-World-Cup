@@ -3,7 +3,7 @@ import './photo-display.js';
 export function giphyBattleEstimate(width,height){
  if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0)return null;
  const fit=(w,h)=>{const scale=Math.min(w/width,h/height);return `${Math.round(width*scale)}\u00d7${Math.round(height*scale)}`;};
- return `Est. battle | PC${fit(661,689)} \u00b7 Mobile${fit(194,669)}`;
+ return `Size: PC ${fit(661,689)} Mobile ${fit(194,669)}`;
 }
 // Reusable UI: caller supplies authorized persistence and photo loading adapters.
 export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageDiagnostics,releaseExpired,canEdit=()=>true,devicePreviews=false,giphySizeHints=false,getLanguage=()=> 'en',notify=()=>{}}){
@@ -25,7 +25,7 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
   for(const slot of getSlots()){
    const thumbnailOnly=['youtube','giphy'].includes(slot.mediaType);
    const card=node('article',null,'photo-editor-card');card.dataset.photoSlot=slot.id;
-   const hint=giphySizeHints&&slot.mediaType==='giphy'?node('p','Est. battle | PC -- / Mobile --','giphy-size-estimate'):null;if(hint){hint.title='Approximate CSS pixels: PC 1366x900, Mobile 390x844; actual viewport, provider and safe areas may differ.';hint.setAttribute('role','status');card.append(hint);}const updateHint=image=>{if(hint)hint.textContent=giphyBattleEstimate(image.naturalWidth,image.naturalHeight)||'Estimated battle size unavailable';};
+   const hint=giphySizeHints&&slot.mediaType==='giphy'?node('p','Size: PC -- Mobile --','giphy-size-estimate'):null;if(hint){hint.title='Approximate CSS pixels: PC 1366x900, Mobile 390x844; actual viewport, provider and safe areas may differ.';hint.setAttribute('role','status');card.append(hint);}const updateHint=image=>{if(hint)hint.textContent=giphyBattleEstimate(image.naturalWidth,image.naturalHeight)||'Estimated battle size unavailable';};
    const title=node('h3',slot.name);if(slot.id!=='cover')title.dataset.i18nSkip='';
    const pick=node('button',slot.asset?'Replace photo':'+ Add photo','btn photo-picker');pick.type='button';pick.disabled=busy||!canEdit();
    const input=node('input');input.type='file';input.accept='image/jpeg,image/png,image/webp,image/gif';input.hidden=true;
