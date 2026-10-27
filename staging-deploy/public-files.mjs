@@ -1,4 +1,5 @@
 export const publicFiles = [
+  "scripts/shorts-sound.mjs",
   "scripts/shorts-alternator.mjs",
   "scripts/mp4-source-contract.mjs",
   "scripts/admin-mp4-candidate.mjs",

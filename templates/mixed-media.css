@@ -49,3 +49,11 @@
  #previewGame .match:has([data-playback=shorts]){align-items:stretch;}
  #previewGame .creator-media-preview:has([data-playback=shorts]){height:calc(100svh - 180px);min-height:320px;}
 }
+
+/* Round37: header controls only; media and card geometry unchanged. */
+.shorts-sound-button{display:grid;place-items:center;flex:none;width:40px;height:40px;min-width:40px;padding:8px;border:1px solid #ffffff30;border-radius:50%;background:#151e2b;color:#fff;cursor:pointer;box-sizing:border-box}
+.shorts-sound-button[hidden]{display:none!important}.shorts-sound-button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.shorts-sound-button:focus-visible{outline:2px solid #ffd16c;outline-offset:2px}
+#roundSelection[data-shorts-sound] .round-topbar{grid-template-columns:44px minmax(0,1fr) 40px}
+#play[data-shorts-sound] .bar{grid-template-columns:44px minmax(0,1fr) auto 40px;box-sizing:border-box}
+@media(min-width:901px){#play[data-shorts-sound]:has([data-playback=shorts]) .bar{width:min(calc(100% - 8px),1052px);margin-inline:auto;padding-left:0;padding-right:0}}
