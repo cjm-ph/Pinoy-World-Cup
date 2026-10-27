@@ -42,7 +42,7 @@
 @media(min-width:901px){
  #play:has([data-playback=shorts]){overflow:visible;}
  #play .vs-stage:has([data-playback=shorts]){width:min(100%,1060px);margin-inline:auto;padding:0 4px 4px;box-sizing:border-box;}
- #play .arena:has([data-playback=shorts]){height:calc(100svh - 80px)!important;min-height:0;max-height:none;overflow:visible!important;}
+ #play .arena:has([data-playback=shorts]){height:var(--shorts-arena-height,calc(100svh - 80px))!important;min-height:0;max-height:none;overflow:visible!important;}
  #play .arena:has([data-playback=shorts]) .candidate-shell{grid-template-rows:44px minmax(0,1fr) 48px;overflow:visible;}
  .candidate-shell[data-playback=shorts]>.candidate-media{display:grid!important;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;justify-items:stretch;align-items:stretch;overflow:visible;}
  .candidate-shell[data-playback=shorts] .mixed-player{height:100%;width:auto;max-width:100%;aspect-ratio:9/16;justify-self:center;align-self:start;}

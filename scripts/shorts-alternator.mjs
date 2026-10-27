@@ -2,7 +2,7 @@
 export function createShortsAlternator(clock={}) {
  const now=clock.now||(()=>performance.now()),later=clock.setTimeout||globalThis.setTimeout,clearLater=clock.clearTimeout||globalThis.clearTimeout;
  const every=clock.setInterval||globalThis.setInterval,clearEvery=clock.clearInterval||globalThis.clearInterval;
- const slots=new Map();let phase='waiting',active=null,epoch=0,watch=null,gap=null,stopAt=0,played=false,last=null;
+ const slots=new Map();let phase='waiting',active=null,epoch=0,watch=null,gap=null,stopAt=0,loadAt=0,played=false,last=null;
  const state=e=>{try{return e.player?.getPlayerState();}catch{return undefined;}};
  const stopped=e=>[0,2].includes(state(e));
  const pair=()=>slots.size===2&&slots.has(0)&&slots.has(1);
@@ -14,8 +14,8 @@ export function createShortsAlternator(clock={}) {
   if(!pair()||!['waiting','gap'].includes(phase))return;
   const e=slots.get(index),other=slots.get(1-index);
   if(!valid(e)||!valid(other)||!e.alternatingReady||!other.alternatingReady)return;
-  if(![-1,0,2,5].includes(state(other))||![-1,0,2,5].includes(state(e))){halt('Automatic alternation stopped. Use Play.');return;}
-  active=index;played=false;last=null;phase='loading';
+  if(![-1,0,2,5].includes(state(other))||![-1,0,2,5].includes(state(e)))return;
+  active=index;played=false;last=null;loadAt=now();phase='loading';
   try{e.player.mute();e.player.loadVideoById({videoId:e.alternatingRange.videoId,startSeconds:e.alternatingRange.startSeconds,...(e.alternatingRange.endSeconds===null?{}:{endSeconds:e.alternatingRange.endSeconds})});}
   catch{halt('Automatic playback unavailable. Use Play.');}
  };
@@ -34,13 +34,17 @@ export function createShortsAlternator(clock={}) {
   if(phase==='stopping')confirm();
  };
  const tick=()=>{
+  if(pair()&&phase==='waiting'&&[...slots.values()].every(e=>e.alternatingReady)){start(0);return;}
   if(!pair()||!['loading','playing','stopping','gap'].includes(phase))return;
   if([...slots.values()].some(e=>!valid(e))){halt('Automatic alternation stopped. Use Play.');return;}
   const e=slots.get(active),s=state(e);
   if(phase==='stopping'){if(confirm())return;if(now()-stopAt>=3000)halt('Playback stop could not be confirmed. Use Play.');return;}
   if(phase==='gap'){if([...slots.values()].some(e=>[1,3].includes(state(e))))halt('Automatic alternation stopped. Use Play.');return;}
-  if(s===2){halt('Automatic alternation stopped. Use Play.');return;}
+  if(phase==='loading'&&now()-loadAt>=15000){halt('Automatic playback unavailable. Use Play.');return;}
+  if([...slots.values()].some(other=>other!==e&&state(other)===1)){halt('Automatic alternation stopped. Use Play.');return;}
+  if(s===2&&phase==='playing'){halt('Automatic alternation stopped. Use Play.');return;}
   if(s===0&&played){finish();return;}
+  if(phase==='loading'&&s===1){played=true;phase='playing';}
   if(phase==='playing'&&s===1){let t;try{t=e.player.getCurrentTime();}catch{return;}if(!Number.isFinite(t))return;
    const wall=now();if(last&&(t<last.t-0.5||t-last.t>(wall-last.wall)/1000+1.5)){halt('Automatic alternation stopped. Use Play.');return;}
    last={t,wall};if(e.alternatingRange.endSeconds!==null&&t>=e.alternatingRange.endSeconds)finish();
@@ -52,10 +56,11 @@ export function createShortsAlternator(clock={}) {
   ready(e){if(!valid(e))return;e.alternatingReady=true;if(pair()&&phase==='waiting'&&[...slots.values()].every(e=>e.alternatingReady)){watch=every(tick,100);start(0);}},
   event(e,s){if(!valid(e)||!pair()||phase==='manual'||phase==='waiting'){
     if(valid(e)&&pair()&&phase==='waiting'&&s===1)halt('Automatic alternation stopped. Use Play.');return;}
-   if(s===1){if(e.alternatingSide!==active||phase==='gap'){halt('Automatic alternation stopped. Use Play.');return;}if(phase==='loading'||phase==='playing'){played=true;phase='playing';}}
-   else if(s===2){if(e.alternatingSide===active&&phase==='stopping')confirm();else if(e.alternatingSide===active&&['loading','playing'].includes(phase))halt('Automatic alternation stopped. Use Play.');}
+   if(s===1){if(e.alternatingSide!==active||phase==='gap'){halt('Automatic alternation stopped. Use Play.');return;}if(phase==='loading'||phase==='playing'){played=true;e.alternatingPlayed=true;phase='playing';}}
+   else if(s===3&&e.alternatingSide===active){last=null;}
+   else if(s===2){if(e.alternatingSide===active&&phase==='stopping')confirm();else if(e.alternatingSide===active&&phase==='playing')halt('Automatic alternation stopped. Use Play.');}
    else if(s===0&&e.alternatingSide===active&&played&&['playing','loading'].includes(phase))finish();
-   else if(s===3&&e.alternatingSide!==active)halt('Automatic alternation stopped. Use Play.');
+   else if(s===3&&e.alternatingSide!==active&&e.alternatingPlayed)halt('Automatic alternation stopped. Use Play.');
   },
   manual(){if(pair())halt('Automatic alternation stopped. Use Play.');},
   blocked(){if(pair())halt('Automatic playback blocked. Use Play.');},
