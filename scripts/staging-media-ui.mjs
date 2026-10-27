@@ -238,7 +238,7 @@ async function photoOperation(action){if(photoWorking||batchBusy)throw Error('A 
 function cards(inWizard=false){
  const currentTournament=()=>inWizard?tournaments.find(t=>t.id===work?.tournament_id):selected;
  const storageAction=async(name)=>{const t=currentTournament();if(!t)throw Error('Save the tournament draft first.');return api.rpc(name,{tid:t.id});};
- return createPhotoCards({devicePreviews:inWizard,storageDiagnostics:()=>storageAction('admin_media_storage_diagnostics'),releaseExpired:()=>storageAction('admin_media_release_expired'),canEdit:()=>{const t=inWizard?tournaments.find(t=>t.id===work?.tournament_id):selected;return authorized&&!batchBusy&&(!t||(['private','public'].includes(t.visibility)&&(['draft','rejected','approved'].includes(t.revision?.state)||(inWizard&&t.creator_id===user?.id&&t.revision?.state==='submitted'))));},getSlots:()=>photoSlots(inWizard),loadPhoto:photo,getLanguage:()=>adminLanguage.language,notify:say,
+ return createPhotoCards({devicePreviews:inWizard,giphySizeHints:inWizard,storageDiagnostics:()=>storageAction('admin_media_storage_diagnostics'),releaseExpired:()=>storageAction('admin_media_release_expired'),canEdit:()=>{const t=inWizard?tournaments.find(t=>t.id===work?.tournament_id):selected;return authorized&&!batchBusy&&(!t||(['private','public'].includes(t.visibility)&&(['draft','rejected','approved'].includes(t.revision?.state)||(inWizard&&t.creator_id===user?.id&&t.revision?.state==='submitted'))));},getSlots:()=>photoSlots(inWizard),loadPhoto:photo,getLanguage:()=>adminLanguage.language,notify:say,
  upload:async(slot,file,settings,rights)=>photoOperation(async()=>{
   if(context?.photo_workflow_version!=='045'||!context?.photo_fit_modes)throw Error('Photo workflow update is not installed. Apply the approved Staging 045 and 046 SQL first.');
   const note=rights?.notes||'';if(inWizard)captureWizard();
@@ -335,7 +335,7 @@ function renderWizard(){
  $('wizardPublishedLink').hidden=!tournaments.some(t=>t.id===work.tournament_id&&t.visibility==='public');
  const bulkValue=$('bulkNames')?.value||'',bulkOpen=$('bulkNames')?.parentElement.open||false,hadPrompt=!!$('wizardPanel').querySelector('[data-gemini-support] textarea')?.value;
  const pendingNotes=$('creatorBatchNotes')?.value||'';
- $('wizardPanel').replaceChildren(createCreatorPage({work,categories,notice:creatorNotice,onError:message=>say(message,'error'),capture:captureWizard,onChange:creatorChanged,getLanguage:()=>adminLanguage.language,photos:cards(true),jobs:creatorJobs,busy:batchBusy||photoWorking||youtubeBusy,
+ $('wizardPanel').replaceChildren(createCreatorPage({work,categories,adminGiphyPresentation:true,notice:creatorNotice,onError:message=>say(message,'error'),capture:captureWizard,onChange:creatorChanged,getLanguage:()=>adminLanguage.language,photos:cards(true),jobs:creatorJobs,busy:batchBusy||photoWorking||youtubeBusy,
  onResize:size=>{captureWizard();if(work.participants.length>size){say('Remove candidates before reducing the candidate count.','error');renderWizard();return;}work.requested_size=size;ensureCandidates();dirty=true;renderWizard();},
  onYouTube:(url,start,end,id)=>run(()=>addYouTube(url,start,end,id)),onFiles:files=>void acceptCreatorFiles(files),onRetry:(id,notes)=>void run(()=>uploadCreatorJobs(id,notes)),
  onAdd:()=>{captureWizard();if(work.participants.length>=work.requested_size)return;work.participants.push({...window.CreatorModelV3.member(''),image_asset_id:null});dirty=true;renderWizard();},

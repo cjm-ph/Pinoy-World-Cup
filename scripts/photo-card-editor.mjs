@@ -1,6 +1,12 @@
 import './photo-display.js';
+// Approximate uncropped content in reference battle slots; never persisted.
+export function giphyBattleEstimate(width,height){
+ if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0)return null;
+ const fit=(w,h)=>{const scale=Math.min(w/width,h/height);return `${Math.round(width*scale)}\u00d7${Math.round(height*scale)}`;};
+ return `Est. battle | PC${fit(661,689)} \u00b7 Mobile${fit(194,669)}`;
+}
 // Reusable UI: caller supplies authorized persistence and photo loading adapters.
-export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageDiagnostics,releaseExpired,canEdit=()=>true,devicePreviews=false,getLanguage=()=> 'en',notify=()=>{}}){
+export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageDiagnostics,releaseExpired,canEdit=()=>true,devicePreviews=false,giphySizeHints=false,getLanguage=()=> 'en',notify=()=>{}}){
  const root=document.createElement('div');root.className='photo-editor-grid';
  const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text)e.textContent=text;if(cls)e.className=cls;return e;};
  let busy=false;
@@ -19,6 +25,7 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
   for(const slot of getSlots()){
    const thumbnailOnly=['youtube','giphy'].includes(slot.mediaType);
    const card=node('article',null,'photo-editor-card');card.dataset.photoSlot=slot.id;
+   const hint=giphySizeHints&&slot.mediaType==='giphy'?node('p','Est. battle | PC -- / Mobile --','giphy-size-estimate'):null;if(hint){hint.title='Approximate CSS pixels: PC 1366x900, Mobile 390x844; actual viewport, provider and safe areas may differ.';hint.setAttribute('role','status');card.append(hint);}const updateHint=image=>{if(hint)hint.textContent=giphyBattleEstimate(image.naturalWidth,image.naturalHeight)||'Estimated battle size unavailable';};
    const title=node('h3',slot.name);if(slot.id!=='cover')title.dataset.i18nSkip='';
    const pick=node('button',slot.asset?'Replace photo':'+ Add photo','btn photo-picker');pick.type='button';pick.disabled=busy||!canEdit();
    const input=node('input');input.type='file';input.accept='image/jpeg,image/png,image/webp,image/gif';input.hidden=true;
@@ -44,9 +51,9 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
    }
    let photoUrl;
    async function load(){if(!slot.asset&&!slot.previewUrl)return;try{photoUrl=await(slot.previewUrl||loadPhoto(slot.asset));if(!photoUrl||!card.isConnected)return;
-    if(previewDevices.length){for(const {device,stage}of previewDevices){const image=node('img');image.src=photoUrl;image.alt=slot.name;image.loading='lazy';image.dataset.i18nSkip='';if(slot.previewUrl)image.onerror=()=>stage.replaceChildren(node('span','Preview unavailable','help'));stage.replaceChildren(image);globalThis.PWCPhotoDisplay.apply(image,slot.settings,device);}sizeCardPreviews();return;}
-    const image=node('img');image.src=photoUrl;image.alt=slot.name;image.dataset.i18nSkip='';if(slot.previewUrl)image.onerror=()=>frame.replaceChildren(node('span','Preview unavailable','help'));frame.replaceChildren(image);globalThis.PWCPhotoDisplay.apply(image,slot.settings);const r=globalThis.PWCPhotoDisplay[slot.id==='cover'?'coverRatio':'gameRatio'](innerWidth,innerHeight);frame.style.aspectRatio=String(r);frame.style.width=`min(100%, ${150*r}px)`;frame.style.height='auto';frame.style.marginInline='auto';
-   }catch(e){status.textContent=e.message;}}
+    if(previewDevices.length){for(const {device,stage}of previewDevices){const image=node('img');image.src=photoUrl;image.alt=slot.name;image.loading='lazy';image.dataset.i18nSkip='';if(hint)image.onload=()=>updateHint(image);if(slot.previewUrl)image.onerror=()=>{stage.replaceChildren(node('span','Preview unavailable','help'));if(hint)hint.textContent='Estimated battle size unavailable';};stage.replaceChildren(image);globalThis.PWCPhotoDisplay.apply(image,slot.settings,device);}sizeCardPreviews();return;}
+    const image=node('img');image.src=photoUrl;image.alt=slot.name;image.dataset.i18nSkip='';if(hint)image.onload=()=>updateHint(image);if(slot.previewUrl)image.onerror=()=>{frame.replaceChildren(node('span','Preview unavailable','help'));if(hint)hint.textContent='Estimated battle size unavailable';};frame.replaceChildren(image);globalThis.PWCPhotoDisplay.apply(image,slot.settings);const r=globalThis.PWCPhotoDisplay[slot.id==='cover'?'coverRatio':'gameRatio'](innerWidth,innerHeight);frame.style.aspectRatio=String(r);frame.style.width=`min(100%, ${150*r}px)`;frame.style.height='auto';frame.style.marginInline='auto';
+   }catch(e){status.textContent=e.message;if(hint)hint.textContent='Estimated battle size unavailable';}}
    function sizeCardPreviews(){for(const {device,stage}of previewDevices){const viewport=device==='desktop'?(innerWidth>=768?[innerWidth,innerHeight]:[1440,900]):(innerWidth<768?[innerWidth,innerHeight]:[390,844]);const ratio=globalThis.PWCPhotoDisplay.gameRatio(...viewport);stage.style.aspectRatio=String(ratio);stage.style.width=`min(100%, ${150*ratio}px)`;stage.style.height='auto';stage.style.marginInline='auto';const image=stage.querySelector('img');if(image)globalThis.PWCPhotoDisplay.apply(image,slot.settings,device);}}
    sizeCardPreviews();
    edit.onclick=()=>openEditor();
