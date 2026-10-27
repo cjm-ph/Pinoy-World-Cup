@@ -1,4 +1,6 @@
 export const publicFiles = [
+  "scripts/mp4-source-contract.mjs",
+  "scripts/admin-mp4-candidate.mjs",
   "scripts/staging-member-directory.mjs",
   "scripts/member-creator-api.mjs",
   "scripts/member-creator-model.mjs",

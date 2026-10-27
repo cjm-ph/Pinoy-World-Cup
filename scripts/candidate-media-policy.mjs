@@ -23,17 +23,24 @@ export function youtubeSource(input,start='',end='') {
   if((typeof value!=='number'&&typeof value!=='string')||!/^\d+$/.test(String(value)))throw Error('Use non-negative whole seconds');
   const n=Number(value);if(!Number.isSafeInteger(n))throw Error('Invalid seconds');return n;
  };
- const startSeconds=seconds(start,false),endSeconds=seconds(end,true);
+ const shorts=['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com'].includes(url.hostname)&&parts.length===2&&parts[0]==='shorts';
+ const startSeconds=shorts?0:seconds(start,false),endSeconds=shorts?null:seconds(end,true);
  if(endSeconds!==null&&endSeconds<=startSeconds)throw Error('End must be after start');
- return Object.freeze({type:'youtube',videoId,url:'https://www.youtube.com/watch?v='+videoId,startSeconds,endSeconds,
+ return Object.freeze({...(shorts?{playbackMode:'shorts',originalUrl:'https://www.youtube.com/shorts/'+videoId}:{}),type:'youtube',videoId,url:'https://www.youtube.com/watch?v='+videoId,startSeconds,endSeconds,
   thumbnailUrl:'https://i.ytimg.com/vi/'+videoId+'/hqdefault.jpg'});
 }
+export function checkedYoutubeSource(source){
+ const checked=youtubeSource(source.originalUrl??source.url,source.startSeconds,source.endSeconds);
+ if(source.videoId&&checked.videoId!==source.videoId)throw Error('Video identity mismatch');
+ if(source.playbackMode==='shorts'&&checked.playbackMode!=='shorts')throw Error('Shorts source identity unavailable');
+ return checked;
+}
 export function youtubeEmbedUrl(source,origin) {
- const checked=youtubeSource(source.url,source.startSeconds,source.endSeconds);
+ const checked=checkedYoutubeSource(source);
  if(checked.videoId!==source.videoId)throw Error('Video identity mismatch');
  const site=new URL(origin);if(site.protocol!=='https:'||site.origin!==origin)throw Error('HTTPS page origin required');
  const url=new URL('https://www.youtube-nocookie.com/embed/'+checked.videoId);
- url.search=new URLSearchParams({start:String(checked.startSeconds),...(checked.endSeconds===null?{}:{end:String(checked.endSeconds)}),autoplay:'0',playsinline:'1',controls:'1',enablejsapi:'1',origin}).toString();
+ url.search=new URLSearchParams({start:String(checked.startSeconds),...(checked.endSeconds===null?{}:{end:String(checked.endSeconds)}),...(checked.playbackMode==='shorts'?{autoplay:'1',mute:'1',loop:'1',playlist:checked.videoId}:{autoplay:'0'}),playsinline:'1',controls:'1',enablejsapi:'1',origin}).toString();
  return url.href;
 }
 export function youtubeDurationSeconds(value) {
@@ -43,12 +50,12 @@ export function youtubeDurationSeconds(value) {
  if(!Number.isSafeInteger(seconds)||seconds<=0)throw Error('Video duration unavailable');return seconds;
 }
 export function validateYouTubeClip(source,durationSeconds) {
- const checked=youtubeSource(source.url,source.startSeconds,source.endSeconds);
+ const checked=checkedYoutubeSource(source);
  if(!Number.isSafeInteger(durationSeconds)||durationSeconds<=0||checked.startSeconds>=durationSeconds||(checked.endSeconds!==null&&checked.endSeconds>durationSeconds))throw Error('Clip is outside the video duration');
  return checked;
 }
 export function prepareYouTubeCandidate(source,title,makeCandidate) {
- const media=youtubeSource(source.url,source.startSeconds,source.endSeconds);
+ const media=checkedYoutubeSource(source);
  if(typeof title!=='string')throw Error('Video title unavailable');
  const name=title.normalize('NFC').replace(/[<>\u0000-\u001f\u007f]/g,' ').trim().slice(0,300);
  if(!name||typeof makeCandidate!=='function')throw Error('Video title or candidate factory unavailable');

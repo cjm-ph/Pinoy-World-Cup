@@ -1,4 +1,4 @@
-import {youtubeSource} from './candidate-media-policy.mjs';
+import {checkedYoutubeSource} from './candidate-media-policy.mjs';
 import {mountLocalMp4} from './local-mp4-presentation.mjs';
 import {createGiphyEmbed} from './giphy-embed.mjs';
 let playerLibrary;
@@ -14,7 +14,7 @@ function youtubeLibrary(root){
 // Presentation only: existing pick/choose and persistence contracts remain authoritative.
 export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),videoSource=null}={}){
  const fill=root.fill,show=root.show,pick=root.pick,live=new Map();let winnerHandle=null,generation=0,selectionUntil=0;
- const dispose=slot=>{const e=live.get(slot);if(!e)return;e.cancelled=true;e.observer?.disconnect();try{e.player?.destroy();}catch{}e.embed?.dispose();if(e.shell.isConnected){e.shell.replaceWith(slot);slot.replaceChildren(e.art,e.name);}live.delete(slot);};
+ const dispose=slot=>{const e=live.get(slot);if(!e)return;e.cancelled=true;e.observer?.disconnect();clearInterval(e.muteTimer);try{e.player?.destroy();}catch{}e.embed?.dispose();if(e.shell.isConnected){e.shell.replaceWith(slot);slot.replaceChildren(e.art,e.name);}live.delete(slot);};
  const stop=()=>{generation++;winnerHandle?.dispose();winnerHandle=null;for(const slot of [...live.keys()])dispose(slot);};
  root.fill=function(slot,participant){
   dispose(slot);fill.call(this,slot,participant);
@@ -30,39 +30,46 @@ export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),
   const entry={cancelled:false,shell,art,name,player:null};live.set(slot,entry);
   if(source?.type==='giphy'){art.replaceChildren();entry.embed=createGiphyEmbed(source,{name:participant.n});art.append(entry.embed.element);return;}
   if(source?.type==='mp4'){
-   const image=art.querySelector('.vs-photo');if(!image||typeof videoSource!=='function'||!/^video_[a-f0-9-]{36}$/.test(source.video_id||''))return;
-   Promise.resolve().then(()=>videoSource(source)).then(data=>{if(entry.cancelled){data.release?.();return;}try{const handle=mountLocalMp4(image,data);entry.player={destroy:()=>{handle.dispose();data.release?.();}};}catch(e){data.release?.();throw e;}}).catch(()=>{});return;
+   const image=art.querySelector('.vs-photo');
+   const unavailable=()=>{if(entry.cancelled)return;art.replaceChildren();const notice=document.createElement('p');notice.className='mixed-player-status';notice.textContent='Video unavailable. You can still select this candidate.';art.append(notice);};
+   if(!image||typeof videoSource!=='function'||!/^video_[a-f0-9-]{36}$/.test(source.video_id||'')){unavailable();return;}
+   Promise.resolve().then(()=>videoSource(source)).then(data=>{
+    let released=false;const release=()=>{if(!released){released=true;data?.release?.();}};
+    if(entry.cancelled){release();return;}
+    try{const handle=mountLocalMp4(image,data);entry.player={destroy:()=>{handle.dispose();release();}};handle.video.addEventListener('error',()=>{clearInterval(entry.muteTimer);entry.player?.destroy();entry.player=null;unavailable();},{once:true});}
+    catch(e){release();throw e;}
+   }).catch(unavailable);return;
   }
   if(source?.type==='animation'){if(/^source_[0-9a-f-]{36}$/.test(source.source_id||'')){const image=art.querySelector('.vs-photo');if(image)image.src='/animated-media?source='+encodeURIComponent(source.source_id);}return;}
   if(source?.type!=='youtube')return;
-  art.replaceChildren();let checked;try{checked=youtubeSource(source.url,source.startSeconds,source.endSeconds);}catch{art.textContent='Video unavailable. You can still select this candidate.';return;}
+  art.replaceChildren();let checked;try{checked=checkedYoutubeSource(source);}catch{art.textContent='Video unavailable. You can still select this candidate.';return;}
   const host=document.createElement('div');host.className='mixed-player';
   const status=document.createElement('p');status.className='mixed-player-status';status.setAttribute('role','status');
-  art.append(host,status);let loading=false,failed=false;
+  const shorts=checked.playbackMode==='shorts',manual=document.createElement('button');manual.type='button';manual.textContent='Play';manual.hidden=true;manual.onclick=()=>{if(entry.cancelled)return;entry.player?.mute();entry.player?.playVideo();};const notice=document.createElement('div');notice.className='mixed-player-status';status.className='';status.style.margin='0';notice.append(status,manual);art.append(host,notice);let loading=false,failed=false;
   const size=()=>{if(entry.cancelled)return;const rect=art.getBoundingClientRect();
-   if(rect.width<200||rect.height<200){entry.player?.destroy();entry.player=null;host.replaceChildren();host.hidden=true;status.textContent='YouTube unavailable: this card is below the required 200 x 200 minimum. Selection remains available.';shell.dataset.playerSize='blocked';return;}
+   if(rect.width<200||rect.height-notice.getBoundingClientRect().height<200){clearInterval(entry.muteTimer);entry.player?.destroy();entry.player=null;host.replaceChildren();host.hidden=true;manual.hidden=true;status.textContent='YouTube unavailable: this card is below the required 200 x 200 minimum. Selection remains available.';shell.dataset.playerSize='blocked';return;}
    shell.dataset.playerSize='supported';host.hidden=false;if(entry.player||loading||failed)return;loading=true;status.textContent='Loading YouTube?';
-   Promise.resolve().then(loadPlayer).then(YT=>{if(entry.cancelled)return;const r=art.getBoundingClientRect();if(r.width<200||r.height<200){loading=false;size();return;}
+   Promise.resolve().then(loadPlayer).then(YT=>{if(entry.cancelled)return;const r=art.getBoundingClientRect();if(r.width<200||r.height-notice.getBoundingClientRect().height<200){loading=false;size();return;}
     const target=document.createElement('div');host.replaceChildren(target);entry.player=new YT.Player(target,{host:'https://www.youtube-nocookie.com',width:'100%',height:'100%',videoId:checked.videoId,
-     playerVars:{autoplay:0,controls:1,fs:1,playsinline:1,origin:root.location.origin,start:checked.startSeconds,...(checked.endSeconds===null?{}:{end:checked.endSeconds})},
-     events:{onReady:event=>{if(entry.cancelled){event.target.destroy();return;}event.target.cueVideoById({videoId:checked.videoId,startSeconds:checked.startSeconds,...(checked.endSeconds===null?{}:{endSeconds:checked.endSeconds})});status.textContent='';},
-      onError:()=>{status.textContent='Video unavailable. You can still select this candidate.';},
-      onAutoplayBlocked:()=>{status.textContent='Use the official player controls to play.';},
-      onStateChange:event=>{if(entry.cancelled)return;if(event.data===1)for(const other of live.values())if(other!==entry)try{other.player?.pauseVideo();}catch{}}}});
+     playerVars:{autoplay:shorts?1:0,...(shorts?{mute:1,loop:1,playlist:checked.videoId}:{}),controls:1,fs:1,playsinline:1,origin:root.location.origin,start:checked.startSeconds,...(checked.endSeconds===null?{}:{end:checked.endSeconds})},
+     events:{onReady:event=>{if(entry.cancelled||entry.player!==event.target){event.target.destroy();return;}if(shorts){event.target.mute();event.target.loadVideoById({videoId:checked.videoId,startSeconds:0});event.target.playVideo();entry.muteTimer=setInterval(()=>{if(!entry.cancelled)event.target.mute();},500);manual.hidden=false;status.textContent='Muted loop. If playback stops, press Play.';size();return;}event.target.cueVideoById({videoId:checked.videoId,startSeconds:checked.startSeconds,...(checked.endSeconds===null?{}:{endSeconds:checked.endSeconds})});status.textContent='';notice.hidden=true;},
+      onError:()=>{notice.hidden=false;status.textContent='Video unavailable. You can still select this candidate.';},
+      onAutoplayBlocked:()=>{if(entry.cancelled)return;notice.hidden=false;status.textContent='Use the official player controls to play.';if(shorts)manual.hidden=false;},
+      onStateChange:event=>{if(entry.cancelled)return;if(shorts){event.target.mute();if(event.data===0){event.target.seekTo(0,true);event.target.playVideo();}if(event.data===1){manual.hidden=true;notice.hidden=true;}return;}if(event.data===1)for(const other of live.values())if(other!==entry)try{other.player?.pauseVideo();}catch{}}}});
    }).catch(()=>{failed=true;status.textContent='Video player unavailable. You can still select this candidate.';}).finally(()=>{loading=false;});
   };
   entry.observer=new ResizeObserver(size);entry.observer.observe(art);size();
  };
- root.pick=function(side){if(root.busy||performance.now()<selectionUntil)return;selectionUntil=performance.now()+300;for(const e of live.values()){e.cancelled=true;e.observer?.disconnect();try{e.player?.destroy();}catch{}e.embed?.dispose();}return pick?.call(this,side);};
+ root.pick=function(side){if(root.busy||performance.now()<selectionUntil)return;selectionUntil=performance.now()+300;for(const e of live.values()){e.cancelled=true;e.observer?.disconnect();clearInterval(e.muteTimer);try{e.player?.destroy();}catch{}e.embed?.dispose();}return pick?.call(this,side);};
  root.show=function(id){if(id!=='play')stop();const result=show.apply(this,arguments);
-  if(id==='end'&&['youtube','giphy'].includes(root.champ?.media?.type)){const at=generation,candidate=root.champ;queueMicrotask(()=>{const art=document.getElementById('winArt');if(at!==generation||!art||document.getElementById('end')?.classList.contains('hide'))return;winnerHandle=mountCandidateMedia(art,candidate,{showSelect:false,loadPlayer});});}return result;};
+  if(id==='end'&&['youtube','giphy','mp4'].includes(root.champ?.media?.type)){const at=generation,candidate=root.champ;queueMicrotask(()=>{const art=document.getElementById('winArt');if(at!==generation||!art||document.getElementById('end')?.classList.contains('hide'))return;winnerHandle=mountCandidateMedia(art,candidate,{showSelect:false,loadPlayer,videoSource});});}return result;};
  root.addEventListener('pagehide',stop);return {dispose:stop};
 }
 
 // Creator and champion surfaces use the same lifecycle, without persistence or statistics calls.
-export function mountCandidateMedia(container,participant,{onSelect,showSelect=true,loadPlayer=()=>youtubeLibrary(globalThis)}={}){
+export function mountCandidateMedia(container,participant,{onSelect,showSelect=true,loadPlayer=()=>youtubeLibrary(globalThis),videoSource=null}={}){
  const slot=document.createElement('button');slot.type='button';slot.className='pick';slot.id='media-choice';let chosen=false;
- const virtual={location:globalThis.location,addEventListener(){},show(){},pick(){if(chosen||!onSelect)return;chosen=true;onSelect();},fill(button,p){button.replaceChildren();const art=document.createElement('div');art.className='art';const name=document.createElement('span');name.className='name';name.textContent=p.n;button.append(art,name);}};
- container.replaceChildren(slot);const handle=installMixedMediaGame(virtual,{loadPlayer});virtual.fill(slot,{...participant,n:participant.n||participant.name||'Candidate'});
+ const virtual={location:globalThis.location,addEventListener(){},show(){},pick(){if(chosen||!onSelect)return;chosen=true;onSelect();},fill(button,p){button.replaceChildren();const art=document.createElement('div');art.className='art';if(p.media?.type==='mp4'){const image=document.createElement('img');image.className='vs-photo';image.alt=p.n;art.append(image);}const name=document.createElement('span');name.className='name';name.textContent=p.n;button.append(art,name);}};
+ container.replaceChildren(slot);const handle=installMixedMediaGame(virtual,{loadPlayer,videoSource});virtual.fill(slot,{...participant,n:participant.n||participant.name||'Candidate'});
  if(!showSelect){slot.hidden=true;container.firstElementChild.classList.add('candidate-champion');}return {element:container,dispose(){handle.dispose();container.replaceChildren();}};
 }

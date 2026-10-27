@@ -19,7 +19,7 @@ export function adminReadError(error) {
     : 'Administrator data is unavailable. Contact the site operator.';
   return Error(message);
 }
-export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = fetch, uuid = () => crypto.randomUUID(),mp4ContractsEnabled=false,giphyContractsEnabled=false }) {
+export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = fetch, uuid = () => crypto.randomUUID(),mp4ContractsEnabled=false,giphyContractsEnabled=false,combinedMediaContractsEnabled=false }) {
   if (gatewayOrigin !== pageOrigin || !/^https?:\/\//.test(pageOrigin)) throw Error('Use the same-origin Staging media gateway.');
   const rpc = async (name, args) => {
     const started=performance.now();const { data, error } = await client.schema('pwc41_api').rpc(name, args);
@@ -86,6 +86,14 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
     authorize: tid => rpc('admin_media_assert_owner', { tid }),
     published: () => rpc('list_published', {}),
     revision: async rid => {
+      if(combinedMediaContractsEnabled){
+        if(!giphyContractsEnabled||!mp4ContractsEnabled)throw Error('Combined reader requires both media contracts.');
+        const next=await client.schema('pwc41_api').rpc('get_revision_media_all_v23',{rid});
+        if(next.error||!Array.isArray(next.data?.participants))throw Error('Combined media reader unavailable. Keep the current draft.');
+        return next.data;
+      }
+      // The separate readers cannot compose a single revision without losing sidecars.
+      if(giphyContractsEnabled&&mp4ContractsEnabled)throw Error('Combined GIPHY/MP4 reader is not qualified. Keep the current draft.');
       if(giphyContractsEnabled){const next=await client.schema('pwc41_api').rpc('get_revision_giphy_v1',{rid});if(next.error)throw Error('GIPHY contracts unavailable. Keep the current draft.');if(!Array.isArray(next.data?.participants))throw Error('Invalid GIPHY revision');return next.data;}
 
       if(mp4ContractsEnabled){const next=await client.schema('pwc41_api').rpc('get_revision_media_mp4_v1',{rid});
@@ -98,7 +106,7 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
       if(response.error||!Array.isArray(response.data?.participants))throw Error('Mixed revision lookup failed. Refresh or contact the operator.');
       return response.data;
     },
-    youtube:async(tid,url,start='',end='')=>{const classified=classifyMediaUrl(url,start,end);if(classified.provider==='giphy')throw Error('Use the GIPHY draft URL workflow.');if(classified.provider!=='youtube')throw Error('Imgur registration is not enabled.');const source=classified.source;return mutation('/admin/media/youtube',{tid},JSON.stringify(source));},
+    youtube:async(tid,url,start='',end='')=>{const classified=classifyMediaUrl(url,start,end);if(classified.provider==='giphy')throw Error('Use the GIPHY draft URL workflow.');if(classified.provider!=='youtube')throw Error('Imgur registration is not enabled.');const source=classified.source;if(source.playbackMode==='shorts'){const probe=await rpc('youtube_shorts_capability_v29',{});if(probe!==true)throw Error('Shorts server contract is unavailable.');}return mutation('/admin/media/youtube',{tid},JSON.stringify(source));},
     upload: async(tid,file,onProgress)=>{
       await validateCreatorFile(file);
       return mutation('/admin/media/upload',{tid,request:uuid(),asset:'asset_'+uuid()},file,onProgress);

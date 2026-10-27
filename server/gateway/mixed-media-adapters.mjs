@@ -6,6 +6,7 @@ export function createMixedMediaAdapters({url,publishableKey,serviceKey,fetchImp
  async function rpc(name,args,token=serviceKey,key=serviceKey){const r=await request('/rest/v1/rpc/'+name,token,key,{method:'POST',headers:{'Content-Type':'application/json','Content-Profile':'pwc41_api'},body:JSON.stringify(args)},name);return r.status===204?null:r.json();}
  function path(key){if(!/^[0-9a-f-]{36}\/source_[0-9a-f-]{36}\.webp$/.test(key||''))throw Error('Invalid animation path');return '/storage/v1/object/pwc41-animated/'+key;}
  return {
+  shortsCapability:token=>rpc('youtube_shorts_capability_v29',{},token,publishableKey),
   capability:(token,tid)=>rpc('admin_mixed_media_capability',{tid},token,publishableKey),
   reserve:({actor,tid,sourceId,descriptor})=>rpc('mixed_media_reserve',{actor,tid,sid:sourceId,source_descriptor:descriptor}),
   finish:({actor,sourceId})=>rpc('mixed_media_finish',{actor,sid:sourceId}),

@@ -2,7 +2,7 @@ import {randomUUID,createHash} from 'node:crypto';
 import {identity,readBounded} from './gateway.mjs';
 import {createAnimationDecoder} from './animation-decoder.mjs';
 import {createYouTubeMetadataReader} from './youtube-metadata.mjs';
-import {youtubeSource,validateYouTubeClip} from './media-policy.mjs';
+import {checkedYoutubeSource,validateYouTubeClip} from './media-policy.mjs';
 import {mixedStep,codedError,failureRecord,publicFailure,safeWorkerDiagnostics} from './mixed-media-diagnostics.mjs';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const sourcePattern=/^source_[0-9a-f-]{36}$/;
@@ -12,6 +12,7 @@ export function createMixedMediaService({auth,db,admission,gateway,sources,decod
  async function authorize(token,tid,recheck=false){const actor=await mixedStep('AUTH_VERIFY',async()=>identity(await auth.verify(token)));await mixedStep(recheck?'OWNER_RECHECK':'ADMIN_OWNER',()=>db.assertAdminOwner(token,actor.id,tid));return actor;}
  return {
   async register({token,tid,body,type,start='',end='',signal,onWorkerDiagnostics,onAnimationRead=()=>{}}){
+   if(type!=='youtube')throw Error('Unsupported file type. Use the media URL field for YouTube or GIPHY; Imgur is not enabled.');
    if(active>=1)await mixedStep('ADMISSION',()=>{throw codedError('CAPACITY','Mixed-media processing busy. Retry later.');});active++;
    const connected=()=>{if(signal?.aborted)throw codedError('REQUEST_ABORTED');};
    let release;try{
@@ -21,7 +22,8 @@ export function createMixedMediaService({auth,db,admission,gateway,sources,decod
     connected();
     let bytes,poster,media,metadata,staticGif=false;
     if(type==='youtube'){
-     const source=await mixedStep('YOUTUBE_METADATA',()=>{if(!apiKey)throw Error('YouTube metadata is not configured. Contact the operator.');return youtubeSource(body.url,start,end);});
+     const source=await mixedStep('YOUTUBE_METADATA',()=>{if(!apiKey)throw Error('YouTube metadata is not configured. Contact the operator.');return checkedYoutubeSource({...body,startSeconds:start,endSeconds:end});});
+     if(source.playbackMode==='shorts')await mixedStep('MIXED_CAPABILITY',async()=>{if(await sources.shortsCapability?.(token)!==true)throw codedError('CONTRACT_UNAVAILABLE');});
      metadata=await mixedStep('YOUTUBE_METADATA',()=>createYouTubeMetadataReader({authorize:()=>authorize(token,tid),apiKey,fetchImpl})(source.url));
      media=await mixedStep('YOUTUBE_METADATA',()=>validateYouTubeClip(source,metadata.durationSeconds));
      poster=await mixedStep('YOUTUBE_POSTER',async()=>{const response=await fetchImpl(source.thumbnailUrl,{redirect:'error',signal:AbortSignal.timeout(5000)});
