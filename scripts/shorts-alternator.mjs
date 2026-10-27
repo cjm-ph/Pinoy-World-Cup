@@ -2,7 +2,7 @@
 export function createShortsAlternator(clock={}) {
  const now=clock.now||(()=>performance.now()),later=clock.setTimeout||globalThis.setTimeout,clearLater=clock.clearTimeout||globalThis.clearTimeout;
  const every=clock.setInterval||globalThis.setInterval,clearEvery=clock.clearInterval||globalThis.clearInterval;
- const slots=new Map();let phase='waiting',active=null,epoch=0,watch=null,gap=null,stopAt=0,loadAt=0,played=false,last=null;
+ const slots=new Map();let phase='waiting',active=null,epoch=0,watch=null,gap=null,stopAt=0,waitAt=0,loadAt=0,played=false,last=null;
  const state=e=>{try{return e.player?.getPlayerState();}catch{return undefined;}};
  const stopped=e=>[0,2].includes(state(e));
  const pair=()=>slots.size===2&&slots.has(0)&&slots.has(1);
@@ -15,8 +15,10 @@ export function createShortsAlternator(clock={}) {
   const e=slots.get(index),other=slots.get(1-index);
   if(!valid(e)||!valid(other)||!e.alternatingReady||!other.alternatingReady)return;
   if(![-1,0,2,5].includes(state(other))||![-1,0,2,5].includes(state(e)))return;
+  // READY only means API-ready: wait for both outstanding cue commands to settle.
+  const initial=phase==='waiting';if(initial&&(state(e)!==5||state(other)!==5))return;
   active=index;played=false;last=null;loadAt=now();phase='loading';
-  try{e.player.mute();e.player.loadVideoById({videoId:e.alternatingRange.videoId,startSeconds:e.alternatingRange.startSeconds,...(e.alternatingRange.endSeconds===null?{}:{endSeconds:e.alternatingRange.endSeconds})});}
+  try{e.player.mute();e.player.loadVideoById({videoId:e.alternatingRange.videoId,startSeconds:e.alternatingRange.startSeconds,...(e.alternatingRange.endSeconds===null?{}:{endSeconds:e.alternatingRange.endSeconds})});if(initial&&phase!=='manual'){e.player.mute();e.player.playVideo?.();}}
   catch{halt('Automatic playback unavailable. Use Play.');}
  };
  const confirm=()=>{
@@ -34,7 +36,7 @@ export function createShortsAlternator(clock={}) {
   if(phase==='stopping')confirm();
  };
  const tick=()=>{
-  if(pair()&&phase==='waiting'&&[...slots.values()].every(e=>e.alternatingReady)){start(0);return;}
+  if(pair()&&phase==='waiting'&&[...slots.values()].every(e=>e.alternatingReady)){if(now()-waitAt>=15000){halt('Automatic playback unavailable. Use Play.');return;}start(0);return;}
   if(!pair()||!['loading','playing','stopping','gap'].includes(phase))return;
   if([...slots.values()].some(e=>!valid(e))){halt('Automatic alternation stopped. Use Play.');return;}
   const e=slots.get(active),s=state(e);
@@ -53,7 +55,7 @@ export function createShortsAlternator(clock={}) {
  return {
   isPair:pair,
   attach(index,e,range){if(index!==0&&index!==1)return;if(slots.has(index)&&slots.get(index)!==e)reset();e.alternatingSide=index;e.alternatingRange=range;e.alternatingReady=false;slots.set(index,e);if(pair())for(const member of slots.values())member.alternatingManaged=true;},
-  ready(e){if(!valid(e))return;e.alternatingReady=true;if(pair()&&phase==='waiting'&&[...slots.values()].every(e=>e.alternatingReady)){watch=every(tick,100);start(0);}},
+  ready(e){if(!valid(e))return;e.alternatingReady=true;if(pair()&&phase==='waiting'&&[...slots.values()].every(e=>e.alternatingReady)){waitAt=now();watch=every(tick,100);start(0);}},
   event(e,s){if(!valid(e)||!pair()||phase==='manual'||phase==='waiting'){
     if(valid(e)&&pair()&&phase==='waiting'&&s===1)halt('Automatic alternation stopped. Use Play.');return;}
    if(s===1){if(e.alternatingSide!==active||phase==='gap'){halt('Automatic alternation stopped. Use Play.');return;}if(phase==='loading'||phase==='playing'){played=true;e.alternatingPlayed=true;phase='playing';}}
