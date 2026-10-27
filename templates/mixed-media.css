@@ -57,3 +57,9 @@
 #roundSelection[data-shorts-sound] .round-topbar{grid-template-columns:44px minmax(0,1fr) 40px}
 #play[data-shorts-sound] .bar{grid-template-columns:44px minmax(0,1fr) auto 40px;box-sizing:border-box}
 @media(min-width:901px){#play[data-shorts-sound]:has([data-playback=shorts]) .bar{width:min(calc(100% - 8px),1052px);margin-inline:auto;padding-left:0;padding-right:0}}
+
+/* Round38: regular YouTube has a landscape frame; Shorts and mobile stay unchanged. */
+@media(min-width:901px){
+ #play .candidate-shell[data-kind=youtube]:not([data-playback=shorts])>.candidate-media{grid-template-columns:minmax(0,1fr)}
+ #play .candidate-shell[data-kind=youtube]:not([data-playback=shorts]) .mixed-player{width:100%;height:auto;aspect-ratio:16/9;align-self:center;justify-self:stretch}
+}
