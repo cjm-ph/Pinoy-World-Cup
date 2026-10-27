@@ -1,4 +1,4 @@
-import {giphyPreview} from './giphy-preview.mjs';
+import {giphyPreview,giphyStillUrl} from './giphy-preview.mjs';
 import {readHomepage} from './homepage-read-api.mjs';
 import {createCoverPicker,publicImageUrl} from './homepage-cover-model.mjs';
 export function installHomepage(root,{read=readHomepage,random=Math.random}={}) {
@@ -6,7 +6,7 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
  const tabs=$('homeTabs'),grid=$('grid'),search=$('homeSearch'),empty=$('homeEmpty');
  let sort='popular',period='month',rows=[],offset=0,total=0,loading=false,failed=false,generation=0;
  const registry=new Map(root.TOURNAMENTS.map(t=>[t.id,t])),pick=createCoverPicker(random,{source:p=>p?.previewSource});
- const coverRow=row=>({...row,candidates:(row.candidates||[]).map(p=>{const preview=giphyPreview(registry.get(row.tournament_id)?.items.find(i=>i.id===p.participant_id)?.media);return {...p,previewSource:preview?.src||publicImageUrl(p.image_asset_id),giphySource:preview?.source};})});
+ const coverRow=row=>({...row,candidates:(row.candidates||[]).map(p=>{const preview=giphyPreview(registry.get(row.tournament_id)?.items.find(i=>i.id===p.participant_id)?.media);return {...p,previewSource:(preview?giphyStillUrl(registry.get(row.tournament_id)?.items.find(i=>i.id===p.participant_id)?.media):null)||publicImageUrl(p.image_asset_id),giphySource:preview?.source};})});
  // Reuse this visit's cached card pair; never draw another popup candidate or mutate covers.
  root.PWCHomepageStartCover=id=>{
   const row=rows.find(r=>r.tournament_id===id),tournament=registry.get(id);
