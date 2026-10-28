@@ -297,6 +297,7 @@ function updateControls(){
 
  const editable=authorized&&selected&&['private','public'].includes(selected.visibility)&&['draft','rejected','approved'].includes(revision?.state);
  for(const id of ['stagingUpload','stagingFile'])$(id).disabled=!editable;
+ $('stagingRightsAck').closest('article').hidden=revision?.state==='submitted';
  $('stagingRights').disabled=!editable||!asset;
  $('stagingReplace').disabled=!editable||!asset||!rightsRecorded;
  $('editMetadata').disabled=!canEditMetadata(selected,user?.id);
@@ -325,7 +326,7 @@ async function changeRevision(op) {
  if(['approve','reject'].includes(op)&&(revision.state!=='submitted'||revision.submitted_by===user.id))throw Error('A different authorized reviewer must review this submitted revision.');
  if(op==='approve'&&selected.creator_id===user.id)throw Error('You cannot review your own submission.');
  if(op==='publish'&&revision.state!=='approved')throw Error('Independent approval is required before publication.');
- const note=await confirmAction(op==='reject'?'Reject this revision?':`${op[0].toUpperCase()+op.slice(1)} this revision?`,op==='publish'?'This approved revision will become publicly playable on Staging.':op==='rollback'?'The selected approved revision will become the Staging publication.':'The existing server workflow and media validation will apply.',op==='reject');
+ const note=op==='approve'?true:await confirmAction(op==='reject'?'Reject this revision?':`${op[0].toUpperCase()+op.slice(1)} this revision?`,op==='publish'?'This approved revision will become publicly playable on Staging.':op==='rollback'?'The selected approved revision will become the Staging publication.':'The existing server workflow and media validation will apply.',op==='reject');
  if(!note)return;
  await guard();if(op==='reject')await dashboard.reject(selected,revision,note);else if(op==='approve'){await submittedMediaReview.assertReady();await api.reviewPublish(selected,revision.id);}else await api.transition(op,selected,op==='rollback'?$('stagingRollback').value:revision.id);await refreshAdmin(true);say(`${op} completed. Server data refreshed.`,'success');
 }

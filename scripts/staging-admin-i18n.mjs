@@ -1,6 +1,12 @@
 // Administrator-only presentation layer. Never translates form values or server content.
 export const LANGUAGE_KEY = 'pwc-staging-admin-language';
 export const KO = {
+ "Stored file missing":"\uc800\uc7a5 \ud30c\uc77c \uc5c6\uc74c",
+ "Approve reviews and publishes this revision. Individual rights evidence is unchanged.":"\uc2b9\uc778 \ubc84\ud2bc\uc73c\ub85c \uc774 \ub9ac\ube44\uc804\uc744 \uc2ec\uc0ac\ud558\uace0 \uacf5\uac1c\ud569\ub2c8\ub2e4. \uac1c\ubcc4 \uad8c\ub9ac \uc99d\ube59\uc740 \ubcc0\uacbd\ub418\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.",
+ "Existing individual rights record retained.":"\uae30\uc874 \uac1c\ubcc4 \uad8c\ub9ac \uae30\ub85d \uc720\uc9c0.",
+ "Individual rights evidence remains unverified.":"\uac1c\ubcc4 \uad8c\ub9ac \uc99d\ube59\uc740 \ubbf8\ud655\uc778 \uc0c1\ud0dc\ub85c \uc720\uc9c0\ub429\ub2c8\ub2e4.",
+ "Usage rights revoked or blocked":"\uc0ac\uc6a9 \uad8c\ud55c \ucca0\ud68c \ub610\ub294 \ucc28\ub2e8",
+
  "Usage rights recorded. Required media status refreshed.":"\uc0ac\uc6a9 \uad8c\ud55c \uae30\ub85d \uc644\ub8cc. \ubbf8\ub514\uc5b4 \uc0c1\ud0dc\ub97c \uc0c8\ub85c \uc870\ud68c\ud588\uc2b5\ub2c8\ub2e4.",
  "Submitted media review":"\uc81c\ucd9c \ubbf8\ub514\uc5b4 \uac80\ud1a0",
  "Required media checks passed.":"\ud544\uc218 \ubbf8\ub514\uc5b4 \uac80\uc99d \uc644\ub8cc.",
