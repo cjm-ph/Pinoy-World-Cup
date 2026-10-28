@@ -5,7 +5,7 @@ export function createMemberCreatorModel({repository=null,uuid=()=>crypto.random
  const own=t=>{const u=requireUser();if(!t||t.creator_id!==u.id)throw Error('Only your own World Cups can be managed.');return t;};
  const execute=async(method,...args)=>{requireUser();if(busy)throw Error('A member operation is already running.');if(typeof repository?.[method]!=='function')throw Error('Member server contracts are not connected. Nothing was saved or published.');const at=version;busy=true;try{const result=await repository[method](...args);if(at!==version)throw Error('Member session changed. Reload your World Cups.');return result;}finally{busy=false;}};
  return {
-  setIdentity(value){user=value?.id?{id:value.id}:null;version++;},
+  setIdentity(value){if((user?.id||null)===(value?.id||null))return;user=value?.id?{id:value.id}:null;version++;},
   get ready(){return !!user;},get connected(){return !!repository;},
   newDraft(){const u=requireUser();return {creator_id:u.id,tournament_id:'tournament_'+uuid(),title:'',description:'',category_id:'',category_error:'Member category/catalog contract is not connected.',requested_size:8,participants:[]};},
   async context(){const u=requireUser(),x=await execute('context');if(!Array.isArray(x?.tournaments)||x.tournaments.some(t=>t.creator_id!==u.id))throw Error('Invalid member-owned catalog.');return x;},

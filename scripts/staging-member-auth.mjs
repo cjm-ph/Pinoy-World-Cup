@@ -35,21 +35,21 @@ export async function initializeMemberAuth() {
   const login = document.getElementById('memberGoogle');
   const logout = document.getElementById('memberLogout');
   const status = document.getElementById('memberStatus');
-  let revision = 0;
+  let revision = 0, verifiedUser=null;
   try {
     const authClient = getMemberClient();
     const creator=installMemberCreator({client:authClient,account:status.parentElement});
     async function render(session) {
       const current = ++revision;
       login.hidden = !!session; logout.hidden = !session;login.disabled=false;
-      delete status.dataset.profileHttp;delete status.dataset.profileCode;delete status.dataset.profilePoint;creator.setIdentity(null);
+      delete status.dataset.profileHttp;delete status.dataset.profileCode;delete status.dataset.profilePoint;if(!session||session.user.id!==verifiedUser){creator.setIdentity(null);verifiedUser=null;}else{return;}
       if (!session) { status.textContent = 'Play as a guest, or sign in with Google.'; return; }
       status.textContent = 'Preparing your member profile…';
       let response;try{response=await authClient.rpc('ensure_google_member_profile');}catch{response={status:0,error:{code:'UNKNOWN'}};}
       const {error}=response;
       if (current !== revision) return;
       if(error){const diagnostic=safeProfileDiagnostic(response);status.dataset.profileHttp=String(diagnostic.status);status.dataset.profileCode=diagnostic.code;if(diagnostic.point)status.dataset.profilePoint=diagnostic.point;}
-      else creator.setIdentity(session.user);
+      else {verifiedUser=session.user.id;creator.setIdentity(session.user);}
       status.textContent = error
         ? 'Member profile unavailable. Please sign out and try again. Guest play is still available.'
         : 'Signed in with Google.';
@@ -75,6 +75,7 @@ export async function initializeMemberAuth() {
     };
     // Never await another Auth operation inside the Auth state callback.
     authClient.auth.onAuthStateChange((event, session) => {
+      if(event==='SIGNED_OUT'){revision++;verifiedUser=null;creator.setIdentity(null);}
       if (['SIGNED_IN', 'SIGNED_OUT', 'INITIAL_SESSION'].includes(event)) {
         setTimeout(() => render(session).catch(() => {
           status.textContent = 'Member session unavailable. Guest play is still available.';
