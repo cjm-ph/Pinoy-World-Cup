@@ -81,6 +81,7 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
   return {
     rpc, adminCatalog,
     publishOwn:(t,rid)=>rpc('admin_publish_own',{req:uuid(),tid:t.id,rid,expected:t.edit_version}),
+    reviewMediaStatus:(t,rid)=>rpc('admin_submitted_media_v45',{tid:t.id,rid}),
     reviewPublish:(t,rid)=>rpc('admin_review_publish',{req:uuid(),tid:t.id,rid,expected:t.edit_version}),
     applyPhoto:(t,aid,slot,display_settings,note='')=>rpc('admin_media_apply_photo',{req:uuid(),tid:t.id,aid,new_rid:'rev_'+uuid(),expected:t.edit_version,slot,display_settings,note}),
     photoDraft: (t,aid,slot,display_settings)=>rpc('admin_media_photo_draft',{req:uuid(),tid:t.id,aid,new_rid:'rev_'+uuid(),expected:t.edit_version,slot,display_settings}),

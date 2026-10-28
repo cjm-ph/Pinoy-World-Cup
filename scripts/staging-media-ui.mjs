@@ -1,3 +1,4 @@
+import {createSubmittedMediaReview} from './submitted-media-review.mjs';
 import {giphyPreview} from './giphy-preview.mjs';
 import {createShortsAlternator} from './shorts-alternator.mjs';
 import {registerAdminMp4Candidate} from './admin-mp4-candidate.mjs';
@@ -34,9 +35,11 @@ const pendingCreatorPhotos=()=>[...creatorJobs.values()].some(job=>job.state!=='
 let authorized=false, working=false, epoch=0, page='dashboard', asset=null, rightsRecorded=false;
 let work=null, editing=null, dirty=false, newPhotoUrl=null, game=null;
 const photoUrls=new Map(), photosPending=new Map();
+const submittedMediaReview=createSubmittedMediaReview({host:$('submittedMediaReview'),api:()=>api,selection:()=>authorized&&selected&&revision?{t:selected,r:revision}:null,guard:guardSession,loadPhoto:photo,onStatus:message=>say(message,'success'),getLanguage:()=>adminLanguage.language});
 function say(message, kind='') { $('stagingStatus').textContent=message; $('stagingStatus').className='notice '+kind; $('loginStatus').textContent=message; }
 function clearPhotos() { for(const url of photoUrls.values()) URL.revokeObjectURL(url); photoUrls.clear(); photosPending.clear(); if(newPhotoUrl)URL.revokeObjectURL(newPhotoUrl);newPhotoUrl=null; }
 function lock() {
+ submittedMediaReview.clear();
  creatorJobs.clear();creatorDeferredFiles=[];creatorNotice='';clearTimeout(creatorAutoTimer);creatorAutoTimer=null;
  adminStatistics?.reset();
  adminComments?.reset();
@@ -226,7 +229,7 @@ function paintSelected(t,r){
  $('metadataHelp').textContent=owner?'You own this tournament. Text and candidate edits create a new draft.':'Only the creator can edit text and candidates. Administrators can manage photos and review revisions.';
  options('stagingSlot',r.participants.map(p=>[p.id,p.name]));
  options('stagingRollback',(t.approved_revisions||[]).map(r=>[r.id,`Version ${r.version} (${r.id})`]));
- renderPhotos();updateControls();
+ renderPhotos();updateControls();void submittedMediaReview.load();
 }
 async function openTournament(id) { await loadSelected(id);setPage('editor');say('World Cup loaded. Inspect photos, edit supported fields or review the revision.'); }
 function photoSlots(inWizard=false){
@@ -324,7 +327,7 @@ async function changeRevision(op) {
  if(op==='publish'&&revision.state!=='approved')throw Error('Independent approval is required before publication.');
  const note=await confirmAction(op==='reject'?'Reject this revision?':`${op[0].toUpperCase()+op.slice(1)} this revision?`,op==='publish'?'This approved revision will become publicly playable on Staging.':op==='rollback'?'The selected approved revision will become the Staging publication.':'The existing server workflow and media validation will apply.',op==='reject');
  if(!note)return;
- await guard();if(op==='reject')await dashboard.reject(selected,revision,note);else if(op==='approve')await api.reviewPublish(selected,revision.id);else await api.transition(op,selected,op==='rollback'?$('stagingRollback').value:revision.id);await refreshAdmin(true);say(`${op} completed. Server data refreshed.`,'success');
+ await guard();if(op==='reject')await dashboard.reject(selected,revision,note);else if(op==='approve'){await submittedMediaReview.assertReady();await api.reviewPublish(selected,revision.id);}else await api.transition(op,selected,op==='rollback'?$('stagingRollback').value:revision.id);await refreshAdmin(true);say(`${op} completed. Server data refreshed.`,'success');
 }
 function newWork(){$('wizardPanel').replaceChildren();creatorJobs.clear();creatorDeferredFiles=[];creatorNotice='';const category=resolveOthersCategory(categories);work={tournament_id:window.CreatorModelV3.id('tournament'),base_revision_id:null,title:'',description:'',category_id:category.id,category_error:category.error,requested_size:8,cover_participant_id:null,participants:[]};ensureCandidates();editing=null;dirty=false;renderWizard();}
 function captureWizard(){if(!work||!$('workTitle'))return;work.title=$('workTitle').value;work.description=$('workDescription').value;for(const input of all('[data-candidate-name]')){const p=work.participants.find(p=>p.id===input.dataset.candidateName);if(p)p.name=input.value;}}
