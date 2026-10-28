@@ -24,10 +24,11 @@ export function formatMemberReviewTime(value){
 }
 export function memberSubmitIssue(t){
  const r=t?.revision;if(r?.state==='rejected')return 'Open the rejected World Cup and save a new Draft before requesting review again, so its rejection history is retained.';if(!r||r.id!==t.draft_revision_id||!['draft','rejected'].includes(r.state))return 'Refresh your World Cups: the current draft is no longer available for submission.';
- if(![8,16,32].includes(r.requested_size))return 'The saved candidate count is unavailable. The member review-context server update is required.';
  const rows=r.participants||[],active=rows.filter(p=>p.active!==false),missing=rows.flatMap((p,i)=>p.active!==false&&(typeof p.name!=='string'||!p.name.trim())?[i+1]:[]),notes=[];
- if(active.length<r.requested_size){const add=r.requested_size-active.length;notes.push(`Not enough candidates. This ${r.requested_size}-candidate World Cup has ${active.length} saved active candidates. Add ${add} more candidate${add===1?'':'s'}, save, then request review.`);}
- else if(active.length>r.requested_size)notes.push(`This World Cup requires ${r.requested_size} active candidates, but ${active.length} are saved. Check the candidate count and save again before requesting review.`);
+ // Old authorized readers may omit requested_size. Never guess it; the existing submit RPC checks it.
+ const required=[8,16,32].includes(r.requested_size)?r.requested_size:null;
+ if(active.length<(required??8))notes.push('Not enough candidates. Register all required candidates, save, then request review.');
+ else if(required!==null&&active.length>required)notes.push('The candidate list does not match the selected World Cup size. Check the list and save again before requesting review.');
  if(missing.length)notes.push(`Add a name for candidate${missing.length===1?'':'s'} ${missing.map(i=>'#'+i).join(', ')} before requesting review.`);
  return notes.length?notes.join(' '):null;
 }
