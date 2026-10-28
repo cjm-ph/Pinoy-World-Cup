@@ -84,3 +84,5 @@
 
 /* Round44: hide only app-rendered external GIPHY links; retain URLs and native iframe UI. */
 #start .home-card .home-giphy-source,.candidate-shell .giphy-stage>a,.photo-editor-card .giphy-preview-source{display:none!important}
+
+.member-workspace{position:fixed;inset:0;z-index:10000;overflow:auto;background:#121925}.member-workspace[hidden]{display:none}body.member-workspace-open{overflow:hidden}

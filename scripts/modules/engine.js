@@ -7,7 +7,7 @@ function label(n){return n==2?"Final":n==4?"Semifinal":n==8?"Quarterfinal":"Roun
 function art(f){var src=f._localPhoto||f.img;return src?'<img src="'+photoAttribute(src)+'" alt="'+photoAttribute(f.n)+'" data-fallback="'+photoAttribute(f.e||"")+'" onerror="this.replaceWith(document.createTextNode(this.getAttribute(\'data-fallback\')))">':f.e}
 function fill(el,f){el.innerHTML='<div class="art">'+art(f)+'</div><div class="name">'+f.n+'</div>';el.setAttribute("aria-label","Pick "+f.n)}
 function show(id){["start","play","end"].forEach(function(s){$(s).classList.toggle("hide",s!==id)})}
-function start(t){tour=t||tour;cur=shuffle(tour.items);next=[];i=0;busy=false;log=[];show("play");render()}
+function start(t){tour=t||tour;cur=tour._admittedOrder?tour.items.slice():shuffle(tour.items);next=[];i=0;busy=false;log=[];show("play");render()}
 function render(){
   var ar=document.querySelector(".arena");ar.classList.add("nt");
   ["a","b"].forEach(function(k){$(k).classList.remove("win","lose")});

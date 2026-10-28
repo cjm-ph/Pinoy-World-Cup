@@ -3,12 +3,14 @@ import {uploadTrace} from './upload-trace.mjs';
 import {diagnostics} from './media-errors.mjs';
 import { createServer } from 'node:http';
 // No listener starts on import. Deployment must explicitly supply authenticated adapters.
-export function createMediaServer(gateway,{uploadProbe,purgeHttp,statisticsHttp,commentsHttp,mixedHttp}={}) {
-  const sockets=new WeakMap();let socketSequence=0;
+export function createMediaServer(gateway,{uploadProbe,purgeHttp,statisticsHttp,commentsHttp,mixedHttp,memberHttp}={}) {
+  const sockets=new WeakMap();let socketSequence=0,activeMediaRequests=0;
   const server = createServer(async (req,res) => {
-    let reference;
+    let reference,mediaLease=false;
     try {
       const u=new URL(req.url,'http://localhost');
+      if(req.method==='POST'&&['/admin/media/upload','/member/media/upload','/admin/media/youtube','/member/media/youtube'].includes(u.pathname)){if(activeMediaRequests>=2){res.writeHead(429,{'Cache-Control':'no-store'});res.end();return;}activeMediaRequests++;mediaLease=true;}
+      if(u.pathname.startsWith('/member/media/')){if(memberHttp)await memberHttp(req,res,u);else{res.writeHead(503);res.end();}return;}
       if(['/admin/media/youtube','/admin/media/animation','/animated-media'].includes(u.pathname)){if(mixedHttp)await mixedHttp(req,res,u);else{res.writeHead(503);res.end();}return;}
       if(u.pathname==='/comments'){if(commentsHttp)await commentsHttp(req,res,u);else{res.writeHead(503);res.end();}return;}
       if(u.pathname==='/play-statistics'||u.pathname.startsWith('/play-statistics/')){if(statisticsHttp)await statisticsHttp(req,res,u);else{res.writeHead(503);res.end();}return;}
@@ -52,7 +54,7 @@ export function createMediaServer(gateway,{uploadProbe,purgeHttp,statisticsHttp,
       // Fail closed; never disclose tokens, paths, decoder errors or service response bodies.
       if (!res.headersSent) res.writeHead(400,{'Content-Type':'application/json','Cache-Control':'no-store'});
       res.end(JSON.stringify({error:'media request rejected',diagnostic}));
-    }
+    } finally {if(mediaLease)activeMediaRequests--;}
   });
   server.requestTimeout=15000;server.headersTimeout=10000;server.timeout=15000;
   return server;

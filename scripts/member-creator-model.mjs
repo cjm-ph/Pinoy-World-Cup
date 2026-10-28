@@ -10,7 +10,7 @@ export function createMemberCreatorModel({repository=null,uuid=()=>crypto.random
   newDraft(){const u=requireUser();return {creator_id:u.id,tournament_id:'tournament_'+uuid(),title:'',description:'',category_id:'',category_error:'Member category/catalog contract is not connected.',requested_size:8,participants:[]};},
   async context(){const u=requireUser(),x=await execute('context');if(!Array.isArray(x?.tournaments)||x.tournaments.some(t=>t.creator_id!==u.id))throw Error('Invalid member-owned catalog.');return x;},
   async list(){const u=requireUser(),rows=await execute('list');if(!Array.isArray(rows)||rows.some(t=>t.creator_id!==u.id))throw Error('Invalid member-owned catalog.');return rows;},
-  async save(work,t=null){requireUser();if(t)own(t);if(work.creator_id!==user.id)throw Error('Draft owner changed.');return execute('save',work,t);},
+  async save(work,t=null){requireUser();if(t){own(t);if(t.revision?.state==='submitted')throw Error('This submission is under review and cannot be changed.');}if(work.creator_id!==user.id)throw Error('Draft owner changed.');return execute('save',work,t);},
   async submit(t){own(t);return execute('submit',t);},
   async unpublish(t){own(t);return execute('unpublish',t);},
   async trash(t){own(t);return execute('trash',t);}

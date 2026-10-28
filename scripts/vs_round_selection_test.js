@@ -18,14 +18,14 @@ var frame=dialog.querySelector('.round-photo-frame');
 var hero=document.getElementById('roundHero');
 var back=document.getElementById('cancelRound');
 var error=document.getElementById('roundError');
-var generation=0;
+var generation=0,launchItems=null;
 function buttonsDisabled(disabled){options.querySelectorAll('button').forEach(function(button){button.disabled=disabled;});}
-function returnHome(){dialog.close();root.goHome();}
+function returnHome(){generation++;launchItems=null;starting=false;dialog.close();root.goHome();}
 root.start=function(t){
  if(dialog.open)return;
  selectedTournament=tournaments.find(function(source){return source.id===(t||root.tour).id;});
  if(!selectedTournament)return;
- starting=false;error.hidden=true;error.textContent='';
+ starting=false;launchItems=null;error.hidden=true;error.textContent='';
  var session=++generation;
  document.getElementById('roundTitle').textContent=selectedTournament.title;
  var count=uniqueActive(selectedTournament.items).length;
@@ -60,17 +60,22 @@ root.start=function(t){
  }
  dialog.showModal();back.focus({preventScroll:true});dialog.scrollTop=0;
 };
-function begin(t,size){
+async function begin(t,size){
  // Keep the latch closed after success, even when a queued second click arrives.
  // Opening a new picker or a valid result-screen replay creates the next launch session.
  if(starting)return;
  starting=true;buttonsDisabled(true);
+ var launchGeneration=generation,pickerOpen=dialog.open;
  try{
-  var chosen=select(t.items,size,null);
+  if(!launchItems||launchItems.tid!==t.id||launchItems.size!==size)launchItems={tid:t.id,size:size,items:select(t.items,size,null)};
+  var chosen=launchItems.items;
+  if(root.PWCPrepareGame)chosen=await root.PWCPrepareGame(t,chosen);
+  if(launchGeneration!==generation||(pickerOpen?!dialog.open:document.getElementById("end").classList.contains("hide")))return;
   announce('Practice mode · Global rankings are not connected.');
   lastSize=size;dialog.close();
-  previousStart(Object.assign({},t,{items:chosen}));
+  previousStart(Object.assign({},t,{items:chosen,_admittedOrder:!!root.PWCPrepareGame,_statistics_revision_id:chosen._admittedRevision}));
  }catch(failure){
+  if(launchGeneration!==generation||(pickerOpen?!dialog.open:document.getElementById("end").classList.contains("hide")))return;
   starting=false;buttonsDisabled(false);
   error.textContent='Unable to start: '+failure.message;error.hidden=false;
   if(!dialog.open)dialog.showModal();
@@ -81,7 +86,7 @@ dialog.addEventListener('cancel',function(event){event.preventDefault();returnHo
 document.getElementById('again').onclick=function(){
  if(document.getElementById('end').classList.contains('hide'))return;
  var t=tournaments.find(function(source){return source.id===root.tour.id;});
- starting=false;begin(t,lastSize);
+ starting=false;launchItems=null;begin(t,lastSize);
 };
 // Preserve the original shared module's cover handling before the home adapter loads.
 var originalBuild=root.buildGrid;

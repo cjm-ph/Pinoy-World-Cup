@@ -2,7 +2,7 @@ import {createGeminiSupport} from './creator-gemini-support.mjs';
 import {checkedMp4} from './mp4-source-contract.mjs';
 const clipTime=seconds=>`${Math.floor((seconds??0)/60)}:${String((seconds??0)%60).padStart(2,'0')}`;
 // Stateless page renderer. Persistence and role checks are supplied by its caller.
-export function createCreatorPage({work,categories,capture,onChange,onResize,onFiles,onYouTube,onRetry,onAdd,onRemove,onMove,onSave,onPublish,onPreview,photos,jobs,busy,notice,getLanguage,adminGiphyPresentation=false,onError=()=>{}}){
+export function createCreatorPage({work,categories,capture,onChange,onResize,onFiles,onYouTube,onRetry,onAdd,onRemove,onMove,onSave,onPublish,onPreview,photos,jobs,busy,notice,getLanguage,adminGiphyPresentation=false,memberMode=false,onError=()=>{}}){
  const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const action=(text,fn)=>{const b=el('button',text,'btn small');b.type='button';b.onclick=()=>{try{fn();}catch(e){onError(e.message);}};b.disabled=busy;return b;};
  const root=el('div',undefined,'creator-single-page');
@@ -45,9 +45,9 @@ export function createCreatorPage({work,categories,capture,onChange,onResize,onF
  candidates.append(photos);const add=action('Add candidate',onAdd);add.disabled=busy||work.participants.length>=work.requested_size;candidates.append(add);
  const bulk=el('details'),summary=el('summary','Paste candidate names'),area=el('textarea');area.id='bulkNames';area.setAttribute('aria-label','Candidate names, one per line');area.disabled=busy;
  bulk.append(summary,area,action('Apply names',()=>{capture();const {names}=globalThis.CreatorModelV3.parseList(area.value,[],Number(work.requested_size),'replace');while(work.participants.length<names.length)work.participants.push({...globalThis.CreatorModelV3.member(''),image_asset_id:null});names.forEach((name,i)=>work.participants[i].name=name);onChange(true);}));candidates.append(bulk);
- const gemini=createGeminiSupport({getContext:()=>{capture();return {...work,category:categories.find(c=>c.id===work.category_id)?.name||''};},getLanguage,onCandidates:null});
- gemini.querySelectorAll('button').forEach(b=>b.disabled=busy);basic.append(gemini);
- const save=section('Save / Publish'),privateButton=action('Save privately',onSave),publishButton=action('Publish now',onPublish);privateButton.disabled=publishButton.disabled=busy||!work.category_id;save.append(el('p','Save a private draft, or publish your latest validated content. An existing public revision stays live until publication succeeds.','help'),privateButton,publishButton);
+ if(!memberMode){const gemini=createGeminiSupport({getContext:()=>{capture();return {...work,category:categories.find(c=>c.id===work.category_id)?.name||''};},getLanguage,onCandidates:null});
+ gemini.querySelectorAll('button').forEach(b=>b.disabled=busy);basic.append(gemini);}
+ const save=section(memberMode?'Save / Request review':'Save / Publish'),privateButton=action('Save privately',onSave),publishButton=action('Publish now',onPublish);if(memberMode)publishButton.textContent='Submit for administrator review';privateButton.disabled=publishButton.disabled=busy||!work.category_id;save.append(el('p',memberMode?'Save a private draft, then request administrator review. Existing public content remains live.':'Save a private draft, or publish your latest validated content. An existing public revision stays live until publication succeeds.','help'),privateButton,publishButton);
  if(onPreview)save.prepend(action('Preview tournament',onPreview));
  return root;
 }

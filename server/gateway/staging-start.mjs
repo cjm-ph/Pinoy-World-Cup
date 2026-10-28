@@ -1,3 +1,4 @@
+import {createMemberMedia} from './member-media.mjs';
 import { pathToFileURL } from 'node:url';
 import { createGateway } from './gateway.mjs';
 import { supabaseAdapters } from './adapters.mjs';
@@ -22,12 +23,12 @@ export function readStagingEnvironment(env) {
 export function composeStaging(config) {
   const adapters=supabaseAdapters(config);
   const purgeHttp=config.tournamentPurge===true?createPurgeHttp(createPurgeController({auth:adapters.auth,...createPurgeAdapters(config),enabled:true})):undefined;
-  const statisticsHttp=createStatisticsHttp({rpc:createStatisticsAdapters(config),auth:adapters.auth,memberBadges:config.comments===true,secret:config.serviceKey,enabled:config.playStatistics===true});
+  const statisticsHttp=createStatisticsHttp({rpc:createStatisticsAdapters(config),auth:adapters.auth,memberBadges:config.comments===true,secret:config.serviceKey,imageStore:adapters.storage,enabled:config.playStatistics===true});
   const commentsHttp=createCommentHttp({...createCommentAdapters(config),auth:adapters.auth,secret:config.serviceKey,enabled:config.comments===true});
   const decoders=createMediaDecodeBudget(createDecoder(),createAnimationDecoder());
   const gateway=createGateway({...adapters,decoder:decoders.static});
   const mixedHttp=createMixedMediaHttp(createMixedMediaService({...adapters,gateway,decoder:decoders.animation,sources:createMixedMediaAdapters(config),apiKey:config.youtubeKey}));
-  return createMediaServer(gateway,{mixedHttp,uploadProbe:config.uploadProbe===true?createUploadProbe(adapters):undefined,purgeHttp,statisticsHttp,commentsHttp});
+  return createMediaServer(gateway,{mixedHttp,memberHttp:createMemberMedia(config,{decoder:decoders.static}),uploadProbe:config.uploadProbe===true?createUploadProbe(adapters):undefined,purgeHttp,statisticsHttp,commentsHttp});
 }
 // Imports and configuration tests do not start a listener or contact Supabase.
 if (process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {

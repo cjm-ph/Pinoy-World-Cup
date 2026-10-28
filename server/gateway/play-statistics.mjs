@@ -1,3 +1,4 @@
+import {digest,magic} from './gateway.mjs';
 import {randomUUID,createHmac,timingSafeEqual} from 'node:crypto';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export function createStatisticsAdapters({url,publishableKey,serviceKey,fetchImpl=fetch}){
@@ -8,7 +9,7 @@ export function createStatisticsAdapters({url,publishableKey,serviceKey,fetchImp
   if(!response.ok)throw Object.assign(Error('Statistics unavailable'),{httpStatus:response.status>=500?502:response.status===429?429:400});return response.json();
  };
 }
-export function createStatisticsHttp({rpc,secret,auth,memberBadges=false,enabled=false,allowedOrigin='https://pinoy-worldcup-staging.onrender.com',now=Date.now}){
+export function createStatisticsHttp({rpc,secret,auth,memberBadges=false,enabled=false,allowedOrigin='https://pinoy-worldcup-staging.onrender.com',now=Date.now,imageStore}){
  if(!secret)throw Error('Server signing secret required');
  const sign=value=>createHmac('sha256',secret).update('play-statistics-v1:'+value).digest('hex');
  const buckets=new Map();let active=0;
@@ -25,10 +26,16 @@ export function createStatisticsHttp({rpc,secret,auth,memberBadges=false,enabled
   if(active>=16||buckets.size>10000||buckets.get(caller).count>120){send(429,{error:'Statistics rate limited.'});return;}
   if(req.method==='POST'&&req.headers.origin!==allowedOrigin){send(403,{error:'Origin rejected.'});return;}
   if(req.method==='POST'&&!existingVisitor){send(428,{error:'Establish a statistics session first.'});return;}
-  if(!['GET','POST'].includes(req.method)){send(405,{error:'Method rejected.'});return;}
+  if(!['GET','POST'].includes(req.method)&&!(req.method==='HEAD'&&url.pathname==='/play-statistics/media')){send(405,{error:'Method rejected.'});return;}
   active++;let timer;
   try{
-   if(req.method==='GET'){
+   if(['GET','HEAD'].includes(req.method)){
+    if(url.pathname==='/play-statistics/media'){
+     const gid=url.searchParams.get('game'),aid=url.searchParams.get('asset');if([...url.searchParams.keys()].some(k=>!['game','asset'].includes(k)||url.searchParams.getAll(k).length!==1)||!existingVisitor||!imageStore||!uuid.test(gid||'')||!/^asset_[0-9a-f-]{36}$/.test(aid||'')||req.headers.range)throw Error('Game media unavailable');
+     const args={caller,gid,aid},target=await rpc('play_media_target_v46',args);const bytes=await imageStore.read(target.bucket,target.object_key);
+     if(bytes.length!==Number(target.byte_size)||digest(bytes)!==target.sha256||magic(bytes)!=='webp')throw Error('Integrity failure');const current=await rpc('play_media_target_v46',args);if(current.bucket!==target.bucket||current.object_key!==target.object_key||current.sha256!==target.sha256||String(current.byte_size)!==String(target.byte_size))throw Error('Media authority changed');
+     res.writeHead(200,{'Content-Type':'image/webp','Content-Length':bytes.length,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(req.method==='HEAD'?undefined:bytes);return;
+    }
     if(url.pathname==='/play-statistics/session'){send(200,{enabled:true});return;}
     if(url.pathname==='/play-statistics/homepage'){
      const sort_mode=url.searchParams.get('sort')??'popular',period=url.searchParams.get('period')??'month';
