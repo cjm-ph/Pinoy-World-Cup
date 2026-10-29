@@ -13,6 +13,7 @@ export function createMemberCreatorModel({repository=null,uuid=()=>crypto.random
   async list(){const u=requireUser(),rows=await execute('list');if(!Array.isArray(rows)||rows.some(t=>t.creator_id!==u.id))throw Error('Invalid member-owned catalog.');return rows;},
   async save(work,t=null){requireUser();if(t){if(t.creator_id!==user.id&&targets.get(t.id)!==t.creator_id)throw Error('Tournament editing access refused.');if(t.revision?.state==='submitted')throw Error('This submission is under review and cannot be changed.');}if(work.creator_id!==(t?.creator_id||user.id))throw Error('Draft owner changed.');return execute('save',work,t);},
   async submit(t){requireUser();if(t?.creator_id!==user.id&&targets.get(t?.id)!==t?.creator_id)throw Error('Tournament editing access refused.');const issue=memberSubmitIssue(t);if(issue)throw Error(issue);return execute('submit',t);},
+  async history(t,before=null){requireUser();if(t?.creator_id!==user.id&&targets.get(t?.id)!==t?.creator_id)throw Error('Tournament history access refused.');return execute('history',t.id,before);},
   async unpublish(t){own(t);return execute('unpublish',t);},
   async trash(t){own(t);return execute('trash',t);}
  };

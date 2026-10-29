@@ -1,11 +1,14 @@
 import {giphyPreview,giphyStillUrl} from './giphy-preview.mjs';
 import {readHomepage} from './homepage-read-api.mjs';
 import {createCoverPicker,publicImageUrl} from './homepage-cover-model.mjs';
+import {publicContentType} from './member-page-policy.mjs';
 export function installHomepage(root,{read=readHomepage,random=Math.random}={}) {
  const $=id=>document.getElementById(id),el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const tabs=$('homeTabs'),grid=$('grid'),search=$('homeSearch'),empty=$('homeEmpty');
- let sort='popular',period='month',rows=[],offset=0,total=0,loading=false,failed=false,generation=0;
+ let sort='popular',period='month',contentType='all',rows=[],offset=0,total=0,loading=false,failed=false,generation=0,visibleLimit=50;
+ const catalogueCache=new Map();
  const registry=new Map(root.TOURNAMENTS.map(t=>[t.id,t])),pick=createCoverPicker(random,{source:p=>p?.previewSource});
+ const contentTypes=new Map([...registry].map(([id,t])=>[id,publicContentType(t)]));
  const coverRow=row=>({...row,candidates:(row.candidates||[]).map(p=>{const preview=giphyPreview(registry.get(row.tournament_id)?.items.find(i=>i.id===p.participant_id)?.media);return {...p,previewSource:(preview?giphyStillUrl(registry.get(row.tournament_id)?.items.find(i=>i.id===p.participant_id)?.media):null)||publicImageUrl(p.image_asset_id),giphySource:preview?.source};})});
  // Reuse this visit's cached card pair; never draw another popup candidate or mutate covers.
  root.PWCHomepageStartCover=id=>{
@@ -14,19 +17,23 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
   const sources=pick(coverRow(row)).map(p=>p?.previewSource).filter(Boolean);
   return {source:sources[0]||'',fallbackSources:sources.slice(1),fit:'contain',position:'50% 50%'};
  };
- const periods=el('div',undefined,'home-periods'),status=el('p',undefined,'home-read-status'),retry=el('button','Retry','home-tab'),more=el('button','Load more','home-tab');
+ const periods=el('div',undefined,'home-periods'),types=el('div',undefined,'home-periods'),status=el('p',undefined,'home-read-status'),retry=el('button','Retry','home-tab'),more=el('button','Load more','home-tab');
+ types.setAttribute('role','group');types.setAttribute('aria-label','Content type');
  periods.setAttribute('role','group');periods.setAttribute('aria-label','Popularity period');status.setAttribute('role','status');
  retry.type=more.type='button';retry.hidden=more.hidden=true;tabs.replaceChildren();tabs.setAttribute('aria-label','World Cup order');
- tabs.after(periods);grid.before(status,retry);grid.after(more);
+ tabs.after(periods,types);grid.before(status,retry);grid.after(more);
  const controls=[];
  for(const value of ['popular','latest']){const button=el('button',value==='popular'?'Popular':'Latest','home-tab');button.type='button';button.onclick=()=>{if(sort!==value){sort=value;void load(true);}};tabs.append(button);controls.push([button,()=>sort===value]);}
+ for(const value of ['all','image','video']){const button=el('button',value[0].toUpperCase()+value.slice(1),'home-tab');button.type='button';button.onclick=()=>{contentType=value;visibleLimit=50;controlsState();render();};types.append(button);controls.push([button,()=>contentType===value]);}
  for(const value of ['today','week','month']){const button=el('button',value[0].toUpperCase()+value.slice(1),'home-tab');button.type='button';button.onclick=()=>{if(period!==value){period=value;void load(true);}};periods.append(button);controls.push([button,()=>period===value]);}
  function controlsState(){for(const [button,selected] of controls)button.setAttribute('aria-pressed',String(selected()));periods.hidden=sort==='latest';}
  function render(){
   grid.replaceChildren();const query=search.value.trim().toLowerCase();
-  for(const row of rows){const tournament=registry.get(row.tournament_id);
+  let matched=0;for(const row of rows){const tournament=registry.get(row.tournament_id);
    // Never splice an API revision into an older in-memory game roster.
    if(!tournament||tournament._statistics_revision_id!==row.revision_id||!tournament.title.toLowerCase().includes(query))continue;
+   if(contentType!=='all'&&contentTypes.get(tournament.id)!==contentType)continue;
+   if(++matched>visibleLimit)continue;
    const card=el('article',undefined,'home-card');card.dataset.tournamentId=tournament.id;
    const media=el('button',undefined,'home-photo');media.type='button';media.dataset.coverMode='automatic-pair';media.setAttribute('aria-label','Choose a round for '+tournament.title);media.onclick=()=>root.start(tournament);
    const pair=pick(coverRow(row));
@@ -43,32 +50,36 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
    line.append(title,details);body.append(line);for(const [index,p] of pair.entries())if(p.giphySource){const link=el('a','View on GIPHY '+(index+1),'home-giphy-source');link.href=p.giphySource;link.target='_blank';link.rel='noopener noreferrer';body.append(link);}card.append(body);grid.append(card);
   }
   empty.hidden=loading||failed||grid.children.length>0;
-  empty.textContent='No World Cups found.';more.hidden=loading||failed||offset>=total;retry.hidden=!failed;
+  empty.textContent='No World Cups found.';more.hidden=loading||failed||matched<=visibleLimit;retry.hidden=!failed;
   status.textContent=failed?'World Cups could not be loaded. Retry to refresh the list.':loading?'Loading World Cups…':rows.some(r=>!registry.has(r.tournament_id)||registry.get(r.tournament_id)._statistics_revision_id!==r.revision_id)?'Published content changed. Refresh the page to load the latest World Cups.':'';
   status.hidden=!status.textContent;
  }
  async function load(reset){
   if(loading&&!reset)return;
   const token=++generation,selectedSort=sort,selectedPeriod=period;
-  if(reset){rows=[];offset=0;total=0;}loading=true;failed=false;controlsState();render();
+  if(reset){rows=[];offset=0;total=0;visibleLimit=50;}loading=true;failed=false;controlsState();render();
   try{
+   const key=selectedSort==='latest'?'latest':selectedSort+':'+selectedPeriod;
+   if(catalogueCache.has(key)){rows=catalogueCache.get(key);return;}
+   const ordered=[],seen=new Set();let cursor=0;
    do {
-    const result=await read({sort:selectedSort,period:selectedPeriod,limit:50,offset});
+    const result=await read({sort:selectedSort,period:selectedPeriod,limit:50,offset:cursor});
     if(token!==generation)return;
-    if(!Number.isSafeInteger(result.total)||result.total<0||result.offset!==offset||result.items.some(r=>!r||typeof r.tournament_id!=='string'||typeof r.revision_id!=='string'||!Array.isArray(r.candidates)))throw Error('Invalid homepage response');
+    if(!Number.isSafeInteger(result.total)||result.total<0||result.offset!==cursor||result.items.some(r=>!r||typeof r.tournament_id!=='string'||typeof r.revision_id!=='string'||!Array.isArray(r.candidates)))throw Error('Invalid homepage response');
     if(result.total>10050)throw Error('Catalogue exceeds supported pagination');
+    if(cursor&&result.total!==total)throw Error('Changed catalogue; retry');
     total=result.total;
-    for(const row of result.items){if(!rows.some(r=>r.tournament_id===row.tournament_id)){rows.push(row);pick(coverRow(row));}}
-    offset+=result.items.length;
-    if(!result.items.length&&offset<total)throw Error('Incomplete homepage response');
-    // Search walks remaining server pages, preserving their order; no per-candidate requests.
-   }while(search.value.trim()&&offset<total);
+    for(const row of result.items){if(seen.has(row.tournament_id))throw Error('Changed catalogue; retry');seen.add(row.tournament_id);ordered.push(row);}
+    cursor+=result.items.length;
+    if(!result.items.length&&cursor<total)throw Error('Incomplete homepage response');
+   }while(cursor<total);
+   offset=cursor;rows=ordered;catalogueCache.set(key,rows);
   }catch{if(token===generation){failed=true;rows=[];}}
   finally{if(token===generation){loading=false;render();}}
  }
  root.buildGrid=render;
- search.oninput=()=>{render();if(search.value.trim()&&!loading&&!failed&&offset<total)void load(false);};
- retry.onclick=()=>void load(true);more.onclick=()=>void load(false);
+ search.oninput=()=>{visibleLimit=50;render();};
+ retry.onclick=()=>{catalogueCache.delete(sort==='latest'?'latest':sort+':'+period);void load(true);};more.onclick=()=>{visibleLimit+=50;render();};
  $('heroStart').onclick=()=>$('homeCatalogue').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});
  $('homeDetailsClose').onclick=()=>$('homeDetailsDialog').close();$('homeBrand').onclick=event=>{event.preventDefault();root.goHome();};
  void load(true);

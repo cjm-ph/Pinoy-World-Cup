@@ -1,4 +1,5 @@
 export const publicFiles = [
+  "scripts/member-page-policy.mjs",
   "scripts/submitted-media-review.mjs",
   "scripts/member-creator-workspace.mjs",
   "scripts/giphy-preview.mjs",
