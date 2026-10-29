@@ -71,8 +71,7 @@ function setPage(next) {
  toggleMenu(false);window.scrollTo({top:0,behavior:'instant'});
 }
 async function navigate(next) {
- if(next==='create'){await guardSession();await sharedCreator.openCreate();return;}
- if(next==='legacy-create')next='create';
+ if(next==='create'||next==='legacy-create'){await guardSession();await sharedCreator.openCreate();return;}
  if((dirty||pendingCreatorPhotos()) && page==='create' && next!=='create') {
   if(!await confirmAction('Leave unsaved changes?','Unsaved inputs and queued local photos will be discarded. Existing server drafts and uploaded photos are preserved.'))return;
   work=null;editing=null;dirty=false;creatorJobs.clear();creatorDeferredFiles=[];clearTimeout(creatorAutoTimer);creatorAutoTimer=null;
@@ -463,7 +462,7 @@ try {
  const config=window.PWC_STAGING;if(config?.supabaseUrl!==STAGING_URL||!/^sb_publishable_/.test(config.publishableKey||''))throw Error('Staging configuration unavailable.');
  client=window.supabase.createClient(STAGING_URL,config.publishableKey,{auth:{storageKey:'pwc-staging-auth'}});
  const sharedAccount=document.createElement('div');sharedAccount.hidden=true;document.body.append(sharedAccount);sharedCreator=installMemberCreator({account:sharedAccount,client});
- const legacy=document.createElement('button');legacy.type='button';legacy.className='btn ghost small';legacy.textContent='Legacy Creator (rollback)';legacy.onclick=()=>run(()=>navigate('legacy-create'));document.querySelector('[data-view=dashboard]').append(legacy);
+ // Legacy Creator implementation remains for rollback; no duplicate production UI entry.
  adminStatistics=installAdminStatistics({client,getTournaments:()=>tournaments,getSelected:()=>selected,getLanguage:()=>adminLanguage.language,loadPhoto:photo,navigate});
  adminComments=installAdminComments({client,getLanguage:()=>adminLanguage.language});
  adminMemberDirectory=installMemberDirectory({client,container:$('memberDirectory')});
@@ -489,7 +488,7 @@ try {
  $('stagingApprove').onclick=()=>run(()=>changeRevision('approve'));$('stagingPublish').onclick=()=>run(()=>changeRevision('publish'));$('rejectRevision').onclick=()=>run(()=>changeRevision('reject'));$('stagingRestore').onclick=()=>run(()=>changeRevision('rollback'));
  $('editMetadata').onclick=()=>run(async()=>{await guardSession();if(!selected)throw Error('Select a tournament');await sharedCreator.openTarget(selected.id);});
 
- $('wizardNew').onclick=()=>run(async()=>{if((dirty||pendingCreatorPhotos())&&!await confirmAction('Start a new World Cup?','Unsaved text changes will be discarded. Saved server revisions and photos remain unchanged.'))return;newWork();setPage('create');});
+ $('wizardNew').onclick=()=>run(()=>navigate('create'));
 
  $('previewClose').onclick=()=>{$('previewDialog').close();game=null;};
  window.addEventListener('pwc-admin-language-change',()=>{for(const support of all('[data-gemini-support]'))support.refreshPrompt();});
