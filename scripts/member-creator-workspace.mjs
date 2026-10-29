@@ -28,14 +28,21 @@ export function installMemberCreator({account,client,repository=client?createMem
  async function load(){const at=epoch,x=await model.context();if(at!==epoch)throw Error('Session changed');context=x;}
  async function showHistory(t){
   const dialog=document.createElement('dialog'),heading=document.createElement('h2'),list=document.createElement('div'),message=document.createElement('p');
-  dialog.className='member-history';heading.textContent='History — '+(t.revision?.title||t.id);message.textContent='Loading history…';
+  dialog.className='member-history';list.className='member-history-list';heading.textContent='History — '+(t.revision?.title||t.id);message.textContent='Loading history…';
   const close=document.createElement('button');close.type='button';close.textContent='Close history';close.onclick=()=>dialog.close();
   dialog.append(heading,close,message,list);shadow.append(dialog);dialog.onclose=()=>dialog.remove();dialog.showModal();
   const at=epoch;let cursor=null,rows=[],pending=false;
   const more=document.createElement('button');more.type='button';more.textContent='Older history';more.hidden=true;dialog.append(more);
   const fetchPage=async()=>{if(pending)return;pending=true;more.disabled=true;try{
    const data=await model.history(t,cursor);if(at!==epoch||!dialog.isConnected)return;rows.push(...data.rows);cursor=data.next_cursor;
-   list.replaceChildren();const events=historyEvents(rows);for(const event of events){const item=document.createElement('article'),label=document.createElement('p'),time=document.createElement('time'),actor=document.createElement('small');label.textContent=event.text;time.textContent=event.comparison?'Snapshot time: Unknown':localTimestamp(event.at)||'Time unavailable';if(localTimestamp(event.at))time.dateTime=event.at;actor.textContent=event.actor_id?(event.actor_role==='administrator'?'Administrator':'Unknown')+' — '+event.actor_id:'Unknown';item.append(label,time,document.createElement('br'),actor);list.append(item);}
+   list.replaceChildren();const events=historyEvents(rows);for(const event of events){
+    const item=document.createElement('article'),label=document.createElement('p'),meta=document.createElement('p'),time=document.createElement('time');
+    const text=event.comparison?event.text.replace(/^Retained revision comparison — /,''):event.text;
+    label.textContent=text==='COVER changed'?'Cover changed':text;
+    const formatted=event.comparison?null:localTimestamp(event.at);time.textContent=formatted?formatted.slice(0,-3):'Time unknown';if(formatted)time.dateTime=event.at;
+    const actor=!event.comparison&&event.actor_id&&event.actor_id===user?.id&&t.creator_id===user?.id?'You':!event.comparison&&event.actor_id&&event.actor_role==='administrator'?'Admin':'Editor unknown';
+    meta.append(time,document.createTextNode(' — '+actor));item.append(label,meta);list.append(item);
+   }
    message.textContent=events.length?'':'No recorded changes on these pages.';more.hidden=!data.has_more;
   }catch(e){if(at===epoch&&dialog.isConnected)message.textContent=e.message;}finally{pending=false;more.disabled=false;}};
   more.onclick=()=>void fetchPage();await fetchPage();
