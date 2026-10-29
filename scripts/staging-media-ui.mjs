@@ -1,3 +1,4 @@
+import {installMemberCreator} from './member-creator-workspace.mjs';
 import {createSubmittedMediaReview} from './submitted-media-review.mjs';
 import {giphyPreview} from './giphy-preview.mjs';
 import {createShortsAlternator} from './shorts-alternator.mjs';
@@ -25,7 +26,7 @@ const adminLanguage=installAdminLanguage();
 const dataText=(tag,text,className)=>{const node=make(tag,text,className);node.dataset.i18nSkip='';return node;};
 const dateText=(tag,date,dateOnly=false)=>{const node=make(tag);node.dataset.i18nDate=date;if(dateOnly)node.dataset.i18nDateOnly='true';return node;};
 let client, api, dashboard, user, tournaments=[], categories=[], context=null, selected=null, revision=null,adminStatistics,adminComments;
-let adminMemberDirectory;
+let adminMemberDirectory,sharedCreator;
 let managementApi,management={available:false,trash:[]};
 let purgeApi,purgeState={enabled:false,jobs:[]};
 let photoWorking=false, batchBusy=false, youtubeBusy=false;
@@ -39,6 +40,7 @@ const submittedMediaReview=createSubmittedMediaReview({host:$('submittedMediaRev
 function say(message, kind='') { $('stagingStatus').textContent=message; $('stagingStatus').className='notice '+kind; $('loginStatus').textContent=message; }
 function clearPhotos() { for(const url of photoUrls.values()) URL.revokeObjectURL(url); photoUrls.clear(); photosPending.clear(); if(newPhotoUrl)URL.revokeObjectURL(newPhotoUrl);newPhotoUrl=null; }
 function lock() {
+ sharedCreator?.setIdentity(null);
  submittedMediaReview.clear();
  creatorJobs.clear();creatorDeferredFiles=[];creatorNotice='';clearTimeout(creatorAutoTimer);creatorAutoTimer=null;
  adminStatistics?.reset();
@@ -69,6 +71,8 @@ function setPage(next) {
  toggleMenu(false);window.scrollTo({top:0,behavior:'instant'});
 }
 async function navigate(next) {
+ if(next==='create'){await guardSession();await sharedCreator.openCreate();return;}
+ if(next==='legacy-create')next='create';
  if((dirty||pendingCreatorPhotos()) && page==='create' && next!=='create') {
   if(!await confirmAction('Leave unsaved changes?','Unsaved inputs and queued local photos will be discarded. Existing server drafts and uploaded photos are preserved.'))return;
   work=null;editing=null;dirty=false;creatorJobs.clear();creatorDeferredFiles=[];clearTimeout(creatorAutoTimer);creatorAutoTimer=null;
@@ -156,7 +160,7 @@ function renderCatalog() {
  $('tournamentCount').textContent=`${rows.length} of ${tournaments.length} World Cups shown. `+(context?'Includes archived and blocked content.':'Current catalog includes private and public content only.');
  $('totalCups').textContent=String(tournaments.length);$('cupScope').textContent=context?'All catalog World Cups':'Private and public World Cups only';
  const incomplete=tournaments.some(t=>(t.draft_revision_id||t.published_revision_id)&&!t.revision);
- $('pendingCount').textContent=incomplete?'Not available yet':String(tournaments.filter(t=>!isAdminCreated(t)&&t.revision?.state==='submitted').length);
+ $('pendingCount').textContent=incomplete?'Not available yet':String(tournaments.filter(t=>t.revision?.state==='submitted').length);
  $('pendingCount').classList.toggle('unavailable',incomplete);
  const recent=tournaments.slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).slice(0,5);
  $('recentTournaments').replaceChildren(...recent.map(t=>{const row=make('div',undefined,'activity-item'),title=make('div');title.append(dataText('strong',t.revision?.title||t.id),make('div',`${t.revision?.participants?.length||0} candidates`,'help'));const b=make('button','Open','btn ghost small');b.onclick=()=>run(()=>openTournament(t.id));row.append(title,b);return row;}));
@@ -165,7 +169,7 @@ function renderCatalog() {
 }
 function isAdminCreated(t){return t?.creator_is_admin===true||t?.creator_id===user?.id;}
 function renderReviews() {
- const rows=filterTournaments(tournaments,{search:$('reviewSearch').value,status:$('reviewFilter').value}).filter(t=>!isAdminCreated(t)&&['submitted','approved','rejected'].includes(t.revision?.state));
+ const rows=filterTournaments(tournaments,{search:$('reviewSearch').value,status:$('reviewFilter').value}).filter(t=>['submitted','approved','rejected'].includes(t.revision?.state));
  $('reviewRows').replaceChildren(...rows.map(t=>{const tr=make('tr');const state=make('td');state.append(statusBadge(t));const td=make('td'),b=make('button','Review details','btn small');b.onclick=()=>run(()=>openTournament(t.id));td.append(b);tr.append(dataText('td',t.revision.title),state,(t.revision.submitted_at?dateText('td',t.revision.submitted_at,true):make('td','Not available')),td);return tr;}));
  if(!rows.length){const tr=make('tr'),td=make('td','No submissions match this view.','empty');td.colSpan=4;tr.append(td);$('reviewRows').append(tr);}
 }
@@ -193,6 +197,7 @@ async function refreshAdmin(keepSelection=false,{quiet=false}={}) {
  globalThis.PWCAdminPerformance??={};globalThis.PWCAdminPerformance.lastLogin=measure;
  const nav=performance.getEntriesByType('navigation')[0];if(nav)globalThis.PWCAdminPerformance.pageTtfbMs=nav.responseStart-nav.requestStart;
  if(at!==epoch)return;
+ sharedCreator?.setIdentity(user);
  tournaments=results.filter(t=>management.available?!management.trash.some(d=>d.id===t.id):t.visibility!=='archived');authorized=true;
  // Older installation: reuse category IDs returned by get_revision, never invent IDs.
  if(!context)categories=[...new Set(tournaments.flatMap(t=>t.revision?.category_ids||[]))].map(id=>({id,name:id}));
@@ -226,7 +231,7 @@ function paintSelected(t,r){
  const count=r.participants.filter(p=>p.active).length;
  $('stagingReadiness').textContent=`${count} active candidates | Requested: ${r.requested_size||t.requested_size||'not returned by current RPC'} | Publication: ${t.published_revision_id?'existing published version':'not published'}`;
  const owner=canEditMetadata(t,user?.id);
- $('metadataHelp').textContent=owner?'You own this tournament. Text and candidate edits create a new draft.':'Only the creator can edit text and candidates. Administrators can manage photos and review revisions.';
+ $('metadataHelp').textContent='Edit in the shared Creator. Original ownership and current publication are preserved; submit changes for independent review.';
  options('stagingSlot',r.participants.map(p=>[p.id,p.name]));
  options('stagingRollback',(t.approved_revisions||[]).map(r=>[r.id,`Version ${r.version} (${r.id})`]));
  renderPhotos();updateControls();void submittedMediaReview.load();
@@ -300,18 +305,18 @@ function updateControls(){
  $('stagingRightsAck').closest('article').hidden=revision?.state==='submitted';
  $('stagingRights').disabled=!editable||!asset;
  $('stagingReplace').disabled=!editable||!asset||!rightsRecorded;
- $('editMetadata').disabled=!canEditMetadata(selected,user?.id);
+ $('editMetadata').disabled=!authorized||!selected||!['private','public'].includes(selected.visibility);
 
  const own=selected?.creator_id===user?.id,adminCreated=isAdminCreated(selected);
- $('memberReviewControls').hidden=false;$('stagingApprove').hidden=$('rejectRevision').hidden=adminCreated;$('stagingPublish').hidden=own;
- $('adminPublicationControls').hidden=false;$('editorPublishNow').hidden=!own;
+ $('memberReviewControls').hidden=false;$('stagingApprove').hidden=$('rejectRevision').hidden=false;$('stagingPublish').hidden=own;
+ $('adminPublicationControls').hidden=false;$('editorPublishNow').hidden=!own||revision?.state==='submitted';
  $('editorPublishNow').disabled=!authorized||!own||!['private','public'].includes(selected?.visibility)||!['draft','submitted','approved','rejected'].includes(revision?.state);
  $('editorMakePrivate').disabled=!authorized||!selected||selected.visibility!=='public';
  $('openPublicSite').hidden=selected?.visibility!=='public';
- $('reviewStateHelp').textContent=adminCreated?'Administrator creations use private save or direct publication.':revision?.state==='submitted'?(revision.submitted_by===user?.id||own?'You cannot review your own submission.':'This member submission is ready for approval or rejection.'):revision?.state==='approved'?'This approved revision can be published.':'Only submitted member revisions can be approved or rejected.';
+ $('reviewStateHelp').textContent=revision?.state==='submitted'?(revision.submitted_by===user?.id||own?'You cannot review your own submission.':'This member submission is ready for approval or rejection.'):revision?.state==='approved'?'This approved revision can be published.':'Only submitted member revisions can be approved or rejected.';
  $('stagingSubmit').hidden=true;$('stagingSubmitAck').closest('label').hidden=true;
  $('stagingSubmit').disabled=true;$('stagingSubmitAck').disabled=true;
- const independent=authorized&&!adminCreated&&!own&&revision?.state==='submitted'&&revision.submitted_by!==user?.id&&['private','public'].includes(selected?.visibility);
+ const independent=authorized&&!own&&revision?.state==='submitted'&&revision.submitted_by!==user?.id&&['private','public'].includes(selected?.visibility);
  $('stagingApprove').disabled=!independent;$('rejectRevision').disabled=!independent;
  $('stagingPublish').disabled=!editable||revision?.state!=='approved';
  $('stagingRestore').disabled=!authorized||!selected||!['private','public'].includes(selected.visibility)||!$('stagingRollback').value;
@@ -447,13 +452,15 @@ function startPreview(source,{videoSource=null}={}){
 }
 const previewAlternator=createShortsAlternator(),giphyPreviewHandles=new Set();function clearGiphyPreviews(){for(const h of giphyPreviewHandles)h.dispose();giphyPreviewHandles.clear();}
 function renderGame(){clearGiphyPreviews();const box=$('previewGame');box.style.setProperty('--game-photo-ratio',globalThis.PWCPhotoDisplay.gameRatio(innerWidth,innerHeight));box.replaceChildren();if(!game)return;if(game.round.length===1){box.append(make('h2',`Your champion: ${game.round[0].name}`));const f=make('div',undefined,'preview-frame');f.style.aspectRatio=String(globalThis.PWCPhotoDisplay.resultRatio(innerWidth,innerHeight));box.append(f);if(['youtube','giphy','mp4'].includes(game.round[0].media?.type)){const h=mountCandidateMedia(f,game.round[0],{showSelect:false,videoSource:game.videoSource});giphyPreviewHandles.add(h);}else void showPhoto(f,game.round[0].image_asset_id,game.round[0].name).then(()=>{const image=f.querySelector('img');if(image)globalThis.PWCPhotoDisplay.apply(image,game.round[0].presentations?.vs||{});});box.append(make('p','Preview complete. No official statistics were recorded.','help'));return;}
- box.append(make('p',`Round of ${game.round.length} · Match ${game.index/2+1} of ${game.round.length/2}`,'help'));const match=make('div',undefined,'match');for(const offset of [0,1]){const p=game.round[game.index+offset],b=make('button'),f=make('div',undefined,'photo-frame');b.append(f,dataText('strong',p.name));if(['youtube','mp4','giphy'].includes(p.media?.type)){const shell=make('section',undefined,'creator-media-preview');match.append(shell);const h=mountCandidateMedia(shell,p,{videoSource:game.videoSource,alternator:previewAlternator,side:offset,onSelect:()=>{game.next.push(p);game.index+=2;if(game.index>=game.round.length){game.round=game.next;game.next=[];game.index=0;}renderGame();}});giphyPreviewHandles.add(h);continue;}void showPhoto(f,p.image_asset_id,p.name).then(()=>{const image=f.querySelector('img');if(image)globalThis.PWCPhotoDisplay.apply(image,p.presentations?.vs||{});});b.onclick=()=>{game.next.push(p);game.index+=2;if(game.index>=game.round.length){game.round=game.next;game.next=[];game.index=0;}renderGame();};match.append(b);}box.append(match);
+ box.append(make('p',`Round of ${game.round.length} 쨌 Match ${game.index/2+1} of ${game.round.length/2}`,'help'));const match=make('div',undefined,'match');for(const offset of [0,1]){const p=game.round[game.index+offset],b=make('button'),f=make('div',undefined,'photo-frame');b.append(f,dataText('strong',p.name));if(['youtube','mp4','giphy'].includes(p.media?.type)){const shell=make('section',undefined,'creator-media-preview');match.append(shell);const h=mountCandidateMedia(shell,p,{videoSource:game.videoSource,alternator:previewAlternator,side:offset,onSelect:()=>{game.next.push(p);game.index+=2;if(game.index>=game.round.length){game.round=game.next;game.next=[];game.index=0;}renderGame();}});giphyPreviewHandles.add(h);continue;}void showPhoto(f,p.image_asset_id,p.name).then(()=>{const image=f.querySelector('img');if(image)globalThis.PWCPhotoDisplay.apply(image,p.presentations?.vs||{});});b.onclick=()=>{game.next.push(p);game.index+=2;if(game.index>=game.round.length){game.round=game.next;game.next=[];game.index=0;}renderGame();};match.append(b);}box.append(match);
 }
 $('previewDialog')?.addEventListener('close',clearGiphyPreviews);
 async function signOut(){await run(async()=>{lock();const {error}=await client.auth.signOut();if(error)throw Error('Sign-out failed. Please retry.');$('loginSignOut').hidden=true;say('Signed out.');});}
 try {
  const config=window.PWC_STAGING;if(config?.supabaseUrl!==STAGING_URL||!/^sb_publishable_/.test(config.publishableKey||''))throw Error('Staging configuration unavailable.');
  client=window.supabase.createClient(STAGING_URL,config.publishableKey,{auth:{storageKey:'pwc-staging-auth'}});
+ const sharedAccount=document.createElement('div');sharedAccount.hidden=true;document.body.append(sharedAccount);sharedCreator=installMemberCreator({account:sharedAccount,client});
+ const legacy=document.createElement('button');legacy.type='button';legacy.className='btn ghost small';legacy.textContent='Legacy Creator (rollback)';legacy.onclick=()=>run(()=>navigate('legacy-create'));document.querySelector('[data-view=dashboard]').append(legacy);
  adminStatistics=installAdminStatistics({client,getTournaments:()=>tournaments,getSelected:()=>selected,getLanguage:()=>adminLanguage.language,loadPhoto:photo,navigate});
  adminComments=installAdminComments({client,getLanguage:()=>adminLanguage.language});
  adminMemberDirectory=installMemberDirectory({client,container:$('memberDirectory')});
@@ -477,7 +484,7 @@ try {
  $('editorPublishNow').onclick=()=>run(publishSelected);
  $('editorMakePrivate').onclick=()=>run(async()=>{await guard();await api.transition('unpublish',selected,selected.published_revision_id||revision.id);await refreshAdmin(true,{quiet:true});say('Tournament is now private. Existing revisions and photos are preserved.','success');});
  $('stagingApprove').onclick=()=>run(()=>changeRevision('approve'));$('stagingPublish').onclick=()=>run(()=>changeRevision('publish'));$('rejectRevision').onclick=()=>run(()=>changeRevision('reject'));$('stagingRestore').onclick=()=>run(()=>changeRevision('rollback'));
- $('editMetadata').onclick=()=>run(async()=>{await guard();if(!canEditMetadata(selected,user.id))throw Error('Only the creator can edit this metadata.');creatorJobs.clear();$('wizardPanel').replaceChildren();editing=selected;work=workFromRevision(selected,revision);dirty=false;renderWizard();setPage('create');});
+ $('editMetadata').onclick=()=>run(async()=>{await guardSession();if(!selected)throw Error('Select a tournament');await sharedCreator.openTarget(selected.id);});
 
  $('wizardNew').onclick=()=>run(async()=>{if((dirty||pendingCreatorPhotos())&&!await confirmAction('Start a new World Cup?','Unsaved text changes will be discarded. Saved server revisions and photos remain unchanged.'))return;newWork();setPage('create');});
 
