@@ -23,6 +23,18 @@ export function safeProfileDiagnostic(response={}) {
  return {status,code,...(Object.hasOwn(points,message)?{point:points[message]}:{})};
 }
 
+// Provider hint selects a route only; only the server can confirm administrator authority.
+export async function verifyCreatorSession(authClient,session){
+ const uid=session?.user?.id;if(!uid)return {error:{code:'42501'}};
+ const provider=session.user.app_metadata?.provider;
+ const admin=async()=>{try{const r=await authClient.rpc('creator_admin_session_v45');return !r.error&&r.data===uid?{...r,kind:'admin'}:{...r,error:r.error||{code:'42501'}};}catch{return {error:{code:'UNKNOWN'}};}};
+ if(provider&&provider!=='google')return admin();
+ let r;try{r=await authClient.rpc('ensure_google_member_profile');}catch{r={status:0,error:{code:'UNKNOWN'}};}
+ if(!r.error&&r.data===uid)return {...r,kind:'google'};
+ if(!r.error)r={error:{code:'42501'}};
+ const fallback=await admin();return fallback.error?r:fallback;
+}
+
 // Explicit operator diagnostic only; never called automatically or used to bypass auth.
 export async function readProfileConditionDiagnostics(){
  const response=await getMemberClient().rpc('profile_google_conditions_v1');
@@ -45,14 +57,14 @@ export async function initializeMemberAuth() {
       delete status.dataset.profileHttp;delete status.dataset.profileCode;delete status.dataset.profilePoint;if(!session||session.user.id!==verifiedUser){creator.setIdentity(null);verifiedUser=null;}else{return;}
       if (!session) { status.textContent = 'Play as a guest, or sign in with Google.'; return; }
       status.textContent = 'Preparing your member profile…';
-      let response;try{response=await authClient.rpc('ensure_google_member_profile');}catch{response={status:0,error:{code:'UNKNOWN'}};}
+      const response=await verifyCreatorSession(authClient,session);
       const {error}=response;
       if (current !== revision) return;
       if(error){const diagnostic=safeProfileDiagnostic(response);status.dataset.profileHttp=String(diagnostic.status);status.dataset.profileCode=diagnostic.code;if(diagnostic.point)status.dataset.profilePoint=diagnostic.point;}
       else {verifiedUser=session.user.id;creator.setIdentity(session.user);}
       status.textContent = error
         ? 'Member profile unavailable. Please sign out and try again. Guest play is still available.'
-        : 'Signed in with Google.';
+        : response.kind==='admin'?'Signed in as administrator.':'Signed in with Google.';
     }
     login.onclick = async () => {
       if (location.origin !== new URL(MEMBER_REDIRECT).origin) {
