@@ -1,4 +1,16 @@
 // Administrator profile directory only. Never provisions Auth/profile records.
+export const adminEmailLabel = email => typeof email==='string' && email.trim() ? email : email===null ? '이메일 없음' : '확인 불가';
+// Only the privileged RPC reads Auth emails. UID, never email, remains the identity.
+export async function loadAdminEmails(client, ids) {
+  const unique=[...new Set(ids.filter(id=>typeof id==='string' && id))], emails=new Map();
+  for(let offset=0;offset<unique.length;offset+=100) {
+    const batch=unique.slice(offset,offset+100);
+    const {data,error}=await client.schema('pwc41_api').rpc('admin_profile_emails_v1',{p_ids:batch});
+    if(error || !Array.isArray(data) || data.length>batch.length || data.some(x=>!batch.includes(x?.id) || !(x.email===null || typeof x.email==='string')) || new Set(data.map(x=>x.id)).size!==data.length) throw Error('Administrator email lookup unavailable.');
+    for(const row of data)emails.set(row.id,row.email);
+  }
+  return emails;
+}
 export function createMemberDirectoryApi(client) {
   return async (page=0) => {
     if (!Number.isSafeInteger(page) || page<0 || page>10000) throw Error('Invalid member page.');
@@ -8,7 +20,8 @@ export function createMemberDirectoryApi(client) {
     if(!d || !Array.isArray(d.rows) || d.rows.length>25 || typeof d.has_more!=='boolean'
       || d.rows.some(x=>typeof x.id!=='string' || typeof x.display_name!=='string'
         || typeof x.administrator!=='boolean')) throw Error('Invalid member directory response.');
-    return d;
+    let emails=new Map();try{emails=await loadAdminEmails(client,d.rows.map(x=>x.id));}catch{/* Optional read: preserve the existing directory without email disclosure. */}
+    return {...d,rows:d.rows.map(x=>({...x,email:emails.get(x.id)}))};
   };
 }
 
@@ -28,7 +41,7 @@ export function installMemberDirectory({client,container,document:doc=globalThis
       if(!data.rows.length)list.append(node('p','No site profiles on this page.'));
       for(const member of data.rows) {
         const row=node('article');row.className='card';row.dataset.i18nSkip='';
-        row.append(node('strong',member.display_name || 'Member'),node('p',member.id),
+        row.append(node('strong',adminEmailLabel(member.email)),node('p',member.id),
           node('small',member.administrator?'Administrator profile':'Member profile'));
         list.append(row);
       }

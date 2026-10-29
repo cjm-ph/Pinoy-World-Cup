@@ -3,7 +3,7 @@ import {createSubmittedMediaReview} from './submitted-media-review.mjs';
 import {giphyPreview} from './giphy-preview.mjs';
 import {createShortsAlternator} from './shorts-alternator.mjs';
 import {registerAdminMp4Candidate} from './admin-mp4-candidate.mjs';
-import {installMemberDirectory} from './staging-member-directory.mjs';
+import {installMemberDirectory,loadAdminEmails,adminEmailLabel} from './staging-member-directory.mjs';
 import {mountCandidateMedia} from './mixed-media-game.mjs';
 import {prepareGiphyCandidate} from './giphy-policy.mjs';
 import {createGiphyEmbed} from './giphy-embed.mjs';
@@ -152,7 +152,7 @@ function renderCatalog() {
  renderTrash();
  const rows=filterTournaments(tournaments,{search:$('tournamentSearch').value,category:$('categoryFilter').value,status:$('statusFilter').value});
  $('tournamentRows').replaceChildren(...rows.map(t=>{
-  const tr=make('tr'), title=make('td');title.append(dataText('span',t.revision?.title||t.id,'table-title'),dataText('span',t.id,'table-id'));tr.append(title,(t.revision?.category_ids?.length?dataText('td',t.revision.category_ids.map(catName).join(', ')):make('td','Not available')));
+  const tr=make('tr'), title=make('td');title.append(dataText('span',t.revision?.title||t.id,'table-title'),dataText('span',`제작자: ${adminEmailLabel(t.creator_email)}`,'table-id'),dataText('span',t.id,'table-id'));tr.append(title,(t.revision?.category_ids?.length?dataText('td',t.revision.category_ids.map(catName).join(', ')):make('td','Not available')));
   const state=make('td');state.append(make('span',({draft:'Draft',submitted:'Pending',approved:'Approved',rejected:'Rejected',legacy_snapshot:'Legacy snapshot'})[t.revision?.state]||'Not available','badge'));tr.append(state,make('td',t.revision?(t.revision.participants||[]).filter(p=>p.active).length:'Unavailable'),make('td',t.visibility==='public'?'Public':'Private'));
   const action=make('td'),button=make('button','Manage','btn small');button.onclick=()=>run(()=>openTournament(t.id));action.append(button);const actions=managementActions(t,management.available);for(const [op,label,enabled] of [[t.visibility==='public'?'unpublish':'publish',t.visibility==='public'?'Make private':'Publish approved version',t.visibility==='public'?actions.unpublish:actions.publish],['trash','Move to trash',actions.trash]]){const b=make('button',label,'btn small');b.disabled=!enabled;b.onclick=()=>run(()=>manageTournament(t,op));action.append(b);}tr.append(action);return tr;
  }));
@@ -199,6 +199,9 @@ async function refreshAdmin(keepSelection=false,{quiet=false}={}) {
  if(at!==epoch)return;
  sharedCreator?.setIdentity(user);
  tournaments=results.filter(t=>management.available?!management.trash.some(d=>d.id===t.id):t.visibility!=='archived');authorized=true;
+ let creatorEmails=new Map();try{creatorEmails=await loadAdminEmails(client,tournaments.map(t=>t.creator_id));}catch{/* Preserve catalog when the separately approved email RPC is unavailable. */}
+ if(at!==epoch)return;
+ tournaments=tournaments.map(t=>({...t,creator_email:creatorEmails.get(t.creator_id)}));
  // Older installation: reuse category IDs returned by get_revision, never invent IDs.
  if(!context)categories=[...new Set(tournaments.flatMap(t=>t.revision?.category_ids||[]))].map(id=>({id,name:id}));
  const filter=$('categoryFilter').value;options('categoryFilter',[['','All categories'],...categories.map(c=>[c.id,c.name])],filter);
