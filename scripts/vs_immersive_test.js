@@ -176,6 +176,7 @@ function winnerScene(session,winner){
 root.pick=function(side){
  if(root.busy||activeChoice||play.classList.contains('hide'))return;
  side=side?1:0;
+ if(root.PWCPCPhotoChoice&&root.PWCPCPhotoChoice(side,engineChoose))return;
  // Video selection has no animation delay or confirmation; the existing engine advances once.
  if(root.cur.slice(root.i,root.i+2).some(function(p){return ['youtube','giphy'].includes(p.media?.type);})){engineChoose(side);return;}
  var session={side:side,cur:root.cur,index:root.i,log:root.log,logLength:root.log.length,animations:[],done:false};

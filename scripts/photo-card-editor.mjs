@@ -7,8 +7,9 @@ export function giphyBattleEstimate(width,height){
  return `Size: PC ${fit(661,689)} Mobile ${fit(194,669)}`;
 }
 // Reusable UI: caller supplies authorized persistence and photo loading adapters.
-export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageDiagnostics,releaseExpired,canEdit=()=>true,devicePreviews=false,giphySizeHints=false,staticOnly=false,getLanguage=()=> 'en',notify=()=>{}}){
- const root=document.createElement('div');root.className='photo-editor-grid';
+export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageDiagnostics,releaseExpired,canEdit=()=>true,devicePreviews=false,compact=false,giphySizeHints=false,staticOnly=false,getLanguage=()=> 'en',notify=()=>{}}){
+ if(compact){const cache=new Map(),read=loadPhoto;loadPhoto=asset=>{if(!cache.has(asset))cache.set(asset,Promise.resolve().then(()=>read(asset)).catch(e=>{cache.delete(asset);throw e;}));return cache.get(asset);};}
+ const root=document.createElement('div');root.className='photo-editor-grid'+(compact?' compact-photo-manager':'');
  const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text)e.textContent=text;if(cls)e.className=cls;return e;};
  let busy=false;
  async function refresh(){
@@ -23,7 +24,7 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
     const close=node('button','Close','btn');close.onclick=()=>d.close();d.onclose=()=>d.remove();d.append(close);document.body.append(d);d.showModal();
    }catch(e){notify(e.message,'error');}finally{usage.disabled=false;}};
   }
-  for(const slot of getSlots()){
+  let compactIndex=0;for(const slot of getSlots()){
    const thumbnailOnly=['youtube','giphy'].includes(slot.mediaType);
    const card=node('article',null,'photo-editor-card');card.dataset.photoSlot=slot.id;
    const hint=giphySizeHints&&slot.mediaType==='giphy'?node('p','Size: PC -- Mobile --','giphy-size-estimate'):null;if(hint){hint.title='Approximate CSS pixels: PC 1366x900, Mobile 390x844; actual viewport, provider and safe areas may differ.';hint.setAttribute('role','status');card.append(hint);}const updateHint=image=>{if(hint)hint.textContent=giphyBattleEstimate(image.naturalWidth,image.naturalHeight)||'Estimated battle size unavailable';};
@@ -39,7 +40,7 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
    frame.tabIndex=0;frame.setAttribute('role','button');frame.setAttribute('aria-label','Add or replace photo');
    if(thumbnailOnly){frame.removeAttribute('role');frame.removeAttribute('tabindex');frame.setAttribute('aria-label','Video thumbnail');}
    frame.onkeydown=e=>{if(!thumbnailOnly&&(e.key==='Enter'||e.key===' ')){e.preventDefault();if(!busy&&canEdit())input.click();}};
-   card.onclick=e=>{if(!thumbnailOnly&&!busy&&canEdit()&&!e.target.closest('button,input,select,textarea,label'))input.click();};
+   card.onclick=e=>{if(compact)return;if(!thumbnailOnly&&!busy&&canEdit()&&!e.target.closest('button,input,select,textarea,label'))input.click();};
    const previewDevices=[];
    if(devicePreviews&&slot.id!=='cover'){
     const previews=node('div',null,'photo-card-device-previews');
@@ -109,6 +110,13 @@ export function createPhotoCards({getSlots,loadPhoto,upload,saveDisplay,storageD
    pick.onclick=()=>input.click();input.onchange=()=>accept(input.files[0]);
    card.ondragover=e=>{e.preventDefault();card.classList.add('drag-over');};card.ondragleave=()=>card.classList.remove('drag-over');
    card.ondrop=e=>{e.preventDefault();card.classList.remove('drag-over');void accept(e.dataTransfer.files[0]);};
+   if(compact){
+    const tools=node('div',null,'compact-media-tools');if(!thumbnailOnly){frame.onclick=()=>{if(!busy&&canEdit())input.click();};for(const item of previewDevices)item.stage.onclick=frame.onclick;}while(card.firstChild)tools.append(card.firstChild);tools.hidden=true;
+    const ordinal=node('span',slot.id==='cover'?'Cover':String(++compactIndex),'compact-number'),thumb=node('span',null,'compact-thumb'),open=node('button','Edit Media','btn compact-edit');open.type='button';open.disabled=busy||!canEdit();open.setAttribute('aria-label','Edit Media '+slot.name);const image=node('img');image.alt=slot.name;image.onerror=()=>{thumb.textContent='Media unavailable';};thumb.append(image);if(slot.previewUrl)image.src=slot.previewUrl;else if(slot.asset)void loadPhoto(slot.asset).then(url=>{if(url)image.src=url;}).catch(()=>image.remove());else thumb.textContent='No image';
+    card.classList.add(slot.id==='cover'?'compact-cover':'compact-candidate');card.append(ordinal,thumb,open,tools);
+    open.onclick=()=>{if(!canEdit())return;const d=node('dialog',null,'compact-media-dialog'),close=node('button','Close media editor','btn');d.setAttribute('aria-label','Edit Media '+slot.name);close.onclick=()=>d.close();tools.hidden=false;d.append(close,tools);(root.getRootNode() instanceof ShadowRoot?root.getRootNode():document.body).append(d);d.onclose=()=>{tools.hidden=true;card.append(tools);d.remove();};d.showModal();window.dispatchEvent(new Event('resize'));};
+    if(slot.id==='cover'){const label=node('span','Cover image','compact-cover-label');card.insertBefore(label,open);}else if(compactIndex===1){const head=node('div',null,'compact-list-heading');for(const text of ['No.','Thumbnail','Candidate Name','Edit Media','Remove'])head.append(node('span',text));root.insertBefore(head,card);}
+   }
    void load();
   }
  }

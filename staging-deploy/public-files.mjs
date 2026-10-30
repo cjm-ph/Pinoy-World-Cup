@@ -1,4 +1,6 @@
 export const publicFiles = [
+  "scripts/pc-battle-v24.mjs",
+  "templates/pc-battle-v24.css",
   "scripts/member-ui-v21.mjs",
   "templates/member-v21.css",
   "scripts/admin-revision-comparison.mjs",

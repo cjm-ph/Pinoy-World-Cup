@@ -44,6 +44,7 @@ async function initialize(){
   await script('scripts/adapter_presentation_bridge_v2.js');
   (await import('./mixed-media-game.mjs')).installMixedMediaGame(root);
   await script('scripts/integrated_navigation_test.js');
+  (await import('./pc-battle-v24.mjs')).installPCBattle(root);
   // Optional collector failure must not prevent existing content/game startup.
   try{const stats=await import('./staging-play-statistics.mjs');stats.installPublicStatistics(root);}catch{console.warn('Play statistics unavailable.');}
   try{const comments=await import('./staging-comments.mjs');comments.installPublicComments(root);}catch{console.warn('Comments unavailable.');}
