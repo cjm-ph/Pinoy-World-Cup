@@ -43,7 +43,8 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
    if(!matches(row))continue;
    if(++matched>visibleLimit)continue;
    const card=el('article',undefined,'home-card');card.dataset.tournamentId=tournament.id;
-   const media=el('button',undefined,'home-photo');media.type='button';media.dataset.coverMode='automatic-pair';media.setAttribute('aria-label','Choose a round for '+tournament.title);media.onclick=()=>root.start(tournament);
+   const upper=el('button',undefined,'home-card-upper');upper.type='button';upper.setAttribute('aria-label','Choose a round for '+tournament.title);upper.onclick=()=>root.start(tournament);card.append(upper);
+   const media=el('span',undefined,'home-photo');media.dataset.coverMode='automatic-pair';
    const pair=pick(coverRow(row));
    for(let index=0;index<2;index++){
     const candidate=pair[index],half=el('span',undefined,'home-photo-half');half.dataset.participantId=candidate?.participant_id||'';
@@ -52,11 +53,12 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
     if(src){const image=el('img');image.alt='Candidate '+(index+1)+' in '+tournament.title;image.loading='lazy';image.onload=()=>{fallback.hidden=true;};image.onerror=()=>{if(!half.isConnected)return;pick.failed(row,candidate.participant_id);render();};image.src=src;half.append(image);}
     media.append(half);
    }
-   const badge=el('span',String(tournament.category||'others').toUpperCase(),'home-badge');media.append(badge);card.append(media);
-   const body=el('div',undefined,'home-card-body'),line=el('div',undefined,'home-title-row'),title=el('button',tournament.title,'home-title'),details=el('button','Details','home-details');title.type=details.type='button';title.onclick=()=>root.start(tournament);
+   const badge=el('span',String(tournament.category||'others').toUpperCase(),'home-badge');media.append(badge);upper.append(media);
+   const heading=el('span',undefined,'home-card-body'),title=el('span',tournament.title,'home-title');heading.append(title);if(tournament.short_description?.trim())heading.append(el('span',tournament.short_description,'home-short-description'));upper.append(heading);
+   const body=el('div',undefined,'home-card-body home-actions-body'),line=el('div',undefined,'home-title-row'),details=el('button','Details','home-details');details.type='button';
    details.setAttribute('aria-label','Details for '+tournament.title);details.onclick=event=>{event.stopPropagation();$('homeDetailsTitle').textContent=tournament.title;let body=$('homeDetailsBody');if(!body){body=el('div');body.id='homeDetailsBody';$('homeDetailsTitle').after(body);}body.textContent=tournament.sub?.trim()||'No description available.';$('homeDetailsDialog').showModal();};
    const startButton=el('button',undefined,'home-start');startButton.type='button';startButton.setAttribute('aria-label','Start '+tournament.title);const icon=el('b','▷');icon.setAttribute('aria-hidden','true');startButton.append(icon,el('span','START'));startButton.onclick=()=>root.start(tournament);body.append(startButton);
-   line.append(title,details);body.append(line);for(const [index,p] of pair.entries())if(p.giphySource){const link=el('a','View on GIPHY '+(index+1),'home-giphy-source');link.href=p.giphySource;link.target='_blank';link.rel='noopener noreferrer';body.append(link);}card.append(body);grid.append(card);
+   line.append(details);body.append(line);for(const [index,p] of pair.entries())if(p.giphySource){const link=el('a','View on GIPHY '+(index+1),'home-giphy-source');link.href=p.giphySource;link.target='_blank';link.rel='noopener noreferrer';body.append(link);}card.append(body);grid.append(card);
   }
   empty.hidden=loading||failed||grid.children.length>0;
   empty.textContent=search.value.trim()?'No search results found.':'No World Cups found.';more.hidden=loading||failed||(matched<=visibleLimit&&offset>=total);retry.hidden=!failed;

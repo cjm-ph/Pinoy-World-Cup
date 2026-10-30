@@ -8,7 +8,7 @@ export function createMemberCreatorModel({repository=null,uuid=()=>crypto.random
   async target(tid){const t=await execute('target',tid);if(t?.id!==tid||!t.creator_id||t.edit_access!==true)throw Error('Tournament editing access refused.');targets.set(tid,t.creator_id);return t;},
   setIdentity(value){if((user?.id||null)===(value?.id||null))return;user=value?.id?{id:value.id}:null;targets.clear();version++;},
   get ready(){return !!user;},get connected(){return !!repository;},
-  newDraft(){const u=requireUser();return {creator_id:u.id,tournament_id:'tournament_'+uuid(),title:'',description:'',category_id:'',category_error:'Member category/catalog contract is not connected.',requested_size:8,participants:[]};},
+  newDraft(){const u=requireUser();return {creator_id:u.id,tournament_id:'tournament_'+uuid(),title:'',short_description:'',description:'',category_id:'',category_error:'Member category/catalog contract is not connected.',requested_size:8,participants:[]};},
   async context(){const u=requireUser(),x=await execute('context');if(!Array.isArray(x?.tournaments)||x.tournaments.some(t=>t.creator_id!==u.id))throw Error('Invalid member-owned catalog.');return x;},
   async list(){const u=requireUser(),rows=await execute('list');if(!Array.isArray(rows)||rows.some(t=>t.creator_id!==u.id))throw Error('Invalid member-owned catalog.');return rows;},
   async save(work,t=null){requireUser();if(t){if(t.creator_id!==user.id&&targets.get(t.id)!==t.creator_id)throw Error('Tournament editing access refused.');if(t.revision?.state==='submitted')throw Error('This submission is under review and cannot be changed.');}if(work.creator_id!==(t?.creator_id||user.id))throw Error('Draft owner changed.');return execute('save',work,t);},
@@ -35,6 +35,8 @@ export function memberSubmitIssue(t){
  return notes.length?notes.join(' '):null;
 }
 export function memberSaveIssue(work,t){
+ if(typeof work.description==='string'&&t?.revision?.description!==work.description)return 'Saved Details did not match. Your edits are still open; reload the draft to verify.';
+ if(work.short_description_supported&&t?.revision?.short_description!==(work.short_description||''))return 'Saved Short Description did not match. Your edits are still open; reload the draft to verify.';
  const expected=work.participants||[],saved=t?.revision?.participants;
  if(!Array.isArray(saved))return 'The saved candidate list could not be checked. Your edits are still open. Reload your World Cups to verify the saved draft before requesting review.';
  const active=rows=>rows.filter(p=>p.active!==false).length;

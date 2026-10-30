@@ -27,7 +27,7 @@ export function filterTournaments(rows, {search = '', category = '', status = ''
     && (!status || statusOf(t) === status));
 }
 export function workFromRevision(t, r) {
-  return {giphy_contract:r.giphy_contract===true||(r.participants||[]).some(p=>p.media?.type==='giphy'),mp4_contract:r.mp4_contract===true||(r.participants||[]).some(p=>p.media?.type==='mp4'),tournament_id: t.id, base_revision_id: r.id, title: r.title, description: r.description || '',
+  return {short_description:r.short_description||'',original_description:r.description||'',giphy_contract:r.giphy_contract===true||(r.participants||[]).some(p=>p.media?.type==='giphy'),mp4_contract:r.mp4_contract===true||(r.participants||[]).some(p=>p.media?.type==='mp4'),tournament_id: t.id, base_revision_id: r.id, title: r.title, description: r.description || '',
     category_id: r.category_ids?.[0] || '', category_ids:[...(r.category_ids||[])], requested_size: r.requested_size || t.requested_size || 8,
     cover_participant_id: null, cover_asset_id: r.cover_asset_id,
     cover_settings: (r.presentations||[]).find(m=>!m.participant_id&&m.context==='start')?.settings||{},

@@ -86,7 +86,7 @@ export function createMediaApi({ client, gatewayOrigin, pageOrigin, fetchImpl = 
     applyPhoto:(t,aid,slot,display_settings,note='')=>rpc('admin_media_apply_photo',{req:uuid(),tid:t.id,aid,new_rid:'rev_'+uuid(),expected:t.edit_version,slot,display_settings,note}),
     photoDraft: (t,aid,slot,display_settings)=>rpc('admin_media_photo_draft',{req:uuid(),tid:t.id,aid,new_rid:'rev_'+uuid(),expected:t.edit_version,slot,display_settings}),
     authorize: tid => rpc('admin_media_assert_owner', { tid }),
-    published: () => rpc('list_published', {}),
+    published: async () => {const r=await client.schema('pwc41_api').rpc('list_published_descriptions_v1',{});if(!r.error)return r.data;if(['PGRST202','42883'].includes(r.error.code))return rpc('list_published',{});throw Error('Published descriptions unavailable.');},
     revision: async rid => {
       if(combinedMediaContractsEnabled){
         if(!giphyContractsEnabled||!mp4ContractsEnabled)throw Error('Combined reader requires both media contracts.');

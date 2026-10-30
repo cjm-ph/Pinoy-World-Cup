@@ -26,6 +26,7 @@ export async function mergePublishedView(original, api) {
     const t={...old,id:cup.id,title:text(cup.title),sub:text(cup.description),category:category?.legacy_filter || old?.category || 'others',c:old?.c || '#0038a8',cover_image:cover,
       supported_rounds:r.supported_rounds || cup.supported_rounds,default_size:r.default_size || cup.default_size,
       items:(r.participants || []).filter(p=>p.active).map(p=>publishedItem({...p,name:text(p.name),emoji:text(p.emoji)},old?.items.find(i=>i.id===p.id),api.mediaUrl))};
+    t.short_description=typeof cup.short_description==='string'?cup.short_description:'';
     t._statistics_revision_id=cup.revision_id;
     view.tournaments.push(t);
     view.categoryLabels[t.id]=category?.name || original.categoryLabels[t.id] || 'Others';

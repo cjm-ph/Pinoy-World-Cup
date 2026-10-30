@@ -1,5 +1,6 @@
 import {createGeminiSupport} from './creator-gemini-support.mjs';
 import {checkedMp4} from './mp4-source-contract.mjs';
+import {descriptionLength,descriptionIssue} from './description-text-policy.mjs';
 const clipTime=seconds=>`${Math.floor((seconds??0)/60)}:${String((seconds??0)%60).padStart(2,'0')}`;
 // Stateless page renderer. Persistence and role checks are supplied by its caller.
 export function createCreatorPage({work,categories,capture,onChange,onResize,onFiles,onYouTube,onRetry,onAdd,onRemove,onMove,onSave,onPublish,onPreview,photos,jobs,busy,notice,getLanguage,adminGiphyPresentation=false,memberMode=false,onError=()=>{}}){
@@ -9,7 +10,16 @@ export function createCreatorPage({work,categories,capture,onChange,onResize,onF
  const section=title=>{const s=el('section',undefined,'creator-section');s.append(el('h2',title));root.append(s);return s;};
  const basic=section('Basic Information');
  const field=(label,id,value,type='input')=>{const box=el('label',label,'field'),input=el(type);input.id=id;input.value=value;input.disabled=busy;box.append(input);input.oninput=()=>onChange();return box;};
- basic.append(field('Title','workTitle',work.title),field('Description','workDescription',work.description,'textarea'));
+ basic.append(field('Title','workTitle',work.title));
+ if(memberMode){
+  for(const [label,id,value,max]of [['Short Description','workShortDescription',work.short_description||'',120],['Details','workDescription',work.description||'',2000]]){
+   const box=field(label,id,value,'textarea'),input=box.lastChild,counter=el('small');input.dataset.maxCharacters=String(max);counter.setAttribute('aria-live','polite');counter.id=id+'Count';input.setAttribute('aria-describedby',counter.id);
+   const count=()=>{const issue=id==='workShortDescription'?descriptionIssue({short:input.value}):descriptionIssue({details:input.value,originalDetails:work.original_description??value});input.setCustomValidity(issue||'');counter.textContent=descriptionLength(input.value)+' / '+max+(issue?' — '+issue:'');};input.oninput=()=>{count();onChange();};count();box.append(counter);
+   if(id==='workShortDescription'&&work.short_description_supported!==true){input.disabled=true;box.append(el('small','Short Description requires the separately approved server update. Existing Details remain available.'));}
+   if(descriptionLength(value)>max)box.append(el('small','Existing longer Details are preserved. Editing must fit the new limit.'));
+   basic.append(box);
+  }
+ }else basic.append(field('Description','workDescription',work.description,'textarea'));
  const grid=el('div',undefined,'grid2'),size=field('Candidate count','workSize','','select');
  for(const n of [8,16,32]){const o=el('option',String(n));o.value=String(n);size.lastChild.append(o);}size.lastChild.value=String(work.requested_size);
  size.lastChild.onchange=()=>onResize(Number(size.lastChild.value));grid.append(size);basic.append(grid);

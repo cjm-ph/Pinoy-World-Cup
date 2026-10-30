@@ -1,4 +1,5 @@
 export const publicFiles = [
+  "scripts/description-text-policy.mjs",
   "templates/favecrown-home.css",
   "scripts/member-page-policy.mjs",
   "scripts/submitted-media-review.mjs",
