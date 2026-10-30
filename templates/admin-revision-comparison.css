@@ -1,0 +1,10 @@
+.revision-comparison-pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:10px 0 16px;}
+.revision-comparison-pair section{min-width:0;overflow-wrap:anywhere;white-space:pre-wrap;background:#14212c;border:1px solid #314351;border-radius:7px;padding:12px;}
+.revision-comparison-pair img{display:block;width:96px;height:96px;object-fit:contain;margin-top:8px;}
+.revision-comparison>details{margin-top:12px;}.revision-comparison summary{cursor:pointer;}
+#submittedMediaReview:not([hidden]){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+#submittedMediaReview>*:not([data-review-asset]){grid-column:1/-1;}
+#submittedMediaReview [data-review-asset]{min-width:0;margin:0;padding:12px;}
+#submittedMediaReview [data-review-asset] p{margin:6px 0;font-size:12px;}
+@media(max-width:650px){.revision-comparison-pair{grid-template-columns:1fr;gap:8px;}}
+@media(max-width:650px){#submittedMediaReview:not([hidden]){grid-template-columns:1fr;}}

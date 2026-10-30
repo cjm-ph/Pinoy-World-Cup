@@ -27,7 +27,7 @@ body:has(#homeDetailsDialog[open]){overflow:hidden;}
 #start .home-photo img{object-fit:cover;}
 #start .home-card .home-card-body{position:static;inset:auto;padding:10px;background:none;transform:none;pointer-events:auto;}
 #start .home-card .home-card-body .home-title-row{display:block;padding:0;width:100%;}
-#start .home-title{font-size:16px;line-height:1.35;min-height:2.7em;color:#101d40;letter-spacing:0;}
+#start .home-title{font-size:16px;line-height:1.35;min-height:0;color:#101d40;letter-spacing:0;}
 #start .home-card .home-title{width:100%;max-width:none;}
 #start .home-short-description{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;margin:4px 0 0;color:#60708a;font-size:13px;line-height:1.4;}
 #start .home-card-upper{display:block;width:100%;border:0;padding:0;background:transparent;text-align:left;color:inherit;font:inherit;}
@@ -35,7 +35,7 @@ body:has(#homeDetailsDialog[open]){overflow:hidden;}
 #start .home-card-upper:focus-visible{outline:3px solid #0878ff;outline-offset:-3px;}
 #start .home-card .home-actions-body{padding-top:0;}
 #start .home-badge,#start .home-card-bottom,#start .home-giphy-source{display:none;}
-#start .home-card .stats-card-actions{position:static;inset:auto;width:auto;max-width:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:8px 0 0;padding:0;border:0;align-items:stretch;}
+#start .home-card .stats-card-actions{position:static;inset:auto;width:auto;max-width:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:10px 0 0;padding:0;border:0;align-items:stretch;}
 #start .home-card .stats-card-actions button{position:static;display:flex;align-items:center;justify-content:center;gap:4px;min-width:0;min-height:36px;width:auto;max-width:none;padding:6px 3px;border:0;border-radius:6px;background:#f4f6fa;color:#15244b;font:inherit;font-size:10px;font-weight:700;text-decoration:none;line-height:1.2;}
 #start .home-card .stats-card-actions button>*{transform:none;}
 #start .home-card .stats-card-actions button span{font-size:inherit;}
@@ -54,7 +54,9 @@ body:has(#homeDetailsDialog[open]){overflow:hidden;}
  #homeCatalogue{gap:8px;}#homeCatalogue button{padding:8px 10px;font-size:12px;}
  #homeCatalogue .home-periods:last-child{margin-left:0;width:100%;display:flex;}#homeCatalogue .home-periods:last-child[hidden]{display:none;}#homeCatalogue .home-periods:last-child button{flex:1;}
  #start #grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
- #start .home-card .home-photo{aspect-ratio:1.55;}#start .home-card .home-card-body{padding:7px;}#start .home-title{font-size:12px;min-height:3.9em;}
+ #start .home-card .home-photo{aspect-ratio:1.55;}#start .home-card .home-card-body{padding:7px;}#start .home-title{font-size:12px;min-height:0;}
  #start .home-card .stats-card-actions{gap:3px;}#start .home-card .stats-card-actions button{min-height:36px;padding:6px 2px;}#start .home-card .stats-card-actions button span{display:none;}
  #homeDetailsDialog{width:calc(100vw - 20px);max-height:90dvh;padding:18px;}
 }
+#start .home-card .home-card-upper .home-card-body{padding-bottom:0;}
+#start .home-card .home-actions-body.home-card-body{padding-top:0;}

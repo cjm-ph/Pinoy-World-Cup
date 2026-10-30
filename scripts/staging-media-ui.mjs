@@ -1,5 +1,6 @@
 import {installMemberCreator} from './member-creator-workspace.mjs';
 import {createSubmittedMediaReview} from './submitted-media-review.mjs';
+import {createRevisionComparison} from './admin-revision-comparison.mjs';
 import {giphyPreview} from './giphy-preview.mjs';
 import {createShortsAlternator} from './shorts-alternator.mjs';
 import {registerAdminMp4Candidate} from './admin-mp4-candidate.mjs';
@@ -37,11 +38,16 @@ let authorized=false, working=false, epoch=0, page='dashboard', asset=null, righ
 let work=null, editing=null, dirty=false, newPhotoUrl=null, game=null;
 const photoUrls=new Map(), photosPending=new Map();
 const submittedMediaReview=createSubmittedMediaReview({host:$('submittedMediaReview'),api:()=>api,selection:()=>authorized&&selected&&revision?{t:selected,r:revision}:null,guard:guardSession,loadPhoto:photo,onStatus:message=>say(message,'success'),getLanguage:()=>adminLanguage.language});
+const comparisonHost=make('article',undefined,'card revision-comparison');comparisonHost.hidden=true;$('submittedMediaReview').before(comparisonHost);
+const fullReview=make('details'),fullReviewTitle=make('summary','Full candidate/media review'),photoArticle=$('currentPhotos').closest('article');fullReview.open=true;fullReview.append(fullReviewTitle);photoArticle.before(fullReview);fullReview.append(photoArticle);
+const comparisonStyle=make('link');comparisonStyle.rel='stylesheet';comparisonStyle.href='/templates/admin-revision-comparison.css';document.head.append(comparisonStyle);
+const revisionComparison=createRevisionComparison({host:comparisonHost,api:()=>api,selection:()=>authorized&&selected&&revision?{t:selected,r:revision}:null,guard:guardSession,loadPhoto:photo,getLanguage:()=>adminLanguage.language,fullReview});
 function say(message, kind='') { $('stagingStatus').textContent=message; $('stagingStatus').className='notice '+kind; $('loginStatus').textContent=message; }
 function clearPhotos() { for(const url of photoUrls.values()) URL.revokeObjectURL(url); photoUrls.clear(); photosPending.clear(); if(newPhotoUrl)URL.revokeObjectURL(newPhotoUrl);newPhotoUrl=null; }
 function lock() {
  sharedCreator?.setIdentity(null);
  submittedMediaReview.clear();
+ revisionComparison.clear();
  creatorJobs.clear();creatorDeferredFiles=[];creatorNotice='';clearTimeout(creatorAutoTimer);creatorAutoTimer=null;
  adminStatistics?.reset();
  adminComments?.reset();
@@ -236,7 +242,7 @@ function paintSelected(t,r){
  $('metadataHelp').textContent='Edit in the shared Creator. Original ownership and current publication are preserved; submit changes for independent review.';
  options('stagingSlot',r.participants.map(p=>[p.id,p.name]));
  options('stagingRollback',(t.approved_revisions||[]).map(r=>[r.id,`Version ${r.version} (${r.id})`]));
- renderPhotos();updateControls();void submittedMediaReview.load();
+ renderPhotos();updateControls();void submittedMediaReview.load();void revisionComparison.load();
 }
 async function openTournament(id) { await loadSelected(id);setPage('editor');say('World Cup loaded. Inspect photos, edit supported fields or review the revision.'); }
 function photoSlots(inWizard=false){
