@@ -21,22 +21,22 @@ export function memberCurrentStatus(t){
  return ({draft:'Draft',submitted:'Pending review',rejected:'Rejected',approved:t?.visibility==='private'?'Private':'Approved'})[r?.state]||'Status unavailable';
 }
 export function historyEvents(rows){
- const events=[];
+ const events=[],seenComparisons=new Set();
  for(const row of rows){
   const comparison=row.comparison_basis==='retained_revision_vs_parent';
+  if(comparison&&row.revision_id&&row.parent_revision_id){const key=JSON.stringify([row.revision_id,row.parent_revision_id]);if(seenComparisons.has(key))continue;seenComparisons.add(key);}
   const add=(key,text)=>events.push({id:row.id+':'+key,text:comparison?'Retained revision comparison — '+text:text,at:comparison?null:row.created_at,actor_id:comparison?null:row.actor_id,actor_role:comparison?'Unknown':row.actor_role,comparison});
   const label={submit:'Review requested',approve:'Review approved',reject:'Review rejected',publish:'Published',unpublish:'Made private',rollback:'Publication restored'}[row.action];
   if(label){add('state',label+(row.action==='reject'&&row.note?' — '+row.note:''));continue;}
   if(!row.previous_available||!Array.isArray(row.current_candidates)||!Array.isArray(row.previous_candidates))continue;
   const active=items=>new Map(items.filter(p=>p.active!==false).map(p=>[p.id,p]));
   const before=active(row.previous_candidates),after=active(row.current_candidates);
-  for(const [id,p]of before)if(!after.has(id))add('remove:'+id,'Candidate removed — '+p.name);
-  for(const [id,p]of after){const old=before.get(id);if(!old){add('add:'+id,'Candidate added — '+p.name);continue;}
-   if(old.entity_id!==p.entity_id)add('replace:'+id,'Candidate replaced — '+old.name+' → '+p.name);
-   else if(old.name!==p.name)add('name:'+id,'Candidate renamed — '+old.name+' → '+p.name);
-   if(old.image_asset_id!==p.image_asset_id||JSON.stringify(old.media_links??[])!==JSON.stringify(p.media_links??[]))add('media:'+id,'Candidate media changed — '+p.name);
+  for(const [id,p]of before)if(!after.has(id))add('remove:'+id,'Candidate removed: '+p.name);
+  for(const [id,p]of after){const old=before.get(id);if(!old){add('add:'+id,'Candidate added: '+p.name);continue;}
+   if(old.name!==p.name)add('name:'+id,'Candidate renamed: '+old.name+' → '+p.name);
   }
-  if(row.cover_asset_id!==row.previous_cover_asset_id||row.cover_settings!==row.previous_cover_settings)add('cover','COVER changed');
+  if(row.cover_asset_id!==row.previous_cover_asset_id||row.cover_settings!==row.previous_cover_settings)add('cover','Cover changed');
+  if(row.description_comparison_available===true){for(const [field,label]of [['short_description','Short Description'],['description','Details']]){const before=row['previous_'+field],after=row[field];if(typeof before==='string'&&typeof after==='string'&&before!==after)add(field,label+': '+before+' → '+after);}}
  }
  return [...new Map(events.map(e=>[e.id,e])).values()].sort((a,b)=>(Date.parse(b.at)||0)-(Date.parse(a.at)||0));
 }
