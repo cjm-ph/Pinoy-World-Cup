@@ -37,7 +37,8 @@ root.buildGrid=function(){
 };
 $('homeSearch').oninput=root.buildGrid;
 ['All','Food','Actor','Actress','Singer','Others'].forEach(function(label){var tab=document.createElement('button');tab.type='button';tab.textContent=label;tab.className='home-tab';tab.setAttribute('aria-pressed',String(label==='All'));tab.onclick=function(){selectedCategory=label.toLowerCase();Array.from($('homeTabs').children).forEach(function(button){button.setAttribute('aria-pressed',String(button===tab));});root.buildGrid();};$('homeTabs').appendChild(tab);});
-$('heroStart').onclick=function(){$('homeCatalogue').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});};
+// Optional legacy hero: the FaveCrown catalogue deliberately has no banner CTA.
+var heroStart=$('heroStart');if(heroStart)heroStart.onclick=function(){$('homeCatalogue').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});};
 
 $('homeDetailsClose').onclick=()=>$('homeDetailsDialog').close();
 $('homeBrand').onclick=function(event){event.preventDefault();root.goHome();};
