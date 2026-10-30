@@ -1,9 +1,10 @@
-import {createCatalogueTools} from './member-ui-v21.mjs';
+import {createCatalogueTools,decorateMemberBrand} from './member-ui-v21.mjs';
 import {giphyPreview,giphyStillUrl} from './giphy-preview.mjs';
 import {readHomepage} from './homepage-read-api.mjs';
 import {createCoverPicker,publicImageUrl} from './homepage-cover-model.mjs';
 import {publicContentType} from './member-page-policy.mjs';
 export function installHomepage(root,{read=readHomepage,random=Math.random}={}) {
+ decorateMemberBrand(document.querySelector('.home-header'));
  const $=id=>document.getElementById(id),el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const tabs=$('homeTabs'),grid=$('grid'),search=$('homeSearch'),empty=$('homeEmpty');
  let sort='popular',period='month',contentType='all',rows=[],offset=0,total=0,loading=false,failed=false,generation=0,visibleLimit=18;

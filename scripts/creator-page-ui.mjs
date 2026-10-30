@@ -3,10 +3,10 @@ import {checkedMp4} from './mp4-source-contract.mjs';
 import {descriptionLength,bindDescriptionInput} from './description-text-policy.mjs';
 const clipTime=seconds=>`${Math.floor((seconds??0)/60)}:${String((seconds??0)%60).padStart(2,'0')}`;
 // Stateless page renderer. Persistence and role checks are supplied by its caller.
-export function createCreatorPage({work,categories,capture,onChange,onResize,onFiles,onYouTube,onRetry,onAdd,onRemove,onMove,onSave,onPublish,onPreview,photos,jobs,busy,notice,getLanguage,adminGiphyPresentation=false,memberMode=false,onError=()=>{}}){
+export function createCreatorPage({work,categories,capture,onChange,onResize,onFiles,onYouTube,onRetry,onAdd,onRemove,onMove,onSave,onPublish,onPreview,photos,jobs,busy,notice,getLanguage,adminGiphyPresentation=false,memberMode=false,memberTab='basic',onMemberTab=()=>{},onError=()=>{}}){
  const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const action=(text,fn)=>{const b=el('button',text,'btn small');b.type='button';b.onclick=()=>{try{fn();}catch(e){onError(e.message);}};b.disabled=busy;return b;};
- const root=el('div',undefined,'creator-single-page');
+ const root=el('div',undefined,'creator-single-page');let selectMemberTab=()=>{};
  const section=title=>{const s=el('section',undefined,'creator-section');s.append(el('h2',title));root.append(s);return s;};
  const basic=section('Basic Information');
  const field=(label,id,value,type='input')=>{const box=el('label',label,'field'),input=el(type);input.id=id;input.value=value;input.disabled=busy;box.append(input);input.oninput=()=>onChange();return box;};
@@ -35,20 +35,20 @@ export function createCreatorPage({work,categories,capture,onChange,onResize,onF
  const register=action('Add media URL',async()=>{register.disabled=true;try{await onYouTube?.(url.value,start.disabled?'':start.value,end.disabled?'':end.value,url.dataset.candidateId||null);}catch(error){onError(error.message);}finally{register.disabled=busy;}});video.append(register);candidates.append(video,timingNote);
  const notes=el('textarea');notes.id='creatorBatchNotes';notes.maxLength=4000;notes.placeholder='Source / notes (optional)';notes.setAttribute('aria-label','Batch source / notes');notes.disabled=busy;candidates.append(notes);
  for(const p of work.participants){const row=el('div',undefined,'creator-candidate-input');row.dataset.candidateId=p.id;const input=el('input');input.value=p.name;input.maxLength=300;input.dataset.candidateName=p.id;input.dataset.i18nSkip='';input.setAttribute('aria-label','Candidate name');input.disabled=busy;input.oninput=()=>{p.name=input.value;onChange();};
-  if(p.media?.type==='giphy'){const info=el('div',undefined,'creator-video-info'),edit=action(p.media.url,()=>{url.value=p.media.url;url.dataset.candidateId=p.id;start.value='0';end.value='';updateTiming();url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit);if(!adminGiphyPresentation)info.append(el('span','External GIPHY URL; availability and rights unverified.'));row.append(info);}
+  if(p.media?.type==='giphy'){const info=el('div',undefined,'creator-video-info'),edit=action(p.media.url,()=>{url.value=p.media.url;url.dataset.candidateId=p.id;start.value='0';end.value='';updateTiming();if(memberMode)selectMemberTab('basic');url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit);if(!adminGiphyPresentation)info.append(el('span','External GIPHY URL; availability and rights unverified.'));row.append(info);}
   if(p.media?.type==='youtube'){
    const info=el('div',undefined,'creator-video-info');
-   const edit=action(p.media.url,()=>{url.value=p.media.originalUrl||p.media.url;url.dataset.candidateId=p.id;start.value=p.media.startSeconds??0;end.value=p.media.endSeconds??'';updateTiming();url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit,el('span','Start: '+clipTime(p.media.startSeconds)+' / '+(p.media.endSeconds==null?'End of video':'End: '+clipTime(p.media.endSeconds))));row.append(info);
+   const edit=action(p.media.url,()=>{url.value=p.media.originalUrl||p.media.url;url.dataset.candidateId=p.id;start.value=p.media.startSeconds??0;end.value=p.media.endSeconds??'';updateTiming();if(memberMode)selectMemberTab('basic');url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit,el('span','Start: '+clipTime(p.media.startSeconds)+' / '+(p.media.endSeconds==null?'End of video':'End: '+clipTime(p.media.endSeconds))));row.append(info);
   }
   if(p.media?.type==='mp4'){
    const info=el('div',undefined,'creator-video-info');
    try{const source=checkedMp4(p.media).source;
-    if(source){const edit=action(source.original_url,()=>{url.value=source.original_url;url.dataset.candidateId=p.id;start.value=p.media.startSeconds??0;end.value=p.media.endSeconds??'';updateTiming();url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit);}
+    if(source){const edit=action(source.original_url,()=>{url.value=source.original_url;url.dataset.candidateId=p.id;start.value=p.media.startSeconds??0;end.value=p.media.endSeconds??'';updateTiming();if(memberMode)selectMemberTab('basic');url.focus();});edit.setAttribute('aria-label','Edit media URL for '+p.name);info.append(edit);}
     else info.append(el('span','Original MP4 source URL unavailable. Existing media is preserved.'));
    }catch{info.append(el('span','Invalid MP4 source metadata. Saving must remain blocked.'));}
    row.append(info);
   }
-  const state=jobs.get(p.id);row.append(input);if(adminGiphyPresentation&&p.media?.type==='giphy'){const hint=[...photos.querySelectorAll('[data-photo-slot]')].find(c=>c.dataset.photoSlot===p.id)?.querySelector('.giphy-size-estimate');if(hint)row.append(hint);}else row.append(action('Move up',()=>onMove(p.id,-1)),action('Move down',()=>onMove(p.id,1)));row.append(action('Remove candidate',()=>onRemove(p.id)));
+  const state=jobs.get(p.id);row.append(input);if(adminGiphyPresentation&&p.media?.type==='giphy'){const hint=[...photos.querySelectorAll('[data-photo-slot]')].find(c=>c.dataset.photoSlot===p.id)?.querySelector('.giphy-size-estimate');if(hint)row.append(hint);}else if(!memberMode)row.append(action('Move up',()=>onMove(p.id,-1)),action('Move down',()=>onMove(p.id,1)));row.append(action('Remove candidate',()=>onRemove(p.id)));
   if(state){const status=el('span',state.state==='complete'?'Upload complete':state.error||state.state,'creator-upload-state');status.setAttribute('role','status');row.append(status);if(state.state==='failed')row.append(action('Retry photo',()=>onRetry(p.id,notes.value)));}
   const card=[...photos.querySelectorAll('[data-photo-slot]')].find(card=>card.dataset.photoSlot===p.id);if(card)card.prepend(row);else candidates.append(row);
  }
@@ -58,6 +58,12 @@ export function createCreatorPage({work,categories,capture,onChange,onResize,onF
  if(!memberMode){const gemini=createGeminiSupport({getContext:()=>{capture();return {...work,category:categories.find(c=>c.id===work.category_id)?.name||''};},getLanguage,onCandidates:null});
  gemini.querySelectorAll('button').forEach(b=>b.disabled=busy);basic.append(gemini);}
  const save=section(memberMode?'Save / Request review':'Save / Publish'),privateButton=action('Save privately',onSave),publishButton=action('Publish now',onPublish);if(memberMode)publishButton.textContent='Submit for administrator review';privateButton.disabled=publishButton.disabled=busy||!work.category_id;save.append(el('p',memberMode?'Save a private draft, then request administrator review. Existing public content remains live.':'Save a private draft, or publish your latest validated content. An existing public revision stays live until publication succeeds.','help'),privateButton,publishButton);
- if(onPreview)save.prepend(action('Preview tournament',onPreview));
+ if(onPreview)(memberMode?candidates:save).append(action('Preview tournament',onPreview));
+ if(memberMode){
+  const tabs=el('div',undefined,'creator-tabs');tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Creator steps');
+  const basicPanel=el('div'),managePanel=el('div'),upload=el('section',undefined,'creator-section creator-add-media');basicPanel.id='creator-basic-panel';managePanel.id='creator-manage-panel';basicPanel.setAttribute('role','tabpanel');managePanel.setAttribute('role','tabpanel');upload.append(el('h2','Add Media'),drop,video,timingNote,notes);basicPanel.append(basic,upload);managePanel.append(candidates);
+  const buttons=[];for(const [key,label,panel]of [['basic','Basic Information & Add Media',basicPanel],['manage','Manage Candidates',managePanel]]){const b=el('button',label);b.type='button';b.id='creator-tab-'+key;b.setAttribute('role','tab');b.setAttribute('aria-controls',panel.id);panel.setAttribute('aria-labelledby',b.id);b.onclick=()=>selectMemberTab(key);b.onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const next=key==='basic'?'manage':'basic';selectMemberTab(e.key==='Home'?'basic':e.key==='End'?'manage':next);tabs.querySelector('[aria-selected=true]').focus();}};buttons.push([b,key,panel]);tabs.append(b);}
+  selectMemberTab=key=>{for(const [b,k,panel]of buttons){b.setAttribute('aria-selected',String(key===k));b.tabIndex=key===k?0:-1;panel.hidden=key!==k;}onMemberTab(key);};root.prepend(tabs,basicPanel,managePanel);selectMemberTab(memberTab);
+ }
  return root;
 }
