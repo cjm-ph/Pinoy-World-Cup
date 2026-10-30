@@ -1,4 +1,6 @@
 export const publicFiles = [
+  "scripts/member-ui-v21.mjs",
+  "templates/member-v21.css",
   "scripts/admin-revision-comparison.mjs",
   "templates/admin-revision-comparison.css",
   "scripts/description-text-policy.mjs",

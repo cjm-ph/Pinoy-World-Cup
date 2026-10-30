@@ -1,3 +1,4 @@
+import {createCatalogueTools} from './member-ui-v21.mjs';
 import {giphyPreview,giphyStillUrl} from './giphy-preview.mjs';
 import {readHomepage} from './homepage-read-api.mjs';
 import {createCoverPicker,publicImageUrl} from './homepage-cover-model.mjs';
@@ -22,7 +23,7 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
  periods.setAttribute('role','group');periods.setAttribute('aria-label','Popularity period');status.setAttribute('role','status');
  retry.type=more.type='button';retry.hidden=more.hidden=true;tabs.replaceChildren();tabs.setAttribute('aria-label','World Cup order');
  tabs.after(types,periods);grid.before(status,retry);grid.after(more);
- if($('homeBrand')?.closest('header'))$('homeBrand').closest('header').after(search);
+
  const menu=$('homeMemberMenu'),toggle=$('homeMenuToggle');
  if(toggle)toggle.onclick=()=>{const open=!menu.hasAttribute('data-open');menu.toggleAttribute('data-open',open);toggle.setAttribute('aria-expanded',String(open));};
  const closeMenu=()=>{menu?.removeAttribute('data-open');toggle?.setAttribute('aria-expanded','false');};
@@ -30,11 +31,8 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
  for(const [id,label] of [['homeMake','Create World Cup'],['homeMine','My World Cups']])if($(id))$(id).onclick=()=>{const nav=document.querySelector('[data-member-creator]');const target=nav&&!nav.hidden?[...nav.querySelectorAll('button')].find(b=>b.textContent===label):null;if(target){closeMenu();target.click();}else{$('memberStatus').textContent='Sign in with Google to '+(id==='homeMake'?'make a cup.':'view your cups.');menu?.setAttribute('data-open','');toggle?.setAttribute('aria-expanded','true');$('memberGoogle')?.focus();}};
  if($('homeNavHome'))$('homeNavHome').onclick=e=>{e.preventDefault();closeMenu();root.goHome();};
  document.title='STAGING — FaveCrown';
- const controls=[];
- for(const value of ['popular','latest']){const button=el('button',value==='popular'?'Popular':'Latest','home-tab');button.type='button';button.onclick=()=>{if(sort!==value){sort=value;void load(true);}};tabs.append(button);controls.push([button,()=>sort===value]);}
- for(const value of ['all','image','video']){const button=el('button',value[0].toUpperCase()+value.slice(1),'home-tab');button.type='button';button.onclick=()=>{contentType=value;void load(true);};types.append(button);controls.push([button,()=>contentType===value]);}
- for(const value of ['today','week','month']){const button=el('button',value[0].toUpperCase()+value.slice(1),'home-tab');button.type='button';button.onclick=()=>{if(period!==value){period=value;void load(true);}};periods.append(button);controls.push([button,()=>period===value]);}
- function controlsState(){for(const [button,selected] of controls)button.setAttribute('aria-pressed',String(selected()));periods.hidden=sort==='latest';}
+ const tools=createCatalogueTools({search,isActive:()=>!document.body.classList.contains('member-workspace-open'),onChange:s=>{sort=s.sort;period=s.period;contentType=s.type;void load(true);}});$('homeCatalogue').replaceChildren(tools.root);
+ function controlsState(){tools.draw();}
  function matches(row){const t=registry.get(row.tournament_id),query=search.value.trim().toLowerCase();return t&&t._statistics_revision_id===row.revision_id&&(contentType==='all'||contentTypes.get(t.id)===contentType)&&(!query||[t.title,...(t.items||[]).map(p=>p.name||'')].some(name=>name.toLowerCase().includes(query)));}
  function render(){
   grid.replaceChildren();const query=search.value.trim().toLowerCase();
@@ -57,7 +55,7 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
    const heading=el('span',undefined,'home-card-body'),title=el('span',tournament.title,'home-title');heading.append(title);if(tournament.short_description?.trim())heading.append(el('span',tournament.short_description,'home-short-description'));upper.append(heading);
    const body=el('div',undefined,'home-card-body home-actions-body'),line=el('div',undefined,'home-title-row'),details=el('button','Details','home-details');details.type='button';
    details.setAttribute('aria-label','Details for '+tournament.title);details.onclick=event=>{event.stopPropagation();$('homeDetailsTitle').textContent=tournament.title;let body=$('homeDetailsBody');if(!body){body=el('div');body.id='homeDetailsBody';$('homeDetailsTitle').after(body);}body.textContent=tournament.sub?.trim()||'No description available.';$('homeDetailsDialog').showModal();};
-   const startButton=el('button',undefined,'home-start');startButton.type='button';startButton.setAttribute('aria-label','Start '+tournament.title);const icon=el('b','▷');icon.setAttribute('aria-hidden','true');startButton.append(icon,el('span','START'));startButton.onclick=()=>root.start(tournament);body.append(startButton);
+   const startButton=el('button',undefined,'home-start');startButton.type='button';startButton.setAttribute('aria-label','Start '+tournament.title);const icon=el('b','▷');icon.setAttribute('aria-hidden','true');startButton.append(icon,el('span','PLAY'));startButton.onclick=()=>root.start(tournament);body.append(startButton);
    line.append(details);body.append(line);for(const [index,p] of pair.entries())if(p.giphySource){const link=el('a','View on GIPHY '+(index+1),'home-giphy-source');link.href=p.giphySource;link.target='_blank';link.rel='noopener noreferrer';body.append(link);}card.append(body);grid.append(card);
   }
   empty.hidden=loading||failed||grid.children.length>0;
