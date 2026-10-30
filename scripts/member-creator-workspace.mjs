@@ -9,7 +9,7 @@ import {classifyMediaUrl} from './media-url-policy.mjs';
 import {giphyPreview,giphyStillUrl} from './giphy-preview.mjs';
 import {mountCandidateMedia} from './mixed-media-game.mjs';
 import {createShortsAlternator} from './shorts-alternator.mjs';
-import {memberCurrentStatus,historyEvents,localTimestamp} from './member-page-policy.mjs';
+import {memberCurrentStatus,historyRevisions,localTimestamp} from './member-page-policy.mjs';
 
 export function installMemberCreator({account,client,repository=client?createMemberRepository(client):null}={}){
  if(account.__memberCreator)return account.__memberCreator;
@@ -35,15 +35,16 @@ export function installMemberCreator({account,client,repository=client?createMem
   const more=document.createElement('button');more.type='button';more.textContent='Older history';more.hidden=true;dialog.append(more);
   const fetchPage=async()=>{if(pending)return;pending=true;more.disabled=true;try{
    const data=await model.history(t,cursor);if(at!==epoch||!dialog.isConnected)return;rows.push(...data.rows);cursor=data.next_cursor;
-   list.replaceChildren();const events=historyEvents(rows);for(const event of events){
-    const item=document.createElement('article'),label=document.createElement('p'),meta=document.createElement('p'),time=document.createElement('time');
-    const text=event.comparison?event.text.replace(/^Retained revision comparison — /,''):event.text;
-    label.textContent=text==='COVER changed'?'Cover changed':text;
-    const formatted=event.comparison?null:localTimestamp(event.at);time.textContent=formatted?formatted.slice(0,-3):'Time unknown';if(formatted)time.dateTime=event.at;
-    const actor=!event.comparison&&event.actor_id&&event.actor_id===user?.id&&t.creator_id===user?.id?'You':!event.comparison&&event.actor_id&&event.actor_role==='administrator'?'Admin':'Editor unknown';
-    meta.append(time,document.createTextNode(' — '+actor));item.append(label,meta);list.append(item);
+   list.replaceChildren();const events=historyRevisions(rows);for(const event of events){
+    const item=document.createElement('article'),label=document.createElement('p'),time=document.createElement('time');
+    label.textContent=event.text;
+    const formatted=localTimestamp(event.at);if(formatted){time.textContent=formatted.slice(0,-3);time.dateTime=event.at;label.append(document.createTextNode(' \u2014 '),time);}
+    const actor=event.actor_id&&event.actor_id===user?.id&&t.creator_id===user?.id?'You':event.actor_id&&event.actor_role==='administrator'?'Admin':null;
+    if(actor)label.append(document.createTextNode(' \u2014 '+actor));item.append(label);
+    if(event.note){const note=document.createElement('p');note.textContent=event.note;item.append(note);}
+    for(const change of event.changes){const line=document.createElement('p');line.textContent=change;item.append(line);}list.append(item);
    }
-   message.textContent=events.length?'':'No recorded changes on these pages.';more.hidden=!data.has_more;
+   message.textContent=events.length?'':'No history yet.';more.hidden=!data.has_more;
   }catch(e){if(at===epoch&&dialog.isConnected)message.textContent=e.message;}finally{pending=false;more.disabled=false;}};
   more.onclick=()=>void fetchPage();await fetchPage();
  }

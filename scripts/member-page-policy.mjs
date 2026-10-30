@@ -40,3 +40,21 @@ export function historyEvents(rows){
  }
  return [...new Map(events.map(e=>[e.id,e])).values()].sort((a,b)=>(Date.parse(b.at)||0)-(Date.parse(a.at)||0));
 }
+
+// Audit timestamps describe the representative event, never the retained snapshot edits.
+export function historyRevisions(rows){
+ const groups=new Map(),seen=new Set();
+ const compare=(a,b)=>{const delta=(Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0);if(delta)return delta;const x=/^\d+$/.test(a.id)?BigInt(a.id):0n,y=/^\d+$/.test(b.id)?BigInt(b.id):0n;return x===y?String(b.id).localeCompare(String(a.id)):x>y?-1:1;};
+ const labels={submit:'Review requested',approve:'Review approved',reject:'Rejected',publish:'Published',unpublish:'Made private',rollback:'Publication restored'};
+ for(const row of [...rows].sort(compare)){
+  if(seen.has(row.id))continue;seen.add(row.id);
+  const key=row.revision_id?'revision:'+row.revision_id:'event:'+row.id;
+  let group=groups.get(key);
+  if(!group){group={id:key,revision_id:row.revision_id,at:row.created_at,actor_id:row.actor_id,actor_role:row.actor_role,text:labels[row.action]||'Draft saved',note:row.action==='reject'?row.note:null,changes:[]};groups.set(key,group);}
+  const snapshot=row.revision_comparison||(row.comparison_basis==='retained_revision_vs_parent'?row:null);
+  if(snapshot&&snapshot.previous_available&&group.changes.length===0){
+   group.changes=historyEvents([{...snapshot,id:row.id,action:'retained_snapshot',comparison_basis:'retained_revision_vs_parent'}]).map(e=>e.text.replace(/^Retained revision comparison — /,''));
+  }
+ }
+ return [...groups.values()];
+}

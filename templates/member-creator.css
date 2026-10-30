@@ -4,6 +4,6 @@
 
 :host{min-height:100vh}nav{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}main{max-width:1100px;margin:auto}main>article{border:1px solid var(--line);padding:12px;margin:12px 0}dialog{background:var(--panel);color:var(--text);width:min(96vw,1000px);max-height:95vh}.member-preview-match{display:grid;grid-template-columns:1fr 1fr;gap:4px}.member-preview-match .creator-media-preview{height:65vh}button{min-height:40px;cursor:pointer}img{max-width:100%}
 :host .member-history{max-width:min(640px,calc(100vw - 32px));max-height:80dvh;overflow:auto;overflow-wrap:anywhere;background:#121a26;color:#fff;border:1px solid #354155;border-radius:10px;padding:18px;}
-:host .member-history-list{display:grid;gap:8px;}
+:host .member-history-list{display:grid;gap:6px;}
 :host .member-history article{display:grid;gap:2px;padding:0;margin:0;border:0;background:transparent;box-shadow:none;}
 :host .member-history article p{margin:0;}
