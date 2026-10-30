@@ -84,3 +84,9 @@ body.member-workspace-open{background:white}.member-workspace{top:76px!important
 @media(max-width:650px){#homeSearchToggle{display:none!important}}
 
 .home-photo[data-cover-mode="stored-cover"]{display:block}.home-photo[data-cover-mode="stored-cover"]>.home-photo-half{width:100%;height:100%}.home-photo[data-cover-mode="stored-cover"]>img{display:block;width:100%;height:100%;object-fit:contain;object-position:center}
+
+/* v2.6: existing pair sources only; stored Covers remain untouched. */
+.home-photo[data-cover-mode="automatic-pair"]{position:relative;display:block;overflow:hidden}
+.home-photo[data-cover-mode="automatic-pair"]>.home-photo-half{position:absolute;top:0;bottom:0;width:56%;height:100%;overflow:hidden}
+.home-photo[data-cover-mode="automatic-pair"]>.home-photo-half:first-child{left:0;clip-path:polygon(0 0,100% 0,79% 100%,0 100%)}
+.home-photo[data-cover-mode="automatic-pair"]>.home-photo-half:nth-child(2){right:0;clip-path:polygon(21% 0,100% 0,100% 100%,0 100%)}

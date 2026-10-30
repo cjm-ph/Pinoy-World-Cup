@@ -24,3 +24,9 @@ dialog{background:#fff;color:#142044;border:1px solid #dce4ef;border-radius:10px
 @media(max-width:650px){.compact-list-heading{display:none!important}.compact-photo-manager>.compact-candidate{grid-template-columns:24px 64px minmax(0,1fr);gap:6px;min-height:94px}.compact-candidate .compact-number,.compact-candidate .compact-thumb{grid-row:1/3}.compact-thumb{width:64px;height:54px}.compact-candidate .creator-candidate-input>input{grid-column:3;grid-row:1}.compact-candidate .compact-edit{grid-column:3;grid-row:2;justify-self:start;font-size:11px;padding:6px}.compact-candidate .candidate-remove{grid-column:3;grid-row:2;justify-self:end;font-size:11px!important;padding:6px!important}.compact-photo-manager>.compact-cover{grid-template-columns:70px minmax(0,1fr) 90px}.compact-media-dialog{padding:12px}}
 
 .home-photo[data-cover-mode="stored-cover"]{display:block}.home-photo[data-cover-mode="stored-cover"]>.home-photo-half{width:100%;height:100%}.home-photo[data-cover-mode="stored-cover"]>img{display:block;width:100%;height:100%;object-fit:contain;object-position:center}
+
+/* v2.6: existing pair sources only; stored Covers remain untouched. */
+.home-photo[data-cover-mode="automatic-pair"]{position:relative;display:block;overflow:hidden}
+.home-photo[data-cover-mode="automatic-pair"]>.home-photo-half{position:absolute;top:0;bottom:0;width:56%;height:100%;overflow:hidden}
+.home-photo[data-cover-mode="automatic-pair"]>.home-photo-half:first-child{left:0;clip-path:polygon(0 0,100% 0,79% 100%,0 100%)}
+.home-photo[data-cover-mode="automatic-pair"]>.home-photo-half:nth-child(2){right:0;clip-path:polygon(21% 0,100% 0,100% 100%,0 100%)}

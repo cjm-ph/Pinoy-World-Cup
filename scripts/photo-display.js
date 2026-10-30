@@ -22,5 +22,6 @@
  // Staging honors saved modes. Other sites retain their existing Fill policy.
  // Always return independent copies; never mutate saved framing or dimensions.
  function gameSettings(settings){const s=settings||{},staging=root.PWC_STAGING?.supabaseUrl==='https://cmnomqsurdwhdbjgnsvw.supabase.co';return {...s,fit:staging?normalize(s,'desktop').fit:'cover',devices:Object.fromEntries(['desktop','mobile'].map(d=>[d,{...normalize(s,d),...(staging?{}:{fit:'cover'})}]))};}
- root.PWCPhotoDisplay={normalize,apply,geometry,automatic,gameSettings,gameRatio,resultRatio,coverRatio};
+ function candidateAutomatic(){return {fit:'contain',position:'50% 50%',b2_zoom:1,devices:{desktop:{fit:'contain',position:'50% 50%',b2_zoom:1},mobile:{fit:'contain',position:'50% 50%',b2_zoom:1}}};}
+ root.PWCPhotoDisplay={candidateAutomatic,normalize,apply,geometry,automatic,gameSettings,gameRatio,resultRatio,coverRatio};
 })(globalThis);
