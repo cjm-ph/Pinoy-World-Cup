@@ -22,10 +22,12 @@ export async function mergePublishedView(original, api) {
     const r=await api.revision(cup.revision_id);
     const old=original.tournaments.find(t=>t.id===cup.id);
     const category=original.categories.find(c=>cup.category_ids?.includes(c.id));
-    const cover=cup.cover_asset_id ? api.mediaUrl(cup.cover_asset_id) : old?.cover_image || '';
+    const coverAsset=cup.cover_asset_id||r.cover_asset_id||null;
+    const cover=coverAsset ? api.mediaUrl(coverAsset) : '';
     const t={...old,id:cup.id,title:text(cup.title),sub:text(cup.description),category:category?.legacy_filter || old?.category || 'others',c:old?.c || '#0038a8',cover_image:cover,
       supported_rounds:r.supported_rounds || cup.supported_rounds,default_size:r.default_size || cup.default_size,
       items:(r.participants || []).filter(p=>p.active).map(p=>publishedItem({...p,name:text(p.name),emoji:text(p.emoji)},old?.items.find(i=>i.id===p.id),api.mediaUrl))};
+    t._cover_asset_id=coverAsset;t.cover_settings=(r.presentations||[]).find(p=>!p.participant_id&&p.context==='start')?.settings||{fit:'contain'};
     t.short_description=typeof cup.short_description==='string'?cup.short_description:'';
     t._statistics_revision_id=cup.revision_id;
     view.tournaments.push(t);

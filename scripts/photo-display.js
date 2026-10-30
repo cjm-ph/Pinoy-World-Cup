@@ -13,7 +13,7 @@
   const s=normalize(settings,device),p=s.position.split(' ').map(parseFloat),scale=(s.fit==='contain'?Math.min:Math.max)(w/nw,h/nh)*s.b2_zoom;
   return {width:nw*scale,height:nh*scale,x:(w-nw*scale)*p[0]/100,y:(h-nh*scale)*p[1]/100};
  }
- function gameRatio(width,height){return width>=768?((Math.min(width,1540)-44)/2)/Math.max(1,height-84):((width-2)/2)/Math.max(1,height-56);}
+ function gameRatio(width,height){return width>=768?(root.PWC_STAGING?.supabaseUrl==='https://cmnomqsurdwhdbjgnsvw.supabase.co'?(width/2)/Math.max(1,height-82):((Math.min(width,1540)-44)/2)/Math.max(1,height-84)):((width-2)/2)/Math.max(1,height-56);}
  function resultRatio(width,height){return width>=768?Math.min(width-40,580)/Math.max(340,Math.min(.7*height,690)):Math.min(width,580)/Math.max(390,Math.min(.76*height,680));}
  // New cover frames fill the existing round picker, without its legacy padding.
  function coverRatio(width,height){return Math.min(width-24,620)/(width>=768?Math.max(230,Math.min(height*.38,350)):Math.max(170,Math.min(height*.32,280)));}

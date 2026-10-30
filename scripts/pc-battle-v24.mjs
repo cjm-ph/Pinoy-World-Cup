@@ -10,13 +10,13 @@ export function installPCBattle(root=window){
  root.PWCPCPhotoChoice=(side,choose)=>{
   if(!desktop.matches||root.busy||scene||!root.cur?.slice(root.i,root.i+2).every(isPhoto))return false;
   const winner=root.cur[root.i+side],image=arena.querySelector(side?'#b':'#a')?.closest('.candidate-shell')?.querySelector('img.vs-photo');if(!image)return false;
-  const photo=image.cloneNode(false);photo.className='pc-victory-photo';photo.removeAttribute('id');photo.alt=winner.n;photo.style.cssText='width:100%;height:100%;object-fit:'+(image.style.objectFit||'contain')+';object-position:'+(image.style.objectPosition||'50% 50%')+';transform:'+(image.style.transform||'none');
+  const bounds=image.parentElement.getBoundingClientRect();const photo=image.cloneNode(false);photo.className='pc-victory-photo';photo.removeAttribute('id');photo.alt=winner.n;photo.style.cssText=image.style.cssText;photo.style.width='100%';photo.style.height='100%';photo.style.position='absolute';photo.style.inset='0';
   const nextRender=root.render,finish=root.finish;let pending=null;
   root.render=()=>{pending=nextRender;};root.finish=()=>{pending=finish;};
   try{choose(side);}finally{root.render=nextRender;root.finish=finish;}
   if(pending===finish){finish.call(root);update();return true;}if(!pending)return true;
-  const element=document.createElement('div'),name=document.createElement('div');element.className='pc-photo-interlude';name.className='pc-victory-caption';name.textContent=winner.n;element.append(photo,name);play.append(element);play.classList.add('pc-photo-victory');root.busy=true;
-  scene={element,log:root.log,advance:()=>pending.call(root),timer:setTimeout(()=>clear(true),matchMedia('(prefers-reduced-motion:reduce)').matches?60:520)};return true;
+  const element=document.createElement('div'),name=document.createElement('div');element.className='pc-photo-interlude';name.className='pc-victory-caption';name.textContent=winner.n;const frame=document.createElement('div');frame.className='pc-victory-frame';frame.style.width=bounds.width+'px';frame.style.height=bounds.height+'px';frame.style.setProperty('--winner-from-x',(bounds.left+bounds.width/2-innerWidth/2)+'px');frame.style.setProperty('--winner-from-y',(bounds.top+bounds.height/2-innerHeight/2)+'px');frame.append(photo);element.append(frame,name);play.append(element);play.classList.add('pc-photo-victory');root.busy=true;
+  scene={element,log:root.log,advance:()=>pending.call(root),timer:setTimeout(()=>clear(true),matchMedia('(prefers-reduced-motion:reduce)').matches?60:650)};return true;
  };
  document.getElementById('quit')?.addEventListener('click',()=>clear(false),true);root.addEventListener('pagehide',()=>clear(false));root.addEventListener('resize',()=>{clear(true);update();});document.addEventListener('visibilitychange',()=>{if(document.hidden)clear(true);});desktop.addEventListener('change',()=>{clear(true);update();});update();
  return {dispose(){clear(false);delete root.PWCPCPhotoChoice;document.body.classList.remove('pc-battle');}};

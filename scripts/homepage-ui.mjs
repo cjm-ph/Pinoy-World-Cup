@@ -16,6 +16,7 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
  root.PWCHomepageStartCover=id=>{
   const row=rows.find(r=>r.tournament_id===id),tournament=registry.get(id);
   if(!row||tournament?._statistics_revision_id!==row.revision_id)return null;
+  if(tournament._cover_asset_id&&tournament.cover_image)return {...tournament.cover_settings,source:tournament.cover_image};
   const sources=pick(coverRow(row)).map(p=>p?.previewSource).filter(Boolean);
   return {source:sources[0]||'',fallbackSources:sources.slice(1),fit:'contain',position:'50% 50%'};
  };
@@ -43,9 +44,11 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
    if(++matched>visibleLimit)continue;
    const card=el('article',undefined,'home-card');card.dataset.tournamentId=tournament.id;
    const upper=el('button',undefined,'home-card-upper');upper.type='button';upper.setAttribute('aria-label','Choose a round for '+tournament.title);upper.onclick=()=>root.start(tournament);card.append(upper);
-   const media=el('span',undefined,'home-photo');media.dataset.coverMode='automatic-pair';
-   const pair=pick(coverRow(row));
-   for(let index=0;index<2;index++){
+   const media=el('span',undefined,'home-photo');media.dataset.coverMode=tournament._cover_asset_id?'stored-cover':'automatic-pair';
+   const storedCover=tournament._cover_asset_id&&tournament.cover_image;
+   const pair=storedCover?[]:pick(coverRow(row));
+   if(storedCover){const image=el('img');image.alt='Cover for '+tournament.title;image.loading='lazy';image.src=storedCover;root.PWCPhotoDisplay?.apply(image,tournament.cover_settings||{fit:'contain'});image.onerror=()=>{media.textContent='Image unavailable';};media.append(image);}
+   for(let index=0;index<(storedCover?0:2);index++){
     const candidate=pair[index],half=el('span',undefined,'home-photo-half');half.dataset.participantId=candidate?.participant_id||'';
     const fallback=el('span','Image unavailable','home-pair-fallback');half.append(fallback);
     const src=candidate?.previewSource;

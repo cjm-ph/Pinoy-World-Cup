@@ -26,7 +26,7 @@ function cards(){document.querySelectorAll('.home-card').forEach(card=>{
  const settings=view.representatives[card.dataset.tournamentId]?.main,container=card.querySelector('.home-photo');
  // Automatic pairs own both candidate sources and their load/error handlers.
  // The legacy main-cover painter must not overwrite the first nested image.
- if(container&&(container.dataset.coverMode==='automatic-pair'||container.querySelector('.home-photo-half')))return;
+ if(container&&(['automatic-pair','stored-cover'].includes(container.dataset.coverMode)||container.querySelector('.home-photo-half')))return;
  if(container)paint(container,container.querySelector('img'),container.querySelector('.home-fallback'),null,settings);
 });}
 const build=root.buildGrid;root.buildGrid=function(){const result=build.apply(this,arguments);cards();return result;};
