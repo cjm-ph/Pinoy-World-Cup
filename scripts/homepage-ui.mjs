@@ -33,7 +33,7 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
  for(const [id,label] of [['homeMake','Create World Cup'],['homeMine','My World Cups']])if($(id))$(id).onclick=()=>{const nav=document.querySelector('[data-member-creator]');const target=nav&&!nav.hidden?[...nav.querySelectorAll('button')].find(b=>b.textContent===label):null;if(target){closeMenu();target.click();}else{$('memberStatus').textContent='Sign in with Google to '+(id==='homeMake'?'make a cup.':'view your cups.');menu?.setAttribute('data-open','');toggle?.setAttribute('aria-expanded','true');$('memberGoogle')?.focus();}};
  if($('homeNavHome'))$('homeNavHome').onclick=e=>{e.preventDefault();closeMenu();root.goHome();};
  document.title='STAGING — FaveCrown';
- const tools=createCatalogueTools({search,isActive:()=>!document.body.classList.contains('member-workspace-open'),onChange:s=>{sort=s.sort;period=s.period;contentType=s.type;void load(true);}});$('homeCatalogue').replaceChildren(tools.root);
+ const tools=createCatalogueTools({search,isActive:()=>!document.body.classList.contains('member-workspace-open')&&!document.body.classList.contains('continue-open'),onChange:s=>{sort=s.sort;period=s.period;contentType=s.type;void load(true);}});$('homeCatalogue').replaceChildren(tools.root);
  function controlsState(){tools.draw();}
  function matches(row){const t=registry.get(row.tournament_id),query=search.value.trim().toLowerCase();return t&&t._statistics_revision_id===row.revision_id&&(contentType==='all'||contentTypes.get(t.id)===contentType)&&(!query||[t.title,...(t.items||[]).map(p=>p.name||'')].some(name=>name.toLowerCase().includes(query)));}
  function render(){
@@ -57,10 +57,7 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
    }
    const badge=el('span',String(tournament.category||'others').toUpperCase(),'home-badge');media.append(badge);upper.append(media);
    const heading=el('span',undefined,'home-card-body'),title=el('span',tournament.title,'home-title');heading.append(title);if(tournament.short_description?.trim())heading.append(el('span',tournament.short_description,'home-short-description'));upper.append(heading);
-   const body=el('div',undefined,'home-card-body home-actions-body'),line=el('div',undefined,'home-title-row'),details=el('button','Details','home-details');details.type='button';
-   details.setAttribute('aria-label','Details for '+tournament.title);details.onclick=event=>{event.stopPropagation();$('homeDetailsTitle').textContent=tournament.title;let body=$('homeDetailsBody');if(!body){body=el('div');body.id='homeDetailsBody';$('homeDetailsTitle').after(body);}body.textContent=tournament.sub?.trim()||'No description available.';$('homeDetailsDialog').showModal();};
-   const startButton=el('button',undefined,'home-start');startButton.type='button';startButton.setAttribute('aria-label','Start '+tournament.title);const icon=el('b','▷');icon.setAttribute('aria-hidden','true');startButton.append(icon,el('span','PLAY'));startButton.onclick=()=>root.start(tournament);body.append(startButton);
-   line.append(details);body.append(line);for(const [index,p] of pair.entries())if(p.giphySource){const link=el('a','View on GIPHY '+(index+1),'home-giphy-source');link.href=p.giphySource;link.target='_blank';link.rel='noopener noreferrer';body.append(link);}card.append(body);grid.append(card);
+   const body=createHomepageCardBody(root,tournament,()=>root.start(tournament));for(const [index,p] of pair.entries())if(p.giphySource){const link=el('a','View on GIPHY '+(index+1),'home-giphy-source');link.href=p.giphySource;link.target='_blank';link.rel='noopener noreferrer';body.append(link);}card.append(body);grid.append(card);
   }
   empty.hidden=loading||failed||grid.children.length>0;
   empty.textContent=search.value.trim()?'No search results found.':'No World Cups found.';more.hidden=loading||failed||(matched<=visibleLimit&&offset>=total);retry.hidden=!failed;
@@ -97,4 +94,12 @@ export function installHomepage(root,{read=readHomepage,random=Math.random}={}) 
  if($('heroStart'))$('heroStart').onclick=()=>$('homeCatalogue').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});
  $('homeDetailsClose').onclick=()=>$('homeDetailsDialog').close();$('homeBrand').onclick=event=>{event.preventDefault();root.goHome();};
  void load(true);
+}
+
+// Shared HOME/CONTINUE action body; existing public-statistics decoration adds rank/share/icons.
+export function createHomepageCardBody(root,tournament,onPlay){
+ const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
+ const body=el('div',undefined,'home-card-body home-actions-body'),line=el('div',undefined,'home-title-row'),details=el('button','Details','home-details');details.type='button';details.setAttribute('aria-label','Details for '+tournament.title);
+ details.onclick=event=>{event.stopPropagation();document.getElementById('homeDetailsTitle').textContent=tournament.title;let content=document.getElementById('homeDetailsBody');if(!content){content=el('div');content.id='homeDetailsBody';document.getElementById('homeDetailsTitle').after(content);}content.textContent=tournament.sub?.trim()||'No description available.';document.getElementById('homeDetailsDialog').showModal();};
+ const play=el('button',undefined,'home-start');play.type='button';play.setAttribute('aria-label','Start '+tournament.title);const icon=el('b','\u25b7');icon.setAttribute('aria-hidden','true');play.append(icon,el('span','PLAY'));play.onclick=onPlay;line.append(details);body.append(play,line);return body;
 }
