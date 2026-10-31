@@ -85,14 +85,14 @@ export function createShortsAlternator(clock={}) {
 export function shortsDiagnosticsEnabled(location){
  try{return location?.protocol==='https:'&&location.hostname==='pinoy-worldcup-staging.onrender.com'&&new URLSearchParams(location.search).get('shortsDebug')==='1';}catch{return false;}
 }
-const traceEvents=new Set('ATTACH ALT_READY ALT_STATE OBSERVED_STATE PLAYER_READY PLAYER_STATE AUTOPLAY_EVENT AUTOPLAY_DECISION BLOCK HALT WAIT_READY REQUEST_LOAD REQUEST_PLAY REQUEST_PAUSE STOP_CONFIRMED GAP_SCHEDULE GAP_FIRE GAP_CANCEL FINISH RESUME_TRY RESUME_ACTIVE MATCH_RESET DISPOSE DETACH SOUND_CHANGED SOUND_APPLY SELECT EXIT PROVIDER_ERROR SIZE_CHECK'.split(' '));
-const traceEnums={phase:['waiting','loading','playing','stopping','gap','manual'],active:['LEFT','RIGHT','NONE'],reason:['NOT_READY','STOP_TIMEOUT','PROVIDER_ERROR','AUTOPLAY_BLOCKED','MANUAL_FALLBACK']};
-const traceNumbers=new Set(['state','leftState','rightState','delayMs','width','height']);
-const traceBooleans=new Set(['leftReady','rightReady','leftFailed','rightFailed','manual','soundOn','muted','apiReady','cancelled']);
-export function createShortsTrace({now=()=>performance.now(),viewport=()=>({width:0,height:0})}={}){
+const traceEvents=new Set('ATTACH ALT_READY ALT_STATE OBSERVED_STATE PLAYER_READY PLAYER_STATE AUTOPLAY_EVENT AUTOPLAY_DECISION BLOCK HALT WAIT_READY REQUEST_LOAD REQUEST_PLAY REQUEST_PAUSE STOP_CONFIRMED GAP_SCHEDULE GAP_FIRE GAP_CANCEL FINISH RESUME_TRY RESUME_ACTIVE MATCH_RESET DISPOSE DETACH SOUND_CHANGED SOUND_APPLY SELECT EXIT PROVIDER_ERROR SIZE_CHECK START_CLICK ADMISSION_START ADMISSION_SUCCESS ADMISSION_FAILURE START_CANCELLED ENGINE_START PLAYER_CREATE_BEGIN IFRAME_OBSERVED'.split(' '));
+const traceEnums={phase:['waiting','loading','playing','stopping','gap','manual'],active:['LEFT','RIGHT','NONE'],reason:['NOT_READY','STOP_TIMEOUT','PROVIDER_ERROR','AUTOPLAY_BLOCKED','MANUAL_FALLBACK'],activationSupport:['supported','unsupported','unavailable'],documentPolicyApi:['permissionsPolicy','featurePolicy','unsupported','unavailable'],documentAutoplay:['allowed','denied','unsupported','unavailable'],iframeAutoplay:['absent','bare','wildcard','none','src','origin_list','unrecognized','unavailable'],iframePolicyAutoplay:['allowed','denied','unsupported','unavailable'],responsePolicyHeader:['not_inspected']};
+const traceNumbers=new Set(['state','leftState','rightState','delayMs','width','height','admissionElapsedMs']);
+const traceBooleans=new Set(['leftReady','rightReady','leftFailed','rightFailed','manual','soundOn','muted','apiReady','cancelled','trusted','activationActive','activationHasBeenActive','iframePresent']);
+export function createShortsTrace({now=()=>performance.now(),viewport=()=>({width:0,height:0}),context=()=>({})}={}){
  const began=now(),rows=[];let seq=0,dropped=0,waitKey='';
  const finite=v=>typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)<=1000000;
- return {record(event,side,data={}){try{if(!traceEvents.has(event))return;const safe={};for(const [k,v]of Object.entries(data)){if(traceBooleans.has(k)&&typeof v==='boolean')safe[k]=v;else if(traceNumbers.has(k)&&finite(v))safe[k]=v;else if(traceEnums[k]?.includes(v))safe[k]=v;}
+ return {record(event,side,data={}){try{if(!traceEvents.has(event))return;const safe={};for(const [k,v]of Object.entries({...data,...context()})){if(traceBooleans.has(k)&&typeof v==='boolean')safe[k]=v;else if(traceNumbers.has(k)&&finite(v))safe[k]=v;else if(traceEnums[k]?.includes(v))safe[k]=v;}
   if(typeof safe.state==='number')safe.stateName=({'-1':'UNSTARTED',0:'ENDED',1:'PLAYING',2:'PAUSED',3:'BUFFERING',5:'CUED'})[safe.state]||'UNKNOWN';
   const label=side===0?'LEFT':side===1?'RIGHT':'MATCH',key=JSON.stringify([label,safe]);if(event==='WAIT_READY'&&key===waitKey)return;if(event==='WAIT_READY')waitKey=key;
   rows.push({seq:++seq,ms:Math.max(0,Math.round(now()-began)),event,side:label,...safe});if(rows.length>600){rows.shift();dropped++;}
@@ -102,7 +102,7 @@ let stagingShortsTrace;
 export function getShortsDiagnostics(){
  if(!shortsDiagnosticsEnabled(globalThis.location))return null;if(stagingShortsTrace)return stagingShortsTrace;
  try{
-  const doc=globalThis.document;if(!doc?.body)return null;const trace=createShortsTrace({viewport:()=>({width:innerWidth,height:innerHeight})});
+  const doc=globalThis.document;if(!doc?.body)return null;const trace=createShortsTrace({viewport:()=>({width:innerWidth,height:innerHeight}),context:()=>readShortsActivation(globalThis)});
   const style=doc.createElement('style');style.textContent='body:has(#play:not(.hide)) .shorts-debug-open{display:none!important}.shorts-debug-open{position:fixed;right:8px;bottom:8px;z-index:2147483646;padding:10px;background:#142044;color:white;border:1px solid white;border-radius:6px}.shorts-debug-dialog{box-sizing:border-box;width:min(94vw,640px);max-height:90dvh;overflow:auto;background:white;color:#142044;padding:16px;border:1px solid #8090aa;border-radius:10px}.shorts-debug-dialog textarea{box-sizing:border-box;width:100%;height:45dvh;font:11px monospace}.shorts-debug-dialog button{padding:10px;margin:6px 8px 0 0}';doc.head.append(style);
   const open=doc.createElement('button');open.type='button';open.className='shorts-debug-open';open.textContent='Shorts diagnostics';
   const dialog=doc.createElement('dialog');dialog.className='shorts-debug-dialog';dialog.setAttribute('aria-label','Shorts diagnostics');
@@ -112,6 +112,12 @@ export function getShortsDiagnostics(){
   const refresh=()=>{status.textContent='';text.value=JSON.stringify(trace.snapshot(),null,2);};
   open.onclick=()=>{refresh();dialog.showModal();};
   const copy=button('Copy log',async()=>{refresh();try{await navigator.clipboard.writeText(text.value);status.textContent='Copied.';}catch{text.focus();text.select();text.setSelectionRange(0,text.value.length);status.textContent='Touch and hold the selected text, then Copy.';}});
-  dialog.append(title,note,text,copy,button('Refresh',refresh),button('Clear log',()=>{trace.clear();refresh();status.textContent='Local log cleared.';}),button('Close',()=>dialog.close()),status);doc.body.append(open,dialog);stagingShortsTrace=trace;return trace;
+  dialog.append(title,note,text,copy,button('Refresh',refresh),button('Clear log',()=>{trace.clear();refresh();status.textContent='Local log cleared.';}),button('Close',()=>dialog.close()),status);doc.body.append(open,dialog);Object.defineProperty(globalThis,'PWCShortsDiagnostics',{configurable:true,value:Object.freeze({record(event,side,data){try{trace.record(event,side,{...readShortsDocumentPolicy(doc),...data});}catch{}}})});stagingShortsTrace=trace;return trace;
  }catch{return null;}
 }
+
+// Observation only: no attributes/permissions are set; unsupported is never treated as denial.
+export function readShortsActivation(root=globalThis){try{const a=root.navigator?.userActivation;if(!a||typeof a.isActive!=='boolean')return {activationSupport:'unsupported'};return {activationSupport:'supported',activationActive:a.isActive,...(typeof a.hasBeenActive==='boolean'?{activationHasBeenActive:a.hasBeenActive}:{})};}catch{return {activationSupport:'unavailable'};}}
+function autoplayPolicy(object){try{const p=object?.permissionsPolicy||object?.featurePolicy;if(!p||typeof p.allowsFeature!=='function')return 'unsupported';if(typeof p.features==='function'&&!p.features().includes('autoplay'))return 'unsupported';const value=p.allowsFeature('autoplay');return typeof value==='boolean'?(value?'allowed':'denied'):'unsupported';}catch{return 'unavailable';}}
+export function readShortsDocumentPolicy(doc=globalThis.document){try{return {documentPolicyApi:doc?.permissionsPolicy?'permissionsPolicy':doc?.featurePolicy?'featurePolicy':'unsupported',documentAutoplay:autoplayPolicy(doc),responsePolicyHeader:'not_inspected'};}catch{return {documentPolicyApi:'unavailable',documentAutoplay:'unavailable',responsePolicyHeader:'not_inspected'};}}
+export function readShortsIframeAutoplay(frame,doc=globalThis.document){let shape='unavailable';try{if(frame){const part=(frame.getAttribute('allow')||'').split(';').map(s=>s.trim()).find(s=>/^autoplay(?:\s|$)/i.test(s));if(!part)shape='absent';else{const tokens=part.split(/\s+/).slice(1);shape=!tokens.length?'bare':tokens.length===1&&tokens[0]==="'none'"?'none':tokens.length===1&&tokens[0]==='*'?'wildcard':tokens.length===1&&tokens[0]==="'src'"?'src':tokens.every(x=>/^https?:\/\//i.test(x))?'origin_list':'unrecognized';}}}catch{}return {...readShortsDocumentPolicy(doc),iframePresent:!!frame,iframeAutoplay:shape,iframePolicyAutoplay:frame?autoplayPolicy(frame):'unavailable'};}

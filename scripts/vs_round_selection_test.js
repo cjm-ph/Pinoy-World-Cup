@@ -5,6 +5,7 @@ tournaments.forEach(function(t){t.items.forEach(function(p,index){p.id=p.id||t.i
 var visitorId;
 try{visitorId=localStorage.getItem('pinoy-anonymous-visitor-v1');if(!visitorId || !/^[a-f0-9-]{36}$/i.test(visitorId)){visitorId=crypto.randomUUID();localStorage.setItem('pinoy-anonymous-visitor-v1',visitorId);}}
 catch(error){visitorId=crypto.randomUUID();}
+function debugStart(event,data){try{root.PWCShortsDiagnostics?.record(event,null,data||{});}catch{}}
 var previousStart=root.start;
 var lastSize=32,starting=false;
 var dialog=document.getElementById('roundSelection');
@@ -38,7 +39,7 @@ root.start=function(t){
   var name=document.createElement('span');name.className='round-choice-title';name.textContent=names[size];
   var participants=document.createElement('span');participants.className='round-choice-count';participants.textContent=size+' participants';
   button.appendChild(name);button.appendChild(participants);
-  button.onclick=function(event){event.preventDefault();event.stopPropagation();if(dialog.open&&session===generation&&button.isConnected&&!button.disabled)begin(selectedTournament,size);};
+  button.onclick=function(event){debugStart('START_CLICK',{trusted:event.isTrusted===true});event.preventDefault();event.stopPropagation();if(dialog.open&&session===generation&&button.isConnected&&!button.disabled)begin(selectedTournament,size);};
   options.appendChild(button);
  });
  document.getElementById('roundEmpty').hidden=sizes.length>0;
@@ -69,13 +70,17 @@ async function begin(t,size){
  try{
   if(!launchItems||launchItems.tid!==t.id||launchItems.size!==size)launchItems={tid:t.id,size:size,items:select(t.items,size,null)};
   var chosen=launchItems.items;
-  if(root.PWCPrepareGame)chosen=await root.PWCPrepareGame(t,chosen);
-  if(launchGeneration!==generation||(pickerOpen?!dialog.open:document.getElementById("end").classList.contains("hide")))return;
+  if(root.PWCPrepareGame){
+   var admissionAt=root.PWCShortsDiagnostics?performance.now():0;debugStart('ADMISSION_START');
+   try{chosen=await root.PWCPrepareGame(t,chosen);}catch(failure){debugStart('ADMISSION_FAILURE',{admissionElapsedMs:admissionAt?performance.now()-admissionAt:0});throw failure;}
+   debugStart('ADMISSION_SUCCESS',{admissionElapsedMs:admissionAt?performance.now()-admissionAt:0});
+  }
+  if(launchGeneration!==generation||(pickerOpen?!dialog.open:document.getElementById("end").classList.contains("hide"))){debugStart('START_CANCELLED');return;}
   announce('Practice mode · Global rankings are not connected.');
   lastSize=size;dialog.close();
-  previousStart(Object.assign({},t,{items:chosen,_admittedOrder:!!root.PWCPrepareGame,_statistics_revision_id:chosen._admittedRevision}));
+  debugStart('ENGINE_START');previousStart(Object.assign({},t,{items:chosen,_admittedOrder:!!root.PWCPrepareGame,_statistics_revision_id:chosen._admittedRevision}));
  }catch(failure){
-  if(launchGeneration!==generation||(pickerOpen?!dialog.open:document.getElementById("end").classList.contains("hide")))return;
+  if(launchGeneration!==generation||(pickerOpen?!dialog.open:document.getElementById("end").classList.contains("hide"))){debugStart('START_CANCELLED');return;}
   starting=false;buttonsDisabled(false);
   error.textContent='Unable to start: '+failure.message;error.hidden=false;
   if(!dialog.open)dialog.showModal();
@@ -83,7 +88,7 @@ async function begin(t,size){
 }
 back.onclick=returnHome;
 dialog.addEventListener('cancel',function(event){event.preventDefault();returnHome();});
-document.getElementById('again').onclick=function(){
+document.getElementById('again').onclick=function(event){debugStart('START_CLICK',{trusted:event?.isTrusted===true});
  if(document.getElementById('end').classList.contains('hide'))return;
  var t=tournaments.find(function(source){return source.id===root.tour.id;});
  starting=false;launchItems=null;begin(t,lastSize);
