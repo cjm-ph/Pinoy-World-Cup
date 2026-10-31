@@ -57,7 +57,7 @@ export function createStatisticsHttp({rpc,secret,auth,memberBadges=false,enabled
     try{actor=await member();}catch{/* Invalid auth grants no badge; existing metrics remain available. */}
    }
    if(url.pathname==='/play-statistics/continue'){
-    const actor=await member();if(!['resume','get'].includes(b.op)||typeof b.tid!=='string'||b.tid.length>160||!uuid.test(b.game||''))throw Error('Invalid Continue request');
+    const actor=await member();if(!['resume','get','remove'].includes(b.op)||typeof b.tid!=='string'||b.tid.length>160||!uuid.test(b.game||''))throw Error('Invalid Continue request');
     send(200,await rpc('member_continue_v27',{actor,op:b.op,data:{tid:b.tid,game:b.game,lease:b.lease,request:b.request}}));
    }else if(url.pathname==='/play-statistics/start'){
     if(!uuid.test(b.request)||typeof b.tid!=='string'||b.tid.length>160||typeof b.rid!=='string'||b.rid.length>160||!Array.isArray(b.lineup)||![4,8,16,32].includes(b.lineup.length)||b.lineup.some(x=>typeof x!=='string'||x.length>160))throw Error('Invalid start');
