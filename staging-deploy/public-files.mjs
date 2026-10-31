@@ -1,4 +1,5 @@
 export const publicFiles = [
+  'scripts/continue-state.mjs','scripts/member-continue.mjs','scripts/media-url-guide.mjs','templates/media-url-guide.css','image/media-url-guide/youtube.png','image/media-url-guide/shorts.png','image/media-url-guide/giphy.png',
   "scripts/pc-battle-v24.mjs",
   "templates/pc-battle-v24.css",
   "scripts/member-ui-v21.mjs",

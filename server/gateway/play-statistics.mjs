@@ -27,9 +27,11 @@ export function createStatisticsHttp({rpc,secret,auth,memberBadges=false,enabled
   if(req.method==='POST'&&req.headers.origin!==allowedOrigin){send(403,{error:'Origin rejected.'});return;}
   if(req.method==='POST'&&!existingVisitor){send(428,{error:'Establish a statistics session first.'});return;}
   if(!['GET','POST'].includes(req.method)&&!(req.method==='HEAD'&&url.pathname==='/play-statistics/media')){send(405,{error:'Method rejected.'});return;}
+  let verifiedMember;const member=()=>verifiedMember??=(async()=>{const header=req.headers.authorization;if(!header?.startsWith('Bearer ')||header.length>8200)throw Object.assign(Error('Member required'),{httpStatus:401});const u=await auth.verify(header.slice(7));if(!uuid.test(u?.id||'')||u.isAnonymous!==false)throw Object.assign(Error('Member required'),{httpStatus:403});return u.id;})();
   active++;let timer;
   try{
    if(['GET','HEAD'].includes(req.method)){
+    if(url.pathname==='/play-statistics/continue'){const actor=await member();send(200,await rpc('member_continue_v27',{actor,op:'list',data:{}}));return;}
     if(url.pathname==='/play-statistics/media'){
      const gid=url.searchParams.get('game'),aid=url.searchParams.get('asset');if([...url.searchParams.keys()].some(k=>!['game','asset'].includes(k)||url.searchParams.getAll(k).length!==1)||!existingVisitor||!imageStore||!uuid.test(gid||'')||!/^asset_[0-9a-f-]{36}$/.test(aid||'')||req.headers.range)throw Error('Game media unavailable');
      const args={caller,gid,aid},target=await rpc('play_media_target_v46',args);const bytes=await imageStore.read(target.bucket,target.object_key);
@@ -52,13 +54,18 @@ export function createStatisticsHttp({rpc,secret,auth,memberBadges=false,enabled
    const b=await Promise.race([read(),new Promise((_,reject)=>{timer=setTimeout(()=>{req.destroy();reject(Error('Body timeout'));},5000);})]);
    let actor=null;
    if(memberBadges&&req.headers.authorization?.startsWith('Bearer ')&&req.headers.authorization.length<=8200){
-    try{const user=await auth.verify(req.headers.authorization.slice(7));if(uuid.test(user?.id||'')&&user.isAnonymous===false)actor=user.id;}catch{/* Invalid auth grants no badge; existing metrics remain available. */}
+    try{actor=await member();}catch{/* Invalid auth grants no badge; existing metrics remain available. */}
    }
-   if(url.pathname==='/play-statistics/start'){
+   if(url.pathname==='/play-statistics/continue'){
+    const actor=await member();if(!['resume','get'].includes(b.op)||typeof b.tid!=='string'||b.tid.length>160||!uuid.test(b.game||''))throw Error('Invalid Continue request');
+    send(200,await rpc('member_continue_v27',{actor,op:b.op,data:{tid:b.tid,game:b.game,lease:b.lease,request:b.request}}));
+   }else if(url.pathname==='/play-statistics/start'){
     if(!uuid.test(b.request)||typeof b.tid!=='string'||b.tid.length>160||typeof b.rid!=='string'||b.rid.length>160||!Array.isArray(b.lineup)||![4,8,16,32].includes(b.lineup.length)||b.lineup.some(x=>typeof x!=='string'||x.length>160))throw Error('Invalid start');
+    if(b.continue===true){const owner=await member();send(200,await rpc('member_continue_v27',{actor:owner,op:'start',data:{caller,request:b.request,tid:b.tid,rid:b.rid,lineup:b.lineup,previous_game:b.previous?.game_id,previous_lease:b.previous?.lease}}));return;}
     send(200,await rpc(memberBadges?'play_statistics_member_start':'play_statistics_start',{caller,req:b.request,tid:b.tid,rid:b.rid,lineup:b.lineup,...(memberBadges?{actor}:{})}));
    }else if(url.pathname==='/play-statistics/events'){
     if(!uuid.test(b.game)||!Array.isArray(b.events)||!b.events.length||b.events.length>31||b.events.some(e=>!Number.isInteger(e.seq)||e.seq<1||e.seq>31||typeof e.winner!=='string'||e.winner.length>160))throw Error('Invalid events');
+    if(b.lease){const owner=await member();if(!uuid.test(b.lease)||typeof b.tid!=='string'||b.tid.length>160)throw Error('Invalid Continue events');send(200,await rpc('member_continue_v27',{actor:owner,op:'events',data:{tid:b.tid,game:b.game,lease:b.lease,events:b.events}}));return;}
     send(200,await rpc(memberBadges?'play_statistics_member_events':'play_statistics_events',{caller,gid:b.game,events:b.events,...(memberBadges?{actor}:{})}));
    }else send(404,{error:'Not found'});
   }catch(error){send(error.httpStatus||400,{error:'Statistics request was not accepted. Gameplay is unaffected.'});}
