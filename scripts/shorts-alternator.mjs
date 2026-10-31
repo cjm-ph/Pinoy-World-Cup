@@ -11,8 +11,9 @@ export function createShortsAlternator(clock={}) {
  const valid=e=>!e.cancelled&&slots.get(e.alternatingSide)===e;
  const reset=()=>{epoch++;clear();phase='waiting';active=null;played=false;last=null;for(const e of slots.values())e.alternatingReady=false;};
  const available=e=>e&&valid(e)&&e.alternatingReady&&!e.alternatingFailed;
- const resume=e=>{if(!pair()||!available(e)||state(e)!==1||state(slots.get(1-e.alternatingSide))===1)return;
-  epoch++;clear();active=e.alternatingSide;played=true;last=null;phase='playing';watch=every(tick,100);
+ const recovered=()=>{for(const e of slots.values())if(!e.alternatingFailed)e.onAlternationResumed?.();};
+ const resume=e=>{if(!pair()||!available(e)||state(e)!==1)return;if(state(slots.get(1-e.alternatingSide))===1){try{e.player.pauseVideo();}catch{}return;}
+  epoch++;clear();active=e.alternatingSide;played=true;last=null;phase='playing';recovered();watch=every(tick,100);
  };
  const start=index=>{
   if(!pair()||!['waiting','gap'].includes(phase))return;
@@ -24,7 +25,7 @@ export function createShortsAlternator(clock={}) {
   if(state(other)===1){halt('Automatic alternation stopped. Use Play.');return;}
   active=index;played=false;last=null;loadAt=now();phase='loading';
   try{e.applySound?.();e.player.loadVideoById({videoId:e.alternatingRange.videoId,startSeconds:e.alternatingRange.startSeconds,...(e.alternatingRange.endSeconds===null?{}:{endSeconds:e.alternatingRange.endSeconds})});
-   if(phase!=='manual'){e.player.playVideo?.();}}
+   if(phase!=='manual'&&state(e)!==1){e.player.playVideo?.();}}
   catch{halt('Automatic playback unavailable. Use Play.');}
  };
  const confirm=()=>{
@@ -65,12 +66,13 @@ export function createShortsAlternator(clock={}) {
   ready(e,{manual=false}={}){if(!valid(e))return;e.alternatingReady=true;if(manual){epoch++;clear();phase='manual';e.alternatingFailed=false;resume(e);}else if(pair()&&phase==='waiting')start(0);},
   event(e,s){if(!valid(e)||!pair())return;if(phase==='manual'&&s===1){e.alternatingFailed=false;resume(e);return;}if(phase==='manual'||phase==='waiting'){
     if(valid(e)&&pair()&&phase==='waiting'&&s===1)halt('Automatic alternation stopped. Use Play.');return;}
-   if(s===1){if(e.alternatingSide!==active||phase==='gap'){halt('Automatic alternation stopped. Use Play.');return;}if(phase==='loading'||phase==='playing'){played=true;e.alternatingPlayed=true;phase='playing';}}
+   if(s===1){if(e.alternatingSide!==active||phase==='gap'){halt('Automatic alternation stopped. Use Play.');try{e.player.pauseVideo();}catch{}return;}if(phase==='loading'||phase==='playing'){played=true;e.alternatingPlayed=true;phase='playing';recovered();}}
    else if(s===3&&e.alternatingSide===active){last=null;}
    else if(s===2){if(e.alternatingSide===active&&phase==='stopping')confirm();else if(e.alternatingSide===active&&phase==='playing')halt('Automatic alternation stopped. Use Play.');}
    else if(s===0&&e.alternatingSide===active&&played&&['playing','loading'].includes(phase))finish();
   },
   manual(){if(pair())halt('Automatic alternation stopped. Use Play.');},
+  autoplayBlocked(e){if(!valid(e)||!pair()||e.alternatingSide!==active)return false;if(state(e)===1&&state(slots.get(1-active))!==1){e.alternatingFailed=false;if(phase==='manual')resume(e);recovered();return false;}if(['loading','playing'].includes(phase)){this.blocked(e);return true;}return e.alternatingFailed===true;},
   blocked(e,message='Automatic playback blocked. Use Play.'){if(e){if(!valid(e))return;e.alternatingFailed=true;}if(pair()&&(!e||e.alternatingSide===active||(phase==='waiting'&&e.alternatingSide===0)))halt(message);},
   detach(e){if(slots.get(e.alternatingSide)!==e)return;slots.delete(e.alternatingSide);reset();},
   dispose(){clear();epoch++;phase='manual';slots.clear();}
