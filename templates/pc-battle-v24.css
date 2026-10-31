@@ -24,3 +24,11 @@
  @keyframes pc-winner-center{from{transform:translate(var(--winner-from-x),var(--winner-from-y))}to{transform:translate(0,0)}}
 }
 @media(prefers-reduced-motion:reduce){.pc-victory-frame{animation:none!important}}
+
+/* Video-only: reserve the unchanged72px SELECT plus its5px top/bottom margins.
+   Existing video rows allocated56px (Shorts48px), which clipped the82px control. */
+@media(min-width:768px){
+ body.pc-battle #play .candidate-shell[data-kind=youtube]{grid-template-rows:54px minmax(0,1fr) 82px}
+ body.pc-battle #play .candidate-shell[data-kind=youtube][data-playback=shorts]{grid-template-rows:44px minmax(0,1fr) 82px}
+ body.pc-battle #play .candidate-shell[data-kind=youtube] .mixed-player{justify-self:center;align-self:center}
+}
