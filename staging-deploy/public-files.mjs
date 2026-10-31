@@ -28,6 +28,7 @@ export const publicFiles = [
   "scripts/local-mp4-presentation.mjs",
   "scripts/candidate-media-policy.mjs",
   "scripts/mixed-media-game.mjs",
+  "scripts/mobile-youtube-match.mjs",
   "templates/mixed-media.css",
   "scripts/homepage-ui.mjs",
   "scripts/homepage-cover-model.mjs",

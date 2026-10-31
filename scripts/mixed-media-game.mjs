@@ -1,3 +1,4 @@
+import {mountMobileYoutubeMatch} from './mobile-youtube-match.mjs';
 import {createShortsAlternator} from './shorts-alternator.mjs';
 import {checkedYoutubePlayback,createShortsSound,bindShortsSoundUi} from './shorts-sound.mjs';
 import {mountLocalMp4} from './local-mp4-presentation.mjs';
@@ -17,9 +18,9 @@ function youtubeLibrary(root){
 // Presentation only: existing pick/choose and persistence contracts remain authoritative.
 export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),videoSource=null,alternator=createShortsAlternator(),side=null,sound=createShortsSound()}={}){
  const soundUi=bindShortsSoundUi(root,sound,{onStart:()=>stop()});
- const fill=root.fill,show=root.show,pick=root.pick,live=new Map();let winnerHandle=null,generation=0,selectionUntil=0,screen=null;
- const dispose=slot=>{const e=live.get(slot);if(!e)return;e.cancelled=true;alternator.detach(e);e.observer?.disconnect();if(e.resize)root.removeEventListener?.('resize',e.resize);clearInterval(e.muteTimer);sound.detach(e.player);try{e.player?.destroy();}catch{}e.embed?.dispose();if(e.shell.isConnected){e.shell.replaceWith(slot);slot.replaceChildren(e.art,e.name);}live.delete(slot);};
- const stop=()=>{generation++;winnerHandle?.dispose();winnerHandle=null;for(const slot of [...live.keys()])dispose(slot);};
+ const fill=root.fill,show=root.show,pick=root.pick,live=new Map();let mobile=null,winnerHandle=null,generation=0,selectionUntil=0,screen=null;
+ const dispose=slot=>{if(mobile){mobile.dispose();mobile=null;}const e=live.get(slot);if(!e)return;e.cancelled=true;alternator.detach(e);e.observer?.disconnect();if(e.resize)root.removeEventListener?.('resize',e.resize);clearInterval(e.muteTimer);sound.detach(e.player);try{e.player?.destroy();}catch{}e.embed?.dispose();if(e.shell.isConnected){e.shell.replaceWith(slot);slot.replaceChildren(e.art,e.name);}live.delete(slot);};
+ const stop=()=>{mobile?.dispose();mobile=null;generation++;winnerHandle?.dispose();winnerHandle=null;for(const slot of [...live.keys()])dispose(slot);};
  root.fill=function(slot,participant){
   soundUi.sync();dispose(slot);fill.call(this,slot,participant);
   let source=participant.media;
@@ -33,7 +34,7 @@ export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),
   slot.onclick=()=>root.pick(slot.id==='b'?1:0);
   // Photos retain their existing card-click shortcut and exact fit/position/zoom styles.
   if(!source||source.type==='animation'){art.onclick=()=>slot.click();}
-  const entry={cancelled:false,shell,art,name,player:null};entry.applySound=()=>sound.apply(entry.player);live.set(slot,entry);
+  const entry={cancelled:false,shell,art,name,player:null,slot,participant};entry.applySound=()=>sound.apply(entry.player);live.set(slot,entry);
   if(source?.type==='giphy'){art.replaceChildren();entry.embed=createGiphyEmbed(source,{name:participant.n});art.append(entry.embed.element);return;}
   if(source?.type==='mp4'){
    const image=art.querySelector('.vs-photo');
@@ -48,6 +49,10 @@ export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),
   }
   if(source?.type==='animation'){if(/^source_[0-9a-f-]{36}$/.test(source.source_id||'')){const image=art.querySelector('.vs-photo');if(image)image.src='/animated-media?source='+encodeURIComponent(source.source_id);}return;}
   if(source?.type!=='youtube')return;
+  const arena=shell.closest('#play .arena');
+  if(root===globalThis&&globalThis.innerWidth<768&&arena&&art.getBoundingClientRect().width<200){
+   try{entry.sharedYoutube=checkedYoutubePlayback(source);}catch{art.textContent='Video unavailable. You can still select this candidate.';return;}entry.launch=document.createElement('button');entry.launch.type='button';entry.launch.className='mobile-youtube-launch';entry.launch.textContent='Play video';art.replaceChildren(entry.launch);queueMicrotask(refreshMobile);return;
+  }
   art.replaceChildren();let checked;try{checked=checkedYoutubePlayback(source);}catch{art.textContent='Video unavailable. You can still select this candidate.';return;}
   const host=document.createElement('div');host.className='mixed-player';
   const status=document.createElement('p');status.className='mixed-player-status';status.setAttribute('role','status');
@@ -76,10 +81,13 @@ export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),
   };
   entry.resize=size;root.addEventListener('resize',size);entry.observer=new ResizeObserver(size);entry.observer.observe(art);size();
  };
- root.pick=function(side){if(root.busy||performance.now()<selectionUntil)return;selectionUntil=performance.now()+300;for(const e of live.values()){e.cancelled=true;alternator.detach(e);e.observer?.disconnect();if(e.resize)root.removeEventListener?.('resize',e.resize);clearInterval(e.muteTimer);sound.detach(e.player);try{e.player?.destroy();}catch{}e.embed?.dispose();}return pick?.call(this,side);};
+ function refreshMobile(){if(globalThis.innerWidth>=768||document.getElementById('play')?.classList.contains('hide'))return;const entries=[...live.values()].filter(e=>!e.cancelled&&e.shell.closest('#play .arena'));if(entries.length!==2||!entries.some(e=>e.sharedYoutube))return;if(mobile?.entries.every((e,i)=>e===entries[i]))return;mobile?.dispose();mobile=mountMobileYoutubeMatch({arena:entries[0].shell.closest('.arena'),entries,sound,loadPlayer});}
+ const render=root.render;if(typeof render==='function')root.render=function(){const result=render.apply(this,arguments);refreshMobile();return result;};
+ root.pick=function(side){if(root.busy||performance.now()<selectionUntil)return;mobile?.dispose();mobile=null;selectionUntil=performance.now()+300;for(const e of live.values()){e.cancelled=true;alternator.detach(e);e.observer?.disconnect();if(e.resize)root.removeEventListener?.('resize',e.resize);clearInterval(e.muteTimer);sound.detach(e.player);try{e.player?.destroy();}catch{}e.embed?.dispose();}return pick?.call(this,side);};
  root.show=function(id){if(id==='play'&&screen==='end'){winnerHandle?.dispose();winnerHandle=null;sound.reset();}screen=id;if(id!=='play')stop();const result=show.apply(this,arguments);
   if(id==='end'&&['youtube','giphy','mp4'].includes(root.champ?.media?.type)){const at=generation,candidate=root.champ;queueMicrotask(()=>{const art=document.getElementById('winArt');if(at!==generation||!art||document.getElementById('end')?.classList.contains('hide'))return;winnerHandle=mountCandidateMedia(art,candidate,{showSelect:false,loadPlayer,videoSource,sound});});}return result;};
- root.addEventListener('pagehide',stop);return {dispose:stop};
+ const viewportMode=()=>{if(root!==globalThis||document.getElementById('play')?.classList.contains('hide'))return;const entries=[...live.values()],arena=entries[0]?.shell.closest('#play .arena');if(!arena||!entries.some(e=>e.participant.media?.type==='youtube'))return;const narrow=globalThis.innerWidth<768&&(arena.getBoundingClientRect().width-2)/2<200;if(!!mobile!==narrow)root.render?.();};root.addEventListener('resize',viewportMode);
+ root.addEventListener('pagehide',stop);return {dispose(){root.removeEventListener?.('resize',viewportMode);stop();}};
 }
 
 // Creator and champion surfaces use the same lifecycle, without persistence or statistics calls.
