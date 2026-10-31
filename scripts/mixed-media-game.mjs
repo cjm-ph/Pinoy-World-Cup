@@ -1,4 +1,4 @@
-import {createShortsAlternator} from './shorts-alternator.mjs';
+import {createShortsAlternator,getShortsDiagnostics} from './shorts-alternator.mjs';
 import {checkedYoutubePlayback,createShortsSound,bindShortsSoundUi} from './shorts-sound.mjs';
 import {mountLocalMp4} from './local-mp4-presentation.mjs';
 import {createGiphyEmbed} from './giphy-embed.mjs';
@@ -16,6 +16,7 @@ function youtubeLibrary(root){
 }
 // Presentation only: existing pick/choose and persistence contracts remain authoritative.
 export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),videoSource=null,alternator=createShortsAlternator(),side=null,sound=createShortsSound()}={}){
+ const diagnostic=root===globalThis?getShortsDiagnostics():null;const log=(event,entry,extra={})=>{if(!diagnostic)return;try{diagnostic.record(event,entry?.alternatingSide,{soundOn:sound.enabled,...(typeof extra==='function'?extra():extra)});}catch{}};const unwatchSound=diagnostic?sound.subscribe(on=>diagnostic.record('SOUND_CHANGED',null,{soundOn:on})):null;
  const soundUi=bindShortsSoundUi(root,sound,{onStart:()=>stop()});
  const fill=root.fill,show=root.show,pick=root.pick,live=new Map();let winnerHandle=null,generation=0,selectionUntil=0,screen=null;
  const dispose=slot=>{const e=live.get(slot);if(!e)return;e.cancelled=true;alternator.detach(e);e.observer?.disconnect();if(e.resize)root.removeEventListener?.('resize',e.resize);clearInterval(e.muteTimer);sound.detach(e.player);try{e.player?.destroy();}catch{}e.embed?.dispose();if(e.shell.isConnected){e.shell.replaceWith(slot);slot.replaceChildren(e.art,e.name);}live.delete(slot);};
@@ -33,7 +34,7 @@ export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),
   slot.onclick=()=>root.pick(slot.id==='b'?1:0);
   // Photos retain their existing card-click shortcut and exact fit/position/zoom styles.
   if(!source||source.type==='animation'){art.onclick=()=>slot.click();}
-  const entry={cancelled:false,shell,art,name,player:null};entry.applySound=()=>sound.apply(entry.player);live.set(slot,entry);
+  const entry={cancelled:false,shell,art,name,player:null};entry.applySound=()=>{sound.apply(entry.player);log('SOUND_APPLY',entry,()=>({muted:entry.player?.isMuted?.()}));};live.set(slot,entry);
   if(source?.type==='giphy'){art.replaceChildren();entry.embed=createGiphyEmbed(source,{name:participant.n});art.append(entry.embed.element);return;}
   if(source?.type==='mp4'){
    const image=art.querySelector('.vs-photo');
@@ -66,21 +67,21 @@ export function installMixedMediaGame(root,{loadPlayer=()=>youtubeLibrary(root),
    Promise.resolve().then(loadPlayer).then(YT=>{if(entry.cancelled)return;const r=art.getBoundingClientRect();if(r.width<200||r.height-notice.getBoundingClientRect().height<200){loading=false;size();return;}
     const target=document.createElement('div');host.replaceChildren(target);entry.player=new YT.Player(target,{host:'https://www.youtube-nocookie.com',width:'100%',height:'100%',videoId:checked.videoId,
      playerVars:{autoplay:shorts&&!pair()?1:0,...(shorts?{mute:sound.enabled?0:1,loop:pair()?0:1,...(!pair()?{playlist:checked.videoId}:{})}:{}),controls:1,fs:1,playsinline:1,origin:root.location.origin,start:checked.startSeconds,...(checked.endSeconds===null?{}:{end:checked.endSeconds})},
-     events:{onReady:event=>{if(entry.cancelled||entry.player!==event.target){event.target.destroy();return;}entry.apiReady=true;if(shorts){sound.attach(event.target);
+     events:{onReady:event=>{log('PLAYER_READY',entry,()=>({apiReady:entry.apiReady===true,cancelled:entry.cancelled,width:art.getBoundingClientRect().width,height:art.getBoundingClientRect().height}));if(entry.cancelled||entry.player!==event.target){event.target.destroy();return;}entry.apiReady=true;if(shorts){sound.attach(event.target);log('SOUND_APPLY',entry,()=>({muted:event.target.isMuted?.()}));
        if(pair())alternator.ready(entry,{manual:entry.pendingManual===true});else{event.target.loadVideoById(clip);event.target.playVideo();alternator.ready(entry);}
        entry.pendingManual=false;if(!pair())entry.muteTimer=setInterval(()=>{if(entry.cancelled||entry.player!==event.target)return;const t=event.target.getCurrentTime?.();if(event.target.getPlayerState?.()===1&&Number.isFinite(t)&&(t<checked.startSeconds||(checked.endSeconds!==null&&t>=checked.endSeconds))){event.target.seekTo(checked.startSeconds,true);event.target.playVideo();}},200);size();return;}
        event.target.cueVideoById({videoId:checked.videoId,startSeconds:checked.startSeconds,...(checked.endSeconds===null?{}:{endSeconds:checked.endSeconds})});status.textContent='';notice.hidden=true;requestAnimationFrame(size);},
-      onError:event=>{if(entry.cancelled||(event?.target&&event.target!==entry.player))return;if(pair())alternator.blocked(entry,'Video unavailable. Use Play.');notice.hidden=false;status.textContent='Video unavailable. You can still select this candidate.';},
-      onAutoplayBlocked:event=>{if(entry.cancelled||(event?.target&&event.target!==entry.player))return;if(shorts){const denied=pair()?alternator.autoplayBlocked(entry):entry.player?.getPlayerState?.()!==1;if(!denied){if(!entry.alternatingFailed){notice.hidden=true;status.textContent='';}return;}}notice.hidden=false;status.textContent='Automatic playback was blocked. Use the official player controls to play.';},
-      onStateChange:event=>{if(entry.cancelled||entry.player!==event.target)return;if(shorts){if(event.data===1){notice.hidden=true;status.textContent='';}if(pair()){if(event.data===1&&!entry.apiReady){entry.pendingManual=true;return;}alternator.event(entry,event.data);return;}if(event.data===0){event.target.seekTo(checked.startSeconds,true);event.target.playVideo();}if(event.data===1){notice.hidden=true;}return;}if(event.data===1)for(const other of live.values())if(other!==entry)try{other.player?.pauseVideo();}catch{}}}});
+      onError:event=>{log('PROVIDER_ERROR',entry);if(entry.cancelled||(event?.target&&event.target!==entry.player))return;if(pair())alternator.blocked(entry,'Video unavailable. Use Play.');notice.hidden=false;status.textContent='Video unavailable. You can still select this candidate.';},
+      onAutoplayBlocked:event=>{log('AUTOPLAY_EVENT',entry,()=>({state:entry.player?.getPlayerState?.(),apiReady:entry.apiReady===true}));if(entry.cancelled||(event?.target&&event.target!==entry.player))return;if(shorts){const denied=pair()?alternator.autoplayBlocked(entry):entry.player?.getPlayerState?.()!==1;if(!denied){if(!entry.alternatingFailed){notice.hidden=true;status.textContent='';}return;}}notice.hidden=false;status.textContent='Automatic playback was blocked. Use the official player controls to play.';},
+      onStateChange:event=>{log('PLAYER_STATE',entry,{state:event.data,apiReady:entry.apiReady===true,cancelled:entry.cancelled});if(entry.cancelled||entry.player!==event.target)return;if(shorts){if(event.data===1){notice.hidden=true;status.textContent='';}if(pair()){if(event.data===1&&!entry.apiReady){entry.pendingManual=true;return;}alternator.event(entry,event.data);return;}if(event.data===0){event.target.seekTo(checked.startSeconds,true);event.target.playVideo();}if(event.data===1){notice.hidden=true;}return;}if(event.data===1)for(const other of live.values())if(other!==entry)try{other.player?.pauseVideo();}catch{}}}});
    }).catch(()=>{failed=true;notice.hidden=false;status.textContent='Video player unavailable. You can still select this candidate.';}).finally(()=>{loading=false;});
   };
   entry.resize=size;root.addEventListener('resize',size);entry.observer=new ResizeObserver(size);entry.observer.observe(art);size();
  };
- root.pick=function(side){if(root.busy||performance.now()<selectionUntil)return;selectionUntil=performance.now()+300;for(const e of live.values()){e.cancelled=true;alternator.detach(e);e.observer?.disconnect();if(e.resize)root.removeEventListener?.('resize',e.resize);clearInterval(e.muteTimer);sound.detach(e.player);try{e.player?.destroy();}catch{}e.embed?.dispose();}return pick?.call(this,side);};
- root.show=function(id){if(id==='play'&&screen==='end'){winnerHandle?.dispose();winnerHandle=null;sound.reset();}screen=id;if(id!=='play')stop();const result=show.apply(this,arguments);
+ root.pick=function(side){if(root.busy||performance.now()<selectionUntil)return;diagnostic?.record('SELECT',side);selectionUntil=performance.now()+300;for(const e of live.values()){e.cancelled=true;alternator.detach(e);e.observer?.disconnect();if(e.resize)root.removeEventListener?.('resize',e.resize);clearInterval(e.muteTimer);sound.detach(e.player);try{e.player?.destroy();}catch{}e.embed?.dispose();}return pick?.call(this,side);};
+ root.show=function(id){if(id!=='play')diagnostic?.record('EXIT');if(id==='play'&&screen==='end'){winnerHandle?.dispose();winnerHandle=null;sound.reset();}screen=id;if(id!=='play')stop();const result=show.apply(this,arguments);
   if(id==='end'&&['youtube','giphy','mp4'].includes(root.champ?.media?.type)){const at=generation,candidate=root.champ;queueMicrotask(()=>{const art=document.getElementById('winArt');if(at!==generation||!art||document.getElementById('end')?.classList.contains('hide'))return;winnerHandle=mountCandidateMedia(art,candidate,{showSelect:false,loadPlayer,videoSource,sound});});}return result;};
- root.addEventListener('pagehide',stop);return {dispose:stop};
+ root.addEventListener('pagehide',stop);return {dispose(){unwatchSound?.();stop();}};
 }
 
 // Creator and champion surfaces use the same lifecycle, without persistence or statistics calls.
