@@ -1,5 +1,6 @@
 // Official IFrame API commands only. One match, no persistence or provider requests.
 export function createShortsAlternator(clock={}) {
+ const manualFirst=clock.manualFirst===true;
  const now=clock.now||(()=>performance.now()),later=clock.setTimeout||globalThis.setTimeout,clearLater=clock.clearTimeout||globalThis.clearTimeout;
  const every=clock.setInterval||globalThis.setInterval,clearEvery=clock.clearInterval||globalThis.clearInterval;
  const diagnostic=getShortsDiagnostics(),observed=new WeakMap();
@@ -34,6 +35,7 @@ export function createShortsAlternator(clock={}) {
   if(phase!=='stopping')return false;
   const old=slots.get(active);if(!old||!stopped(old))return false;
   trace('STOP_CONFIRMED',active);const next=1-active;if(!available(slots.get(next))){halt('Next video is still preparing. Use Play when ready.');return true;}
+  if(manualFirst&&!slots.get(next).alternatingManualStarted){epoch++;clear();phase='manual';active=null;played=false;recovered();return true;}
   phase='gap';trace('GAP_SCHEDULE',active,{delayMs:1000});const token=epoch;
   gap=later(()=>{trace('GAP_FIRE',active);gap=null;if(token!==epoch||phase!=='gap'||!pair())return;
    if(!valid(old)||!stopped(old)){halt('Automatic alternation stopped. Use Play.');return;}start(next);
@@ -64,9 +66,9 @@ export function createShortsAlternator(clock={}) {
  };
  return {
   isPair:pair,
-  attach(index,e,range){trace('ATTACH',index);if(index!==0&&index!==1)return;if(slots.has(index)&&slots.get(index)!==e)reset();e.alternatingSide=index;e.alternatingRange=range;e.alternatingReady=false;slots.set(index,e);if(pair()){for(const member of slots.values())member.alternatingManaged=true;if(phase==='waiting'&&watch===null){waitAt=now();watch=every(tick,100);start(0);}}},
-  ready(e,{manual=false}={}){if(!valid(e))return;e.alternatingReady=true;trace('ALT_READY',e.alternatingSide,{manual});if(manual){epoch++;clear();phase='manual';e.alternatingFailed=false;resume(e);}else if(pair()&&phase==='waiting')start(0);},
-  event(e,s){trace('ALT_STATE',e.alternatingSide,{state:s});if(!valid(e)||!pair())return;if(phase==='manual'&&s===1){e.alternatingFailed=false;resume(e);return;}if(phase==='manual'||phase==='waiting'){
+  attach(index,e,range){trace('ATTACH',index);if(index!==0&&index!==1)return;if(slots.has(index)&&slots.get(index)!==e)reset();e.alternatingSide=index;e.alternatingRange=range;e.alternatingReady=false;e.alternatingManualStarted=false;slots.set(index,e);if(pair()){for(const member of slots.values())member.alternatingManaged=true;if(!manualFirst&&phase==='waiting'&&watch===null){waitAt=now();watch=every(tick,100);start(0);}}},
+  ready(e,{manual=false}={}){if(!valid(e))return;e.alternatingReady=true;trace('ALT_READY',e.alternatingSide,{manual});if(manual){if(manualFirst)e.alternatingManualStarted=true;epoch++;clear();phase='manual';e.alternatingFailed=false;resume(e);}else if(!manualFirst&&pair()&&phase==='waiting')start(0);},
+  event(e,s){trace('ALT_STATE',e.alternatingSide,{state:s});if(!valid(e)||!pair())return;if(manualFirst&&s===1&&!e.alternatingManualStarted){e.alternatingManualStarted=true;if(state(slots.get(1-e.alternatingSide))===1){try{trace('REQUEST_PAUSE',e.alternatingSide);e.player.pauseVideo();}catch{}return;}epoch++;clear();phase='manual';e.alternatingFailed=false;resume(e);return;}if(phase==='manual'&&s===1){e.alternatingFailed=false;resume(e);return;}if(phase==='manual'||phase==='waiting'){
     if(valid(e)&&pair()&&phase==='waiting'&&s===1)halt('Automatic alternation stopped. Use Play.');return;}
    if(s===1){if(e.alternatingSide!==active||phase==='gap'){halt('Automatic alternation stopped. Use Play.');try{trace('REQUEST_PAUSE',e.alternatingSide);e.player.pauseVideo();}catch{}return;}if(phase==='loading'||phase==='playing'){played=true;e.alternatingPlayed=true;phase='playing';recovered();}}
    else if(s===3&&e.alternatingSide===active){last=null;}
@@ -121,3 +123,6 @@ export function readShortsActivation(root=globalThis){try{const a=root.navigator
 function autoplayPolicy(object){try{const p=object?.permissionsPolicy||object?.featurePolicy;if(!p||typeof p.allowsFeature!=='function')return 'unsupported';if(typeof p.features==='function'&&!p.features().includes('autoplay'))return 'unsupported';const value=p.allowsFeature('autoplay');return typeof value==='boolean'?(value?'allowed':'denied'):'unsupported';}catch{return 'unavailable';}}
 export function readShortsDocumentPolicy(doc=globalThis.document){try{return {documentPolicyApi:doc?.permissionsPolicy?'permissionsPolicy':doc?.featurePolicy?'featurePolicy':'unsupported',documentAutoplay:autoplayPolicy(doc),responsePolicyHeader:'not_inspected'};}catch{return {documentPolicyApi:'unavailable',documentAutoplay:'unavailable',responsePolicyHeader:'not_inspected'};}}
 export function readShortsIframeAutoplay(frame,doc=globalThis.document){let shape='unavailable';try{if(frame){const part=(frame.getAttribute('allow')||'').split(';').map(s=>s.trim()).find(s=>/^autoplay(?:\s|$)/i.test(s));if(!part)shape='absent';else{const tokens=part.split(/\s+/).slice(1);shape=!tokens.length?'bare':tokens.length===1&&tokens[0]==="'none'"?'none':tokens.length===1&&tokens[0]==='*'?'wildcard':tokens.length===1&&tokens[0]==="'src'"?'src':tokens.every(x=>/^https?:\/\//i.test(x))?'origin_list':'unrecognized';}}}catch{}return {...readShortsDocumentPolicy(doc),iframePresent:!!frame,iframeAutoplay:shape,iframePolicyAutoplay:frame?autoplayPolicy(frame):'unavailable'};}
+
+// Device policy is independent of viewport width, orientation and pointer emulation.
+export function isMobileShortsDevice(nav=globalThis.navigator){try{return nav?.userAgentData?.mobile===true||/Android|iPhone|iPad|iPod|Mobile/i.test(nav?.userAgent||'')||((nav?.platform==='MacIntel'||/Macintosh/.test(nav?.userAgent||''))&&nav?.maxTouchPoints>1);}catch{return false;}}
